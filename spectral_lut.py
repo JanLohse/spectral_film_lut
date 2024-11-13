@@ -4,7 +4,7 @@ from abc import ABC
 import colour
 import numpy as np
 
-spectral_shape = colour.SpectralShape(360, 780, 1)
+spectral_shape = colour.SPECTRAL_SHAPE_DEFAULT
 
 
 class FilmSpectral(ABC):
@@ -311,12 +311,16 @@ class Kodak_2383(FilmSpectral):
                                      652.6233: 1.2005, 660.4723: 1.2023, 668.3213: 1.1888, 673.1297: 1.1750,
                                      683.4536: 1.1088, 701.7679: 0.9319, 720.2943: 0.7105, 748.6497: 0.4020}
 
-        self.yellow_spectral_density = colour.SpectralDistribution(yellow_spectral_density).align(spectral_shape).align(spectral_shape)
-        self.magenta_spectral_density = colour.SpectralDistribution(magenta_spectral_density).align(spectral_shape).align(spectral_shape)
-        self.cyan_spectral_density = colour.SpectralDistribution(cyan_spectral_density).align(spectral_shape).align(spectral_shape)
-        self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density).align(spectral_shape).align(spectral_shape)
+        self.yellow_spectral_density = colour.SpectralDistribution(yellow_spectral_density).align(spectral_shape).align(
+            spectral_shape)
+        self.magenta_spectral_density = colour.SpectralDistribution(magenta_spectral_density).align(
+            spectral_shape).align(spectral_shape)
+        self.cyan_spectral_density = colour.SpectralDistribution(cyan_spectral_density).align(spectral_shape).align(
+            spectral_shape)
+        self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density).align(
+            spectral_shape).align(spectral_shape)
 
-        self.calibrate(5500, 'print')
+        self.calibrate(3200, 'print')
 
 
 def arri_to_spectral(rgb):
@@ -325,12 +329,12 @@ def arri_to_spectral(rgb):
     XYZ = colour.RGB_to_XYZ(arri_wcg_linear, 'ARRI Wide Gamut 3')
 
     # TODO: better gammut limiting
-    rec2020 = colour.XYZ_to_RGB(XYZ, 'sRGB')
-    rec2020 = np.clip(rec2020, 0, None)
+    # rec2020 = colour.XYZ_to_RGB(XYZ, 'sRGB')
+    # rec2020 = np.clip(rec2020, 0, None)
 
-    XYZ = colour.RGB_to_XYZ(rec2020, 'sRGB')
+    # XYZ = colour.RGB_to_XYZ(rec2020, 'sRGB')
 
-    spectral = colour.XYZ_to_sd(XYZ).align(spectral_shape)
+    spectral = colour.XYZ_to_sd(XYZ, method='Otsu 2018').align(spectral_shape)
 
     return spectral
 
@@ -348,16 +352,20 @@ def kelvin_to_spectral(kelvin):
     return spectral
 
 
-def arri_to_film_sRGB(arri, negative: FilmSpectral, print: FilmSpectral, print_light, projection_light):
+def arri_to_film_sRGB(arri, negative: FilmSpectral, print_film: FilmSpectral, print_light, projection_light, norm=1.,
+                      linear=False):
     spectral_input = arri_to_spectral(arri)
 
     printer_lights = negative.spectral_to_projection(spectral_input, print_light)
 
-    projection = print.spectral_to_projection(printer_lights, projection_light) / 2.2
+    projection = print_film.spectral_to_projection(printer_lights, projection_light) / norm
 
     XYZ = colour.sd_to_XYZ(projection, k=0.01)
 
     sRGB = colour.XYZ_to_sRGB(XYZ)
+
+    if linear:
+        return sRGB ** (1 / 2.2)
 
     return np.clip(sRGB, 0, 1)
 
@@ -376,17 +384,24 @@ def arri_to_sRGB(arri):
 
 if __name__ == '__main__':
     start = time.time()
+
     kodak_5207 = Kodak_5207()
     kodak_2383 = Kodak_2383()
-    print_light = kelvin_to_spectral(4400)
-    projection_light = kelvin_to_spectral(4400)
+    for print_light in [5000]:
+        print_spectral = kelvin_to_spectral(print_light)
+        for projection_light in [5400]:
+            projection_spectral = kelvin_to_spectral(projection_light)
+            rgb = arri_to_film_sRGB(np.ones(3), kodak_5207, kodak_2383, print_light, projection_light,
+                                           linear=True)
+            norm = max(rgb)
 
-    lut = colour.LUT3D(size=4, name='5207_2383')
+            lut = colour.LUT3D(size=16, name=f"{print_light}-{projection_light}")
 
-    convert = lambda x : arri_to_film_sRGB(x, kodak_5207, kodak_2383, print_light, projection_light)
+            convert = lambda x: arri_to_film_sRGB(x, kodak_5207, kodak_2383, print_spectral, projection_spectral, norm)
 
-    lut.table = np.apply_along_axis(convert, 3, lut.table)
+            lut.table = np.apply_along_axis(convert, 3, lut.table)
 
-    colour.io.write_LUT(lut, "Film_5207_2383.cube")
+            colour.io.write_LUT(lut, f"{print_light}-{projection_light}.cube")
+            print(f"{print_light}-{projection_light}.cube", end=" ")
     end = time.time()
-    print(f"finished in {end - start:.2f}s")
+    print(f"\nfinished in {end - start:.2f}s")
