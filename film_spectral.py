@@ -4,9 +4,11 @@ import numpy as np
 
 import colour
 
+colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(400, 700, 1)
+
 
 class FilmSpectral(ABC):
-    def calibrate(self, input_wb, output_wb, type: {'negative_film', 'print_film'}):
+    def calibrate(self, input_wb, output_wb, type: {'negative_film', 'print_film', 'intermediate_film'}):
         self.cyan_spectral_density /= max(self.cyan_spectral_density.values)
         self.magenta_spectral_density /= max(self.magenta_spectral_density.values)
         self.yellow_spectral_density /= max(self.yellow_spectral_density.values)
@@ -18,6 +20,9 @@ class FilmSpectral(ABC):
             A = np.stack([self.cyan_spectral_density.values, self.magenta_spectral_density.values,
                           self.yellow_spectral_density.values])
             coeffs = np.linalg.lstsq(A.T, self.midscale_spectral_density.values, rcond=None)[0]
+
+        elif type == 'intermediate_film':
+            coeffs = self.target_density
 
         self.base_spectral_density = self.midscale_spectral_density - (
                 self.cyan_spectral_density * coeffs[0] + self.magenta_spectral_density * coeffs[
