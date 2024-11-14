@@ -1,6 +1,7 @@
 import colour
 import numpy as np
 
+from utility import kelvin_to_spectral
 from film_spectral import FilmSpectral
 
 
@@ -116,4 +117,4 @@ class Kodak2383(FilmSpectral):
         self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density).align(
             colour.SPECTRAL_SHAPE_DEFAULT)
 
-        self.calibrate(3200, 'print_film')
+        self.calibrate(kelvin_to_spectral(3200), kelvin_to_spectral(5400), 'print_film')

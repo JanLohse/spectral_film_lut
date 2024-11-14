@@ -1,6 +1,7 @@
 import colour
 import numpy as np
 
+from utility import kelvin_to_spectral
 from film_spectral import FilmSpectral
 
 
@@ -125,4 +126,4 @@ class Kodak5207(FilmSpectral):
         self.minimum_spectral_density = colour.SpectralDistribution(minimum_spectral_density).align(
             colour.SPECTRAL_SHAPE_DEFAULT)
 
-        self.calibrate(5500, 'negative_film')
+        self.calibrate(kelvin_to_spectral(5500), kelvin_to_spectral(3200),'negative_film')

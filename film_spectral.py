@@ -1,10 +1,12 @@
 from abc import ABC
 
-from utility import *
+import numpy as np
+
+import colour
 
 
 class FilmSpectral(ABC):
-    def calibrate(self, whitebalace, type: {'negative_film', 'print_film'}):
+    def calibrate(self, input_wb, output_wb, type: {'negative_film', 'print_film'}):
         self.cyan_spectral_density /= max(self.cyan_spectral_density.values)
         self.magenta_spectral_density /= max(self.magenta_spectral_density.values)
         self.yellow_spectral_density /= max(self.yellow_spectral_density.values)
@@ -22,8 +24,7 @@ class FilmSpectral(ABC):
             1] + self.yellow_spectral_density * coeffs[2])
 
         self.exposure_adjustment = np.zeros(3)
-        neutral_spectral = kelvin_to_spectral(whitebalace)
-        neutral_exposure = self.spectral_to_log_exposure(neutral_spectral)
+        neutral_exposure = self.spectral_to_log_exposure(input_wb)
 
         cyan_target_exposure = np.interp(coeffs[0], self.red_density_curve, self.red_log_exposure)
         magenta_target_exposure = np.interp(coeffs[1], self.green_density_curve, self.green_log_exposure)
@@ -34,7 +35,8 @@ class FilmSpectral(ABC):
 
         target_flux = 18
         self.amplification = 1
-        test_projection = self.spectral_to_projection(neutral_spectral, neutral_spectral)
+
+        test_projection = self.spectral_to_projection(input_wb, output_wb)
         self.amplification = target_flux / colour.sd_to_XYZ(test_projection)[1]
 
     def spectral_to_log_exposure(self, light_intensity):
