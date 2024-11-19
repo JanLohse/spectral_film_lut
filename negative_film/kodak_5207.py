@@ -8,6 +8,12 @@ from film_spectral import FilmSpectral
 class Kodak5207(FilmSpectral):
     def __init__(self):
         super().__init__()
+
+        self.iso = 250
+
+        self.ref_density = 0.2
+        self.density_type = 'd-min'
+
         # spectral sensitivity
         yellow_log_sensitivity = {359.4238: 1.5366, 367.7450: 1.6467, 381.7870: 2.0484, 386.9877: 2.1200,
                                   397.4932: 2.3368, 403.3785: 2.3941, 418.4270: 2.3516, 437.9900: 2.4259,
@@ -126,4 +132,4 @@ class Kodak5207(FilmSpectral):
         self.minimum_spectral_density = colour.SpectralDistribution(minimum_spectral_density).align(
             colour.SPECTRAL_SHAPE_DEFAULT)
 
-        self.calibrate(kelvin_to_spectral(5500), kelvin_to_spectral(3200),'negative_film')
+        self.calibrate()

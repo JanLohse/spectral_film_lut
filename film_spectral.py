@@ -1,60 +1,60 @@
+import math
 from abc import ABC
 
+import colour
 import numpy as np
 
-import colour
-
-colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(400, 700, 1)
+colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(380, 760, 1)
 
 
 class FilmSpectral(ABC):
-    def calibrate(self, input_wb, output_wb, type: {'negative_film', 'print_film', 'intermediate_film'}):
+    def calibrate(self):
+        # target exposure of middle gray in log lux-seconds
+        # normally use iso value, if not provided use target density of 1.0 on the green channel
+        if self.iso:
+            self.log_H_ref = math.log10(12.5 / self.iso)
+        else:
+            self.log_H_ref = np.interp(1., self.green_density_curve, self.green_log_exposure)
+
+        # convert relative camera exposure to absolute exposure in log lux-seconds for characteristic curve
+        if self.exposure_base == 2:
+            self.red_log_exposure = np.log10(2 ** self.red_log_exposure * 10 ** self.log_H_ref)
+            self.green_log_exposure = np.log10(2 ** self.green_log_exposure * 10 ** self.log_H_ref)
+            self.blue_log_exposure = np.log10(2 ** self.blue_log_exposure * 10 ** self.log_H_ref)
+
+        # density values produced by flat exposure of intensity 1
+        if self.density_type == 'd-min':
+            green_sensitivity_density = np.min(self.green_density_curve) + self.ref_density
+        elif self.density_type == 'e.n.d.':
+            green_sensitivity_density = max(self.magenta_spectral_density.values)
+        elif self.density_type == 'absolute':
+            green_sensitivity_density = self.ref_density
+
+        # exposure producing density equivalent to density specifiedd in density curve
+        green_sensitivity_exposure = np.interp(green_sensitivity_density, self.green_density_curve,
+                                               self.green_log_exposure)
+
+        # compute exposure compensation, such that a middle gray exposure produces the target density
+        self.exposure_compensation = 1. / .18 * 10 ** self.log_H_ref
+
+        # peak normalize dye density curves
         self.cyan_spectral_density /= max(self.cyan_spectral_density.values)
         self.magenta_spectral_density /= max(self.magenta_spectral_density.values)
         self.yellow_spectral_density /= max(self.yellow_spectral_density.values)
-
-        if type == 'negative_film':
-            coeffs = self.log_exposure_to_density(-1 * np.ones(3))
-
-        elif type == 'print_film':
-            A = np.stack([self.cyan_spectral_density.values, self.magenta_spectral_density.values,
-                          self.yellow_spectral_density.values])
-            coeffs = np.linalg.lstsq(A.T, self.midscale_spectral_density.values, rcond=None)[0]
-
-        elif type == 'intermediate_film':
-            coeffs = self.target_density
-
-        self.base_spectral_density = self.midscale_spectral_density - (
-                self.cyan_spectral_density * coeffs[0] + self.magenta_spectral_density * coeffs[
-            1] + self.yellow_spectral_density * coeffs[2])
-
-        self.exposure_adjustment = np.zeros(3)
-        neutral_exposure = self.spectral_to_log_exposure(input_wb)
-
-        cyan_target_exposure = np.interp(coeffs[0], self.red_density_curve, self.red_log_exposure)
-        magenta_target_exposure = np.interp(coeffs[1], self.green_density_curve, self.green_log_exposure)
-        yellow_target_exposure = np.interp(coeffs[2], self.blue_density_curve, self.blue_log_exposure)
-
-        self.exposure_adjustment = np.array(
-            [cyan_target_exposure, magenta_target_exposure, yellow_target_exposure]) - neutral_exposure
-
-        target_flux = 18
-        self.amplification = 1
-
-        test_projection = self.spectral_to_projection(input_wb, output_wb)
-        self.amplification = target_flux / colour.sd_to_XYZ(test_projection)[1]
 
     def spectral_to_log_exposure(self, light_intensity):
         cyan_spectral_exposure = light_intensity * self.cyan_sensitivity
         magenta_spectral_exposure = light_intensity * self.magenta_sensitivity
         yellow_spectral_exposure = light_intensity * self.yellow_sensitivity
 
-        cyan_effective_exposure = np.sum(cyan_spectral_exposure.values) * cyan_spectral_exposure.shape.interval
-        magenta_effective_exposure = np.sum(magenta_spectral_exposure.values) * magenta_spectral_exposure.shape.interval
-        yellow_effective_exposure = np.sum(yellow_spectral_exposure.values) * yellow_spectral_exposure.shape.interval
+        cyan_effective_exposure = np.sum(cyan_spectral_exposure.values) / np.sum(self.cyan_sensitivity.values)
+        magenta_effective_exposure = np.sum(magenta_spectral_exposure.values) / np.sum(self.magenta_sensitivity.values)
+        yellow_effective_exposure = np.sum(yellow_spectral_exposure.values) / np.sum(self.yellow_sensitivity.values)
 
         effective_exposure = np.array([cyan_effective_exposure, magenta_effective_exposure, yellow_effective_exposure])
-        log_exposure = np.emath.logn(self.exposure_base, effective_exposure) + self.exposure_adjustment
+        log_exposure = np.log10(effective_exposure * self.exposure_compensation)
+
+        # print(f"{log_exposure=} log_H_ref={self.log_H_ref} diff={log_exposure - self.log_H_ref}")
 
         return log_exposure
 
@@ -67,7 +67,7 @@ class FilmSpectral(ABC):
 
     def density_to_spectral_density(self, density):
         spectral_density = self.cyan_spectral_density * density[0] + self.magenta_spectral_density * density[
-            1] + self.yellow_spectral_density * density[2] + self.base_spectral_density
+            1] + self.yellow_spectral_density * density[2]
 
         return spectral_density
 
@@ -87,6 +87,6 @@ class FilmSpectral(ABC):
         return transmittance
 
     def spectral_to_projection(self, spectral, illuminant):
-        projection = self.spectral_to_transmittance(spectral) * illuminant * self.amplification
+        projection = self.spectral_to_transmittance(spectral) * illuminant
 
         return projection
