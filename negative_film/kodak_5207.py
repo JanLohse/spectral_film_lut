@@ -1,7 +1,6 @@
 import colour
 import numpy as np
 
-from utility import kelvin_to_spectral
 from film_spectral import FilmSpectral
 
 
