@@ -1,15 +1,42 @@
 import time
+import sys
+
+import colour
 
 from negative_film.kodak_5207 import Kodak5207
 from print_film.kodak_2383 import Kodak2383
+from print_film.kodak_2393 import Kodak2393
 from reversal_film.kodachrome_64 import Kodachrome64
 from utility import *
 
-setups = {'5207-2383': ((Kodak5207(), Kodak2383()), (printer_light(3750, 310, g=.5), kelvin_to_spectral(5500, 150))),
-          'Kodachrome': ((Kodachrome64(), ), (printer_light(6500, 130, g=.1, b=.2), ))}
+# setups = {'5207-2383': ((Kodak5207(), Kodak2383()), (printer_light(5500, 310, g=.5), kelvin_to_spectral(5500, 150))),
+#           'Kodachrome': ((Kodachrome64(),), (printer_light(6500, 145),))}
+
+
+def test_illuminants(film_stock):
+    kodak = film_stock()
+
+    illuminant_1 = colour.SDS_ILLUMINANTS['E'].align(colour.SPECTRAL_SHAPE_DEFAULT) / 100 * .18
+    illuminant_2 = kelvin_to_spectral(4500, 18)
+    illuminant_3 = arri_to_spectral(np.ones(3) * .391)
+    log_exposure = kodak.spectral_to_log_exposure(illuminant_2)
+    density = kodak.log_exposure_to_density(log_exposure)
+    spectral_density = kodak.density_to_spectral_density(density)
+
+    density_2 = kodak.log_exposure_to_density(np.ones(3) * kodak.log_H_ref)
+    spectral_density_2 = kodak.density_to_spectral_density(density_2)
+    print(f"{log_exposure=} {density=} {kodak.log_H_ref=}")
+    colour.plotting.plot_multi_sds(
+        (spectral_density, spectral_density_2, kodak.midscale_spectral_density, illuminant_1, illuminant_2))
+    # colour.plotting.plot_multi_sds((kodak.yellow_sensitivity, kodak.magenta_sensitivity, kodak.cyan_sensitivity))
+    # colour.plotting.plot_multi_sds((kodak.yellow_spectral_density, kodak.magenta_spectral_density, kodak.cyan_spectral_density))
+    sys.exit()
+
 
 if __name__ == '__main__':
     start = time.time()
+
+    test_illuminants(Kodachrome64)
 
     combo = 'Kodachrome'
 
