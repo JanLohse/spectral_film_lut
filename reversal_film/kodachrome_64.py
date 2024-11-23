@@ -14,32 +14,26 @@ class Kodachrome64(FilmSpectral):
         self.density_type = 'e.n.d.'
 
         # spectral sensitivity
-        yellow_log_sensitivity = {400.1764: -1.5, 402.5: -1., 405: -.5, 410.3175: 0.5733, 412.3457: 0.7470,
-                                  416.3139: 0.9150, 419.4885: 0.9832, 423.1041: 1.0000, 430.3351: 0.9813,
-                                  439.0653: 0.9141, 447.0018: 0.8207, 457.3192: 0.7134, 465.4321: 0.6293,
-                                  471.6931: 0.5500, 478.4832: 0.4099, 485.2734: 0.2232, 500.9700: -0.3511,
-                                  511.4638: -0.7993, 520.5467: -1.2241, 530.4233: -1.6909, 536.1552: -1.9888}
+        self.yellow_log_sensitivity = {400.1764: -1.5, 402.5: -1., 405: -.5, 410.3175: 0.5733, 412.3457: 0.7470,
+                                       416.3139: 0.9150, 419.4885: 0.9832, 423.1041: 1.0000, 430.3351: 0.9813,
+                                       439.0653: 0.9141, 447.0018: 0.8207, 457.3192: 0.7134, 465.4321: 0.6293,
+                                       471.6931: 0.5500, 478.4832: 0.4099, 485.2734: 0.2232, 500.9700: -0.3511,
+                                       511.4638: -0.7993, 520.5467: -1.2241, 530.4233: -1.6909, 536.1552: -1.9888}
 
-        self.yellow_sensitivity = colour.SpectralDistribution(
-            {x: 10 ** y for x, y in yellow_log_sensitivity.items()}).align(colour.SPECTRAL_SHAPE_DEFAULT)
-        magenta_log_sensitivity = {400.0882: -1.7890, 440.0353: -1.2428, 460.4938: -0.9972, 467.3721: -0.9412,
-                                   472.6631: -0.8553, 481.4815: -0.5817, 491.3580: -0.3511, 507.0547: 0.0084,
-                                   516.0494: 0.2007, 524.2504: 0.3399, 534.3915: 0.5079, 542.5044: 0.6443,
-                                   547.4427: 0.7077, 553.4392: 0.7255, 559.8765: 0.6956, 565.0794: 0.6246,
-                                   570.8995: 0.4986, 574.7795: 0.3632, 580.7760: 0.0317, 590.6526: -0.7806,
-                                   594.7090: -1.1261, 598.5891: -1.3968, 604.0564: -1.6863, 610.2293: -1.9524}
-        self.magenta_sensitivity = colour.SpectralDistribution(
-            {x: 10 ** y for x, y in magenta_log_sensitivity.items()}).align(colour.SPECTRAL_SHAPE_DEFAULT)
+        self.magenta_log_sensitivity = {400.0882: -1.7890, 440.0353: -1.2428, 460.4938: -0.9972, 467.3721: -0.9412,
+                                        472.6631: -0.8553, 481.4815: -0.5817, 491.3580: -0.3511, 507.0547: 0.0084,
+                                        516.0494: 0.2007, 524.2504: 0.3399, 534.3915: 0.5079, 542.5044: 0.6443,
+                                        547.4427: 0.7077, 553.4392: 0.7255, 559.8765: 0.6956, 565.0794: 0.6246,
+                                        570.8995: 0.4986, 574.7795: 0.3632, 580.7760: 0.0317, 590.6526: -0.7806,
+                                        594.7090: -1.1261, 598.5891: -1.3968, 604.0564: -1.6863, 610.2293: -1.9524}
 
-        cyan_log_sensitivity = {481.3051: -1.8515, 495.4145: -1.7974, 503.3510: -1.7516, 513.0511: -1.5836,
-                                523.9859: -1.4192, 533.9506: -1.3240, 544.7972: -1.2474, 553.4392: -1.1447,
-                                561.0229: -0.9486, 574.1623: -0.5845, 584.8325: -0.1643, 589.7707: 0.0271,
-                                596.1199: 0.1811, 603.8801: 0.2838, 616.2257: 0.4099, 622.0459: 0.4986,
-                                630.8642: 0.7087, 641.0053: 0.8534, 646.2081: 0.9169, 650.4409: 0.9300,
-                                654.8501: 0.8814, 661.7284: 0.6573, 668.4303: 0.3585, 673.0159: 0.0784,
-                                680.7760: -0.5752, 687.4780: -1.0233, 700.7055: -1.6956}
-        self.cyan_sensitivity = colour.SpectralDistribution(
-            {x: 10 ** y for x, y in cyan_log_sensitivity.items()}).align(colour.SPECTRAL_SHAPE_DEFAULT)
+        self.cyan_log_sensitivity = {481.3051: -1.8515, 495.4145: -1.7974, 503.3510: -1.7516, 513.0511: -1.5836,
+                                     523.9859: -1.4192, 533.9506: -1.3240, 544.7972: -1.2474, 553.4392: -1.1447,
+                                     561.0229: -0.9486, 574.1623: -0.5845, 584.8325: -0.1643, 589.7707: 0.0271,
+                                     596.1199: 0.1811, 603.8801: 0.2838, 616.2257: 0.4099, 622.0459: 0.4986,
+                                     630.8642: 0.7087, 641.0053: 0.8534, 646.2081: 0.9169, 650.4409: 0.9300,
+                                     654.8501: 0.8814, 661.7284: 0.6573, 668.4303: 0.3585, 673.0159: 0.0784,
+                                     680.7760: -0.5752, 687.4780: -1.0233, 700.7055: -1.6956}
 
         self.sensitivity_exposure_time = 1 / 50
 
@@ -97,14 +91,10 @@ class Kodachrome64(FilmSpectral):
                                      649.8882: 1.3217, 654.5841: 1.2688, 666.0555: 1.0921, 680.2102: 0.8732,
                                      699.9329: 0.6235}
 
-        self.yellow_spectral_density = colour.SpectralDistribution(yellow_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.magenta_spectral_density = colour.SpectralDistribution(magenta_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.cyan_spectral_density = colour.SpectralDistribution(cyan_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
+        self.yellow_spectral_density = colour.SpectralDistribution(yellow_spectral_density)
+        self.magenta_spectral_density = colour.SpectralDistribution(magenta_spectral_density)
+        self.cyan_spectral_density = colour.SpectralDistribution(cyan_spectral_density)
+        self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density)
 
         self.target_illuminant_kelvin = 4000
 

@@ -9,12 +9,10 @@ from print_film.kodak_2393 import Kodak2393
 from reversal_film.kodachrome_64 import Kodachrome64
 from utility import *
 
-setups = {'5207-2383': ((Kodak5207(), Kodak2383()), (printer_light(4530, 288, g=0.43), kelvin_to_spectral(5500, 140))),
+setups = {'5207-2383': ((Kodak5207(), Kodak2383()), (printer_light(4580, 295, g=0.41), kelvin_to_spectral(5500, 140))),
           '5207-2393': ((Kodak5207(), Kodak2393()), (printer_light(4500, 297, g=0.38), kelvin_to_spectral(5500, 140))),
           'Kodachrome': ((Kodachrome64(),), (printer_light(5500, 140, g=0.3),))}
 
-
-# kodak lad 1.09 1.06 1.03
 
 def test_illuminants(film_stock):
     kodak = film_stock()

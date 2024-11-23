@@ -15,17 +15,15 @@ class Kodak2393(FilmSpectral):
         self.ref_density = 1.0
 
         # spectral sensitivity
-        yellow_log_sensitivity = {357.6568: 0.0820, 363.6969: 0.0406, 368.7600: -0.0073, 373.5566: -0.0778,
+        self.yellow_log_sensitivity = {357.6568: 0.0820, 363.6969: 0.0406, 368.7600: -0.0073, 373.5566: -0.0778,
                                   375.7772: -0.1482, 377.4649: -0.2657, 378.3532: -0.3596, 379.4191: -0.4348,
                                   382.0839: -0.5100, 386.9693: -0.5194, 392.6541: -0.4602, 398.0725: -0.3737,
                                   403.9350: -0.3202, 408.1986: -0.2741, 414.1499: -0.1924, 428.1844: 0.0688,
                                   442.8406: 0.3319, 455.6316: 0.5424, 458.6516: 0.5875, 466.8236: 0.6298,
                                   462.7376: 0.6157, 469.3995: 0.5471, 478.0156: -0.0026, 484.6776: -0.5664,
                                   491.5171: -1.1818, 498.1791: -1.9664, 500.8438: -2.3329, 504.3080: -2.9906}
-        self.yellow_sensitivity = colour.SpectralDistribution(
-            {x: 10 ** y for x, y in yellow_log_sensitivity.items()}).align(colour.SPECTRAL_SHAPE_DEFAULT)
 
-        magenta_log_sensitivity = {442.0412: -2.9859, 444.2619: -2.6054, 448.2590: -2.0886, 451.3679: -1.8114,
+        self.magenta_log_sensitivity = {442.0412: -2.9859, 444.2619: -2.6054, 448.2590: -2.0886, 451.3679: -1.8114,
                                    454.5656: -1.6723, 463.8035: -1.5107, 472.5973: -1.3735, 478.3709: -1.2654,
                                    485.1217: -1.0973, 484.9440: -1.0973, 489.1188: -1.0023, 495.1590: -0.9168,
                                    501.1103: -0.8670, 504.2192: -0.8539, 511.3253: -0.8614, 516.6548: -0.8670,
@@ -33,10 +31,8 @@ class Kodak2393(FilmSpectral):
                                    543.4802: -0.3362, 545.9673: -0.2563, 549.0762: -0.2225, 551.6522: -0.2657,
                                    556.2711: -0.4912, 561.8671: -0.8482, 574.9245: -1.6563, 582.8300: -2.3000,
                                    588.3372: -2.9812}
-        self.magenta_sensitivity = colour.SpectralDistribution(
-            {x: 10 ** y for x, y in magenta_log_sensitivity.items()}).align(colour.SPECTRAL_SHAPE_DEFAULT)
 
-        cyan_log_sensitivity = {579.3658: -2.9972, 580.1652: -2.6570, 583.2741: -2.4597, 585.9389: -2.4287,
+        self.cyan_log_sensitivity = {579.3658: -2.9972, 580.1652: -2.6570, 583.2741: -2.4597, 585.9389: -2.4287,
                                 593.0449: -2.3930, 598.5521: -2.3329, 601.6610: -2.2680, 606.3688: -2.2342,
                                 609.7442: -2.1478, 615.5179: -2.0679, 618.6268: -2.0068, 621.8245: -1.9091,
                                 627.1540: -1.8311, 637.1025: -1.7747, 650.2487: -1.6789, 661.7961: -1.5483,
@@ -44,8 +40,6 @@ class Kodak2393(FilmSpectral):
                                 683.0254: -0.9093, 687.2002: -0.8482, 691.6415: -0.8661, 695.6387: -0.9760,
                                 699.2805: -1.1113, 702.4782: -1.2100, 707.8078: -1.3416, 711.9826: -1.5389,
                                 716.3351: -1.7785, 722.5529: -2.2953, 728.7707: -2.9831}
-        self.cyan_sensitivity = colour.SpectralDistribution(
-            {x: 10 ** y for x, y in cyan_log_sensitivity.items()}).align(colour.SPECTRAL_SHAPE_DEFAULT)
 
         self.sensitivity_exposure_time = 1 / 50
 
@@ -109,14 +103,10 @@ class Kodak2393(FilmSpectral):
                                      671.9446: 1.1774, 681.8492: 1.1399, 691.2085: 1.0764, 699.6592: 1.0002,
                                      714.6524: 0.8288, 732.4625: 0.6160, 749.7274: 0.4064}
 
-        self.yellow_spectral_density = colour.SpectralDistribution(yellow_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.magenta_spectral_density = colour.SpectralDistribution(magenta_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.cyan_spectral_density = colour.SpectralDistribution(cyan_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
+        self.yellow_spectral_density = colour.SpectralDistribution(yellow_spectral_density)
+        self.magenta_spectral_density = colour.SpectralDistribution(magenta_spectral_density)
+        self.cyan_spectral_density = colour.SpectralDistribution(cyan_spectral_density)
+        self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density)
 
         self.target_illuminant_kelvin = 3200
 

@@ -14,31 +14,25 @@ class Kodak5207(FilmSpectral):
         self.density_type = 'd-min'
 
         # spectral sensitivity
-        yellow_log_sensitivity = {359.4238: 1.5366, 367.7450: 1.6467, 381.7870: 2.0484, 386.9877: 2.1200,
+        self.yellow_log_sensitivity = {359.4238: 1.5366, 367.7450: 1.6467, 381.7870: 2.0484, 386.9877: 2.1200,
                                   397.4932: 2.3368, 403.3785: 2.3941, 418.4270: 2.3516, 437.9900: 2.4259,
                                   449.7779: 2.3596, 460.5627: 2.4259, 467.5853: 2.4896, 472.3506: 2.4259,
                                   477.6176: 2.2348, 483.6370: 1.8978, 488.6531: 1.4704, 499.1871: 0.9980,
                                   506.4605: 0.7485, 519.7533: 0.0930}
 
-        self.yellow_sensitivity = colour.SpectralDistribution(
-            {x: 10 ** y for x, y in yellow_log_sensitivity.items()}).align(colour.SPECTRAL_SHAPE_DEFAULT)
-        magenta_log_sensitivity = {399.8672: 0.6424, 439.9964: 0.3451, 449.0255: 0.3876, 460.0611: 0.5468,
+        self.magenta_log_sensitivity = {399.8672: 0.6424, 439.9964: 0.3451, 449.0255: 0.3876, 460.0611: 0.5468,
                                    467.0837: 0.5734, 472.0998: 0.6583, 491.1612: 1.5341, 496.6790: 1.7491,
                                    501.1935: 1.8526, 528.5316: 2.1818, 548.5962: 2.4127, 550.6026: 2.4121,
                                    566.1527: 2.2455, 575.9342: 2.1181, 579.6963: 2.0066, 586.7190: 1.5554,
                                    593.7416: 0.9502, 599.2593: 0.3398}
-        self.magenta_sensitivity = colour.SpectralDistribution(
-            {x: 10 ** y for x, y in magenta_log_sensitivity.items()}).align(colour.SPECTRAL_SHAPE_DEFAULT)
 
-        cyan_log_sensitivity = {530.0364: 0.0532, 535.5542: 0.0346, 542.0752: 0.0346, 549.5994: 0.0930,
+        self.cyan_log_sensitivity = {530.0364: 0.0532, 535.5542: 0.0346, 542.0752: 0.0346, 549.5994: 0.0930,
                                 558.8793: 0.3000, 564.6479: 0.4061, 568.7611: 0.4932, 581.2012: 1.2369,
                                 587.2206: 1.5129, 591.7351: 1.6881, 597.7545: 1.8181, 610.5457: 2.0570,
                                 620.3272: 2.1950, 628.6038: 2.2109, 637.6329: 2.2746, 646.4112: 2.3649,
                                 651.2267: 2.3845, 655.6911: 2.3835, 658.1490: 2.3654, 662.7137: 2.2640,
                                 669.9871: 2.0013, 676.5081: 1.7252, 680.2702: 1.5660, 686.2896: 1.3563,
                                 689.2993: 1.1891, 694.2653: 0.7379, 699.6828: 0.1657}
-        self.cyan_sensitivity = colour.SpectralDistribution(
-            {x: 10 ** y for x, y in cyan_log_sensitivity.items()}).align(colour.SPECTRAL_SHAPE_DEFAULT)
 
         self.sensitivity_exposure_time = 1 / 50
 
@@ -120,14 +114,10 @@ class Kodak5207(FilmSpectral):
                                     659.3529: 0.2094, 674.3950: 0.2124, 696.9247: 0.2097, 721.1927: 0.1950,
                                     740.9146: 0.1723, 756.9595: 0.1476, 779.0213: 0.1182, 799.6791: 0.0914}
 
-        self.yellow_spectral_density = colour.SpectralDistribution(yellow_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.magenta_spectral_density = colour.SpectralDistribution(magenta_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.cyan_spectral_density = colour.SpectralDistribution(cyan_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
+        self.yellow_spectral_density = colour.SpectralDistribution(yellow_spectral_density)
+        self.magenta_spectral_density = colour.SpectralDistribution(magenta_spectral_density)
+        self.cyan_spectral_density = colour.SpectralDistribution(cyan_spectral_density)
+        self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density)
         self.minimum_spectral_density = colour.SpectralDistribution(minimum_spectral_density).align(
             colour.SPECTRAL_SHAPE_DEFAULT)
 

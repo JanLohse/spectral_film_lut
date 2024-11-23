@@ -4,7 +4,7 @@ from abc import ABC
 import colour
 import numpy as np
 
-colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(400, 700, 1)
+colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(400, 720, 1)
 
 
 def kelvin_to_spectral(kelvin, target_flux=100):
@@ -23,6 +23,25 @@ class FilmSpectral(ABC):
         else:
             self.log_H_ref = np.interp(1., self.green_density_curve, self.green_log_exposure)
 
+        # extrapolate log_sensitivity to linear sensitivity
+        self.yellow_log_sensitivity = colour.SpectralDistribution(self.yellow_log_sensitivity).align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+        self.magenta_log_sensitivity = colour.SpectralDistribution(self.magenta_log_sensitivity).align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+        self.cyan_log_sensitivity = colour.SpectralDistribution(self.cyan_log_sensitivity).align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+        self.yellow_sensitivity = colour.SpectralDistribution(10 ** self.yellow_log_sensitivity.values, colour.SPECTRAL_SHAPE_DEFAULT)
+        self.magenta_sensitivity = colour.SpectralDistribution(10 ** self.magenta_log_sensitivity.values, colour.SPECTRAL_SHAPE_DEFAULT)
+        self.cyan_sensitivity = colour.SpectralDistribution(10 ** self.cyan_log_sensitivity.values, colour.SPECTRAL_SHAPE_DEFAULT)
+
+        # align spectral densities
+        self.yellow_spectral_density.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+        self.magenta_spectral_density.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+        self.cyan_spectral_density.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'Linear'})
+        self.midscale_spectral_density.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+
+        self.yellow_spectral_density.values = np.clip(self.yellow_spectral_density.values, 0, None)
+        self.magenta_spectral_density.values = np.clip(self.magenta_spectral_density.values, 0, None)
+        self.cyan_spectral_density.values = np.clip(self.cyan_spectral_density.values, 0, None)
+        self.midscale_spectral_density.values = np.clip(self.midscale_spectral_density.values, 0, None)
+
         # convert relative camera exposure to absolute exposure in log lux-seconds for characteristic curve
         if self.exposure_base != 10:
             self.red_log_exposure = np.log10(self.exposure_base ** self.red_log_exposure * 10 ** self.log_H_ref)
@@ -35,9 +54,9 @@ class FilmSpectral(ABC):
         self.exposure_comp = 10 ** self.log_H_ref / ref_exposure
 
         # peak normalize dye density curves
-        self.cyan_spectral_density /= max(self.cyan_spectral_density.values)
-        self.magenta_spectral_density /= max(self.magenta_spectral_density.values)
-        self.yellow_spectral_density /= max(self.yellow_spectral_density.values)
+        self.cyan_spectral_density.normalise()
+        self.magenta_spectral_density.normalise()
+        self.yellow_spectral_density.normalise()
 
     def spectral_to_log_exposure(self, light_intensity):
         cyan_spectral_exposure = light_intensity * self.cyan_sensitivity
