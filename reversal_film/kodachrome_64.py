@@ -106,4 +106,6 @@ class Kodachrome64(FilmSpectral):
         self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density).align(
             colour.SPECTRAL_SHAPE_DEFAULT)
 
+        self.target_illuminant_kelvin = 4000
+
         self.calibrate()

@@ -131,4 +131,6 @@ class Kodak5207(FilmSpectral):
         self.minimum_spectral_density = colour.SpectralDistribution(minimum_spectral_density).align(
             colour.SPECTRAL_SHAPE_DEFAULT)
 
+        self.target_illuminant_kelvin = 5500
+
         self.calibrate()
