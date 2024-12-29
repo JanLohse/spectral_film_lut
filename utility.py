@@ -10,7 +10,7 @@ def arri_to_spectral(rgb):
 
     XYZ = colour.RGB_to_XYZ(arri_wcg_linear, 'ARRI Wide Gamut 3')
 
-    spectral = colour.XYZ_to_sd(XYZ, method='Otsu 2018').align(colour.SPECTRAL_SHAPE_DEFAULT)
+    spectral = colour.XYZ_to_sd(XYZ, method='Jakob 2019').align(colour.SPECTRAL_SHAPE_DEFAULT)
 
     return spectral
 
@@ -18,7 +18,7 @@ def arri_to_spectral(rgb):
 def rgb_to_spectral(rgb):
     XYZ = colour.sRGB_to_XYZ(rgb)
 
-    spectral = colour.XYZ_to_sd(XYZ, method='Otsu 2018').align(colour.SPECTRAL_SHAPE_DEFAULT)
+    spectral = colour.XYZ_to_sd(XYZ, method='Jakob 2019').align(colour.SPECTRAL_SHAPE_DEFAULT)
 
     return spectral
 
@@ -66,7 +66,7 @@ def arri_to_sRGB(arri):
     return sRGB
 
 
-def color_filters(light, r=0, g=0, b=0, b_g_cut=490, g_r_cut=580):
+def color_filters(light, r=0, g=0, b=0, b_g_cut=515, g_r_cut=575):
     wavelengths = np.array([*colour.SPECTRAL_SHAPE_DEFAULT])
     transmittance = np.piecewise(wavelengths,
                                  [wavelengths < b_g_cut, (b_g_cut <= wavelengths) & (wavelengths <= g_r_cut),

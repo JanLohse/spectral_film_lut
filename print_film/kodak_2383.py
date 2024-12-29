@@ -113,6 +113,6 @@ class Kodak2383(FilmSpectral):
         self.cyan_spectral_density = colour.SpectralDistribution(cyan_spectral_density)
         self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density)
 
-        self.target_illuminant_kelvin = 3200
+        self.target_illuminant = kelvin_to_spectral(2854, 18)
 
         self.calibrate()

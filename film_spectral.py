@@ -4,7 +4,7 @@ from abc import ABC
 import colour
 import numpy as np
 
-colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(400, 720, 1)
+colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(380, 780, 1)
 
 
 def kelvin_to_spectral(kelvin, target_flux=100):
@@ -15,7 +15,7 @@ def kelvin_to_spectral(kelvin, target_flux=100):
 
 
 class FilmSpectral(ABC):
-    def calibrate(self):
+    def calibrate(self, compute_base_density=False):
         # target exposure of middle gray in log lux-seconds
         # normally use iso value, if not provided use target density of 1.0 on the green channel
         if self.iso:
@@ -48,15 +48,20 @@ class FilmSpectral(ABC):
             self.green_log_exposure = np.log10(self.exposure_base ** self.green_log_exposure * 10 ** self.log_H_ref)
             self.blue_log_exposure = np.log10(self.exposure_base ** self.blue_log_exposure * 10 ** self.log_H_ref)
 
-        target_illuminant = kelvin_to_spectral(self.target_illuminant_kelvin, 18)
         self.exposure_comp = np.ones(3)
-        ref_exposure = 10 ** self.spectral_to_log_exposure(target_illuminant)
+        ref_exposure = 10 ** self.spectral_to_log_exposure(self.target_illuminant)
         self.exposure_comp = 10 ** self.log_H_ref / ref_exposure
 
         # peak normalize dye density curves
         self.cyan_spectral_density.normalise()
         self.magenta_spectral_density.normalise()
         self.yellow_spectral_density.normalise()
+
+        self.base_spectral_density = 0
+        if compute_base_density:
+            density = self.log_exposure_to_density(np.ones(3) * self.log_H_ref - math.log10(2))
+            spectral_density = self.density_to_spectral_density(density)
+            self.base_spectral_density = self.midscale_spectral_density - spectral_density
 
     def spectral_to_log_exposure(self, light_intensity):
         cyan_spectral_exposure = light_intensity * self.cyan_sensitivity
@@ -82,7 +87,7 @@ class FilmSpectral(ABC):
 
     def density_to_spectral_density(self, density):
         spectral_density = self.cyan_spectral_density * density[0] + self.magenta_spectral_density * density[
-            1] + self.yellow_spectral_density * density[2]
+            1] + self.yellow_spectral_density * density[2] + self.base_spectral_density
 
         return spectral_density
 
