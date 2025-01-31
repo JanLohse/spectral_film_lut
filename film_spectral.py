@@ -169,30 +169,46 @@ class FilmSpectral:
         self.sensitivity = 10 ** np.stack(
             (self.red_log_sensitivity.values, self.green_log_sensitivity.values, self.blue_log_sensitivity.values)).T
 
-        # align spectral densities
-        if hasattr(self, 'midscale_spectral_density'):
-            self.midscale_spectral_density.align(colour.SPECTRAL_SHAPE_DEFAULT,
-                                                 extrapolator_kwargs={'method': 'linear'})
-        if hasattr(self, 'red_spectral_density') and hasattr(self, 'green_spectral_density') and hasattr(self,
-                                                                                                         'blue_spectral_density'):
-            self.red_spectral_density.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
-            self.green_spectral_density.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
-            self.blue_spectral_density.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'Linear'})
-            self.spectral_density = np.stack((self.red_spectral_density.values,
-                                              self.green_spectral_density.values,
-                                              self.blue_spectral_density.values)).T
-        else:
-            self.spectral_density = self.construct_spectral_density(self.midscale_spectral_density)
-        if hasattr(self, 'minimum_spectral_density'):
-            self.minimum_spectral_density.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
-
         # convert relative camera exposure to absolute exposure in log lux-seconds for characteristic curve
         if self.exposure_base != 10:
             self.red_log_exposure = np.log10(self.exposure_base ** self.red_log_exposure * 10 ** self.log_H_ref[0])
             self.green_log_exposure = np.log10(self.exposure_base ** self.green_log_exposure * 10 ** self.log_H_ref[1])
             self.blue_log_exposure = np.log10(self.exposure_base ** self.blue_log_exposure * 10 ** self.log_H_ref[2])
 
-        # white_spectrum = self.xyz_dual @ colour.xyY_to_XYZ([*self.white_xy, 1.])
+        self.d_min = np.array(
+            [np.min(x) for x in (self.red_density_curve, self.green_density_curve, self.blue_density_curve)])
+        self.d_ref = self.log_exposure_to_density(self.log_H_ref)
+        self.d_max = np.array(
+            [np.max(x) for x in (self.red_density_curve, self.green_density_curve, self.blue_density_curve)])
+        self.red_density_curve -= self.d_min[0]
+        self.green_density_curve -= self.d_min[1]
+        self.blue_density_curve -= self.d_min[2]
+
+        # align spectral densities
+        if hasattr(self, 'd_min_sd'):
+            self.d_min_sd = self.d_min_sd.align(
+                colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).values
+        else:
+            self.d_min_sd = colour.sd_zeros(colour.SPECTRAL_SHAPE_DEFAULT).values
+
+        if hasattr(self, 'd_ref_sd'):
+            self.d_ref_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).values
+        if (hasattr(self, 'red_sd') and hasattr(self, 'green_sd')
+                and hasattr(self, 'blue_sd')):
+            self.red_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+            self.green_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+            self.blue_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'Linear'})
+            self.spectral_density = np.stack((self.red_sd.values,
+                                              self.green_sd.values,
+                                              self.blue_sd.values)).T
+        else:
+            self.spectral_density = self.construct_spectral_density(
+                self.d_ref_sd - self.d_min_sd)
+
+        self.spectral_density @= np.linalg.inv(self.densiometry[self.density_measure].T @ self.spectral_density)
+        self.d_min_sd = self.d_min_sd + self.spectral_density @ (
+                    self.d_min - self.densiometry[self.density_measure].T @ self.d_min_sd)
+        self.d_ref_sd = self.spectral_density @ (self.d_ref - self.d_min) + self.d_min_sd
         white_spectrum = self.white_sd.align(colour.SPECTRAL_SHAPE_DEFAULT).normalise().values
         self.sensitivity *= self.H_ref / (self.sensitivity.T @ white_spectrum)
 
@@ -201,15 +217,6 @@ class FilmSpectral:
         ref_exp = self.XYZ_to_exp @ gray
         correction_factors = self.H_ref / ref_exp
         self.XYZ_to_exp = (self.XYZ_to_exp.T * correction_factors).T
-
-        self.spectral_density @= np.linalg.inv(self.densiometry[self.density_measure].T @ self.spectral_density)
-        self.midscale_spectral_density = self.spectral_density @ self.log_exposure_to_density(self.log_H_ref)
-
-        self.d_min = np.array(
-            [np.min(x) for x in (self.red_density_curve, self.green_density_curve, self.blue_density_curve)])
-        self.d_ref = self.log_exposure_to_density(self.log_H_ref)
-        self.d_max = np.array(
-            [np.max(x) for x in (self.red_density_curve, self.green_density_curve, self.blue_density_curve)])
 
     @staticmethod
     def construct_spectral_density(ref_density, bg_cutoff=493, gr_cutoff=598, sigma=25):
@@ -232,11 +239,7 @@ class FilmSpectral:
 
     def compute_print_matrix(self, print_film):
         # transmitted printer lights by middle gray negative
-        reduced_lights = (self.printer_lights.T * 10 ** -self.midscale_spectral_density).T
-        colour.plotting.plot_multi_cmfs((
-            MultiSpectralDistributions(reduced_lights, colour.SPECTRAL_SHAPE_DEFAULT),
-            MultiSpectralDistributions(self.printer_lights, colour.SPECTRAL_SHAPE_DEFAULT),
-        ))
+        reduced_lights = (self.printer_lights.T * 10 ** -self.d_ref_sd).T
         # adjust printer lights to produce neutral exposure with middle gray negative
         light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ print_film.H_ref
         printer_light = np.sum(self.printer_lights * light_factors, axis=1)
@@ -246,7 +249,8 @@ class FilmSpectral:
         print_sensitivity = (print_film.sensitivity.T * printer_light).T
         print_sensitivity /= np.sum(print_sensitivity, axis=0)
         density_matrix = print_sensitivity.T @ self.spectral_density
-        return density_matrix, peak_exposure
+        density_base = print_sensitivity.T @ self.d_min_sd
+        return density_matrix, peak_exposure - density_base
 
     def compute_output_matrix(self, projector_kelvin=5500, reference_kelvin=6504):
         reference_light = colour.sd_blackbody(reference_kelvin).align(colour.SPECTRAL_SHAPE_DEFAULT).normalise().values
@@ -257,10 +261,11 @@ class FilmSpectral:
         xyz_cmfs = (xyz_cmfs.T * projector_light).T
         xyz_cmfs /= np.sum(xyz_cmfs, axis=0)
         density_matrix = xyz_cmfs.T @ self.spectral_density
-        true_peak = np.log10(colour.XYZ_to_RGB(10 ** (peak_exposure - density_matrix @ self.d_min), "sRGB"))
+        density_base = xyz_cmfs.T @ self.d_min_sd
+        true_peak = np.log10(colour.XYZ_to_RGB(10 ** (peak_exposure - density_matrix @ self.d_min - density_base), "sRGB"))
         peak_exposure -= np.max(true_peak)
 
-        return density_matrix, peak_exposure
+        return density_matrix, peak_exposure - density_base
 
     @staticmethod
     def generate_conversion(film_stocks, input_colourspace="ARRI Wide Gamut 3", output_colourspace="Display P3",

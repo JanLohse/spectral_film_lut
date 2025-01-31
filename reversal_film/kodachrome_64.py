@@ -48,7 +48,7 @@ class Kodachrome64(FilmSpectral):
             [3.3263, 3.2012, 3.0831, 2.9630, 2.8028, 2.5375, 2.1021, 1.7718, 1.3213, 1.0911, 0.7758, 0.5305, 0.3143,
              0.2442, 0.2142, 0.2012])
         self.green_log_exposure = self.red_log_exposure
-        self.green_density_curve = (self.red_density_curve + np.interp(self.red_log_exposure, self.blue_log_exposure, self.blue_density_curve)) / 2
+        self.green_density_curve = (self.red_density_curve * .5 + np.interp(self.red_log_exposure, self.blue_log_exposure, self.blue_density_curve)) / 1.5
 
         self.exposure_base = 10
 
@@ -83,9 +83,9 @@ class Kodachrome64(FilmSpectral):
                                      649.8882: 1.3217, 654.5841: 1.2688, 666.0555: 1.0921, 680.2102: 0.8732,
                                      699.9329: 0.6235}
 
-        self.red_spectral_density = colour.SpectralDistribution(red_spectral_density)
-        self.green_spectral_density = colour.SpectralDistribution(green_spectral_density)
-        self.blue_spectral_density = colour.SpectralDistribution(blue_spectral_density)
-        self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density)
+        self.red_sd = colour.SpectralDistribution(red_spectral_density)
+        self.green_sd = colour.SpectralDistribution(green_spectral_density)
+        self.blue_sd = colour.SpectralDistribution(blue_spectral_density)
+        self.d_ref_sd = colour.SpectralDistribution(midscale_spectral_density)
 
         self.calibrate()

@@ -100,9 +100,9 @@ class Kodak2393(FilmSpectral):
                                      671.9446: 1.1774, 681.8492: 1.1399, 691.2085: 1.0764, 699.6592: 1.0002,
                                      714.6524: 0.8288, 732.4625: 0.6160, 749.7274: 0.4064}
 
-        self.red_spectral_density = colour.SpectralDistribution(red_spectral_density)
-        self.green_spectral_density = colour.SpectralDistribution(green_spectral_density)
-        self.blue_spectral_density = colour.SpectralDistribution(blue_spectral_density)
-        self.midscale_spectral_density = colour.SpectralDistribution(midscale_spectral_density)
+        self.red_sd = colour.SpectralDistribution(red_spectral_density)
+        self.green_sd = colour.SpectralDistribution(green_spectral_density)
+        self.blue_sd = colour.SpectralDistribution(blue_spectral_density)
+        self.d_ref_sd = colour.SpectralDistribution(midscale_spectral_density)
 
         self.calibrate()
