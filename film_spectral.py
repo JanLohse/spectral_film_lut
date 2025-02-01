@@ -238,11 +238,7 @@ class FilmSpectral:
         return np.stack([red_density, green_density, blue_density], axis=-1)
 
     def compute_print_matrix(self, print_film):
-        # transmitted printer lights by middle gray negative
-        reduced_lights = (self.printer_lights.T * 10 ** -self.d_ref_sd).T
-        # adjust printer lights to produce neutral exposure with middle gray negative
-        light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ print_film.H_ref
-        printer_light = np.sum(self.printer_lights * light_factors, axis=1)
+        printer_light = self.compute_printer_light(print_film)
         # compute max exposure produced by unfiltered printer light
         peak_exposure = np.log10(print_film.sensitivity.T @ printer_light)
         # compute density matrix from print film sensitivity under adjusted printer light
@@ -251,6 +247,14 @@ class FilmSpectral:
         density_matrix = print_sensitivity.T @ self.spectral_density
         density_base = print_sensitivity.T @ self.d_min_sd
         return density_matrix, peak_exposure - density_base
+
+    def compute_printer_light(self, print_film):
+        # transmitted printer lights by middle gray negative
+        reduced_lights = (self.printer_lights.T * 10 ** -self.d_ref_sd).T
+        # adjust printer lights to produce neutral exposure with middle gray negative
+        light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ print_film.H_ref
+        printer_light = np.sum(self.printer_lights * light_factors, axis=1)
+        return printer_light
 
     def compute_output_matrix(self, projector_kelvin=5500, reference_kelvin=6504):
         reference_light = colour.sd_blackbody(reference_kelvin).align(colour.SPECTRAL_SHAPE_DEFAULT).normalise().values
@@ -267,25 +271,33 @@ class FilmSpectral:
 
         return density_matrix, peak_exposure - density_base
 
+    def compute_projection_light(self, projector_kelvin=5500, reference_kelvin=6504):
+        reference_light = colour.sd_blackbody(reference_kelvin).align(colour.SPECTRAL_SHAPE_DEFAULT).normalise().values
+        projector_light = colour.sd_blackbody(projector_kelvin).align(colour.SPECTRAL_SHAPE_DEFAULT).normalise().values
+        reference_white = colour.xyY_to_XYZ([*colour.CCT_to_xy(reference_kelvin), 1.])
+        xyz_cmfs = self.xyz_cmfs * (reference_white / (self.xyz_cmfs.T @ reference_light))
+        projector_light /= np.max(colour.XYZ_to_RGB(xyz_cmfs.T @ (projector_light * 10 ** -self.d_min_sd), "sRGB"))
+        return projector_light, xyz_cmfs
+
     @staticmethod
-    def generate_conversion(film_stocks, input_colourspace="ARRI Wide Gamut 3", output_colourspace="Display P3",
+    def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 3", output_colourspace="sRGB",
                             projector_kelvin=5500, verbose=False):
         pipeline = []
         if input_colourspace is not None:
             pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
-        pipeline.append(
-            (lambda x: np.log10(np.clip(np.dot(x, film_stocks[0].XYZ_to_exp.T), 0.0001, None)), "log exposure"))
-        for i, film_stock in enumerate(film_stocks):
-            pipeline.append((film_stock.log_exposure_to_density, "characteristic curve"))
-            if i != len(film_stocks) - 1:
-                density_matrix, peak_exposure = film_stock.compute_print_matrix(film_stocks[i + 1])
-                if verbose:
-                    print(density_matrix)
-                    print(peak_exposure)
-                pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing"))
-        # TODO: better naming
-        density_matrix_1, peak_exposure_1 = film_stocks[-1].compute_output_matrix(projector_kelvin=projector_kelvin)
-        pipeline.append((lambda x: 10 ** (peak_exposure_1 - np.dot(x, density_matrix_1.T)), "projection"))
+        pipeline.append((lambda x: np.log10(np.clip(np.dot(x, negative_film.XYZ_to_exp.T), 0.0001, None)), "log exposure"))
+        pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
+        if print_film is not None:
+            density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film)
+            if verbose:
+                print(density_matrix)
+                print(peak_exposure)
+            pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing"))
+            pipeline.append((print_film.log_exposure_to_density, "characteristic curve"))
+            density_matrix_xyz, peak_exposure_xyz = print_film.compute_output_matrix(projector_kelvin=projector_kelvin)
+        else:
+            density_matrix_xyz, peak_exposure_xyz = negative_film.compute_output_matrix(projector_kelvin=projector_kelvin)
+        pipeline.append((lambda x: 10 ** (peak_exposure_xyz - np.dot(x, density_matrix_xyz.T)), "projection"))
         if output_colourspace is not None:
             pipeline.append((lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
 
@@ -297,3 +309,41 @@ class FilmSpectral:
             return x
 
         return convert
+
+    @staticmethod
+    def generate_conversion_spectral(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 3", output_colourspace="sRGB",
+                            projector_kelvin=5500, verbose=False):
+        pipeline = []
+        if input_colourspace is not None:
+            pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
+        pipeline.append(
+            (lambda x: np.log10(np.clip(np.dot(x, negative_film.XYZ_to_exp.T), 0.0001, None)), "log exposure"))
+        pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
+        pipeline.append((lambda x: negative_film.d_min_sd + np.dot(x, negative_film.spectral_density.T), "spectral density"))
+        if print_film is not None:
+            printer_light = negative_film.compute_printer_light(print_film)
+            sensitivity = print_film.sensitivity
+            pipeline.append((lambda x: np.log10(np.clip(np.dot(x, (sensitivity.T * printer_light).T), 0.0001, None)), "printing"))
+            pipeline.append(
+                (lambda x: print_film.d_min_sd + np.dot(x, print_film.spectral_density.T), "spectral density print"))
+            projection_light, xyz_cmfs = print_film.compute_projection_light(projector_kelvin=projector_kelvin)
+        else:
+            projection_light, xyz_cmfs = negative_film.compute_projection_light(projector_kelvin=projector_kelvin)
+        pipeline.append((lambda x: np.dot(np.multiply(10 ** -x, projection_light), xyz_cmfs), "projection"))
+        if output_colourspace is not None:
+            pipeline.append((lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
+
+        def convert(x):
+            for transform, title in pipeline:
+                x = transform(x)
+                if verbose:
+                    if min(x.shape) > 3 and len(x.shape) == 1:
+                        colour.plotting.plot_single_sd(SpectralDistribution(x, colour.SPECTRAL_SHAPE_DEFAULT, name=title), title=title)
+                    elif min(x.shape) > 3:
+                        print(x.shape, title)
+                    else:
+                        print(x, title)
+            return np.clip(x, 0, 1)
+
+        return convert
+
