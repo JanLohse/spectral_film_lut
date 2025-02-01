@@ -177,12 +177,12 @@ class FilmSpectral:
 
         self.d_min = np.array(
             [np.min(x) for x in (self.red_density_curve, self.green_density_curve, self.blue_density_curve)])
-        self.d_ref = self.log_exposure_to_density(self.log_H_ref)
-        self.d_max = np.array(
-            [np.max(x) for x in (self.red_density_curve, self.green_density_curve, self.blue_density_curve)])
         self.red_density_curve -= self.d_min[0]
         self.green_density_curve -= self.d_min[1]
         self.blue_density_curve -= self.d_min[2]
+        self.d_ref = self.log_exposure_to_density(self.log_H_ref)
+        self.d_max = np.array(
+            [np.max(x) for x in (self.red_density_curve, self.green_density_curve, self.blue_density_curve)])
 
         # align spectral densities
         if hasattr(self, 'd_min_sd'):
@@ -208,7 +208,7 @@ class FilmSpectral:
         self.spectral_density @= np.linalg.inv(self.densiometry[self.density_measure].T @ self.spectral_density)
         self.d_min_sd = self.d_min_sd + self.spectral_density @ (
                     self.d_min - self.densiometry[self.density_measure].T @ self.d_min_sd)
-        self.d_ref_sd = self.spectral_density @ (self.d_ref - self.d_min) + self.d_min_sd
+        self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
         white_spectrum = self.white_sd.align(colour.SPECTRAL_SHAPE_DEFAULT).normalise().values
         self.sensitivity *= self.H_ref / (self.sensitivity.T @ white_spectrum)
 
@@ -323,7 +323,8 @@ class FilmSpectral:
         if print_film is not None:
             printer_light = negative_film.compute_printer_light(print_film)
             sensitivity = print_film.sensitivity
-            pipeline.append((lambda x: np.log10(np.clip(np.dot(x, (sensitivity.T * printer_light).T), 0.0001, None)), "printing"))
+            pipeline.append((lambda x: np.log10(np.clip(np.dot(10 ** -x, (sensitivity.T * printer_light).T), 0.0001, None)), "printing"))
+            pipeline.append((print_film.log_exposure_to_density, "characteristic curve"))
             pipeline.append(
                 (lambda x: print_film.d_min_sd + np.dot(x, print_film.spectral_density.T), "spectral density print"))
             projection_light, xyz_cmfs = print_film.compute_projection_light(projector_kelvin=projector_kelvin)
@@ -346,4 +347,3 @@ class FilmSpectral:
             return np.clip(x, 0, 1)
 
         return convert
-

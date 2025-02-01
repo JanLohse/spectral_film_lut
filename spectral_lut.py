@@ -24,8 +24,8 @@ def create_lut(negative_film, print_film=None, size=16, name="test", verbose=Fal
 
 
 if __name__ == '__main__':
-    negative_film = Kodachrome64()
-    print_film = None
+    negative_film = Kodak5207()
+    print_film = Kodak2383()
     for kodak in [negative_film, print_film]:
         if kodak is None:
             continue
@@ -49,4 +49,4 @@ if __name__ == '__main__':
     green = transform(np.array([0, 1, 0])), transform_2(np.array([0, 1, 0]))
     print("blue")
     blue = transform(np.array([0, 0, 1])), transform_2(np.array([0, 0, 1]))
-    create_lut(negative_film, print_film, size=33, name="Kodachrome64_2", verbose=False)
+    create_lut(negative_film, print_film, size=33, name="KodakVision_2", verbose=False)
