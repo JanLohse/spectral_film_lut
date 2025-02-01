@@ -281,49 +281,23 @@ class FilmSpectral:
 
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 3", output_colourspace="sRGB",
-                            projector_kelvin=5500, verbose=False):
-        pipeline = []
-        if input_colourspace is not None:
-            pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
-        pipeline.append((lambda x: np.log10(np.clip(np.dot(x, negative_film.XYZ_to_exp.T), 0.0001, None)), "log exposure"))
-        pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
-        if print_film is not None:
-            density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film)
-            if verbose:
-                print(density_matrix)
-                print(peak_exposure)
-            pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing"))
-            pipeline.append((print_film.log_exposure_to_density, "characteristic curve"))
-            density_matrix_xyz, peak_exposure_xyz = print_film.compute_output_matrix(projector_kelvin=projector_kelvin)
-        else:
-            density_matrix_xyz, peak_exposure_xyz = negative_film.compute_output_matrix(projector_kelvin=projector_kelvin)
-        pipeline.append((lambda x: 10 ** (peak_exposure_xyz - np.dot(x, density_matrix_xyz.T)), "projection"))
-        if output_colourspace is not None:
-            pipeline.append((lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
-
-        def convert(x):
-            for transform, title in pipeline:
-                x = transform(x)
-                if verbose:
-                    print(x, title)
-            return x
-
-        return convert
-
-    @staticmethod
-    def generate_conversion_spectral(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 3", output_colourspace="sRGB",
-                            projector_kelvin=5500, verbose=False):
+                            projector_kelvin=5500, verbose=False, print_matrix=False):
         pipeline = []
         if input_colourspace is not None:
             pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
         pipeline.append(
             (lambda x: np.log10(np.clip(np.dot(x, negative_film.XYZ_to_exp.T), 0.0001, None)), "log exposure"))
         pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
-        pipeline.append((lambda x: negative_film.d_min_sd + np.dot(x, negative_film.spectral_density.T), "spectral density"))
-        if print_film is not None:
+        if print_film is not None and print_matrix:
+            density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film)
+            pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing"))
+        else:
+            pipeline.append((lambda x: negative_film.d_min_sd + np.dot(x, negative_film.spectral_density.T), "spectral density"))
+        if print_film is not None and not print_matrix:
             printer_light = negative_film.compute_printer_light(print_film)
             sensitivity = print_film.sensitivity
             pipeline.append((lambda x: np.log10(np.clip(np.dot(10 ** -x, (sensitivity.T * printer_light).T), 0.0001, None)), "printing"))
+        if print_film is not None:
             pipeline.append((print_film.log_exposure_to_density, "characteristic curve"))
             pipeline.append(
                 (lambda x: print_film.d_min_sd + np.dot(x, print_film.spectral_density.T), "spectral density print"))
