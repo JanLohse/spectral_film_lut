@@ -31,11 +31,11 @@ if __name__ == '__main__':
     kodak2383 = Kodak2383()
     kodachrome64 = Kodachrome64()
     luts = ["LUTs/Filmbox_Full.cube", "LUTs/ARRI_LogC3_709_33.cube"]
-    luts.append(create_lut(kodak5207, kodak2383, size=65, name="2383"))
-    luts.append(create_lut(kodak5207, kodak2393, size=65, name="2393"))
-    luts.append(create_lut(kodak5207, kodak2383, size=65, name="2383_matrix", print_matrix=True))
-    luts.append(create_lut(kodak5207, kodak2393, size=65, name="2393_matrix", print_matrix=True))
-    luts.append(create_lut(kodachrome64, size=33, name="Kodachrome"))
+    luts.append(create_lut(kodak5207, kodak2383, name="2383"))
+    luts.append(create_lut(kodak5207, kodak2393, name="2393"))
+    luts.append(create_lut(kodak5207, kodak2383, name="2383_matrix", print_matrix=True))
+    luts.append(create_lut(kodak5207, kodak2393, name="2393_matrix", print_matrix=True))
+    luts.append(create_lut(kodachrome64, name="Kodachrome"))
     src = "ARRI_ALEXA_Mini_LF_LogC3.tif"
     for lut in luts:
         name = f"{src.split('.')[0]}_{lut.split('/')[-1].split('.')[0]}.jpg"

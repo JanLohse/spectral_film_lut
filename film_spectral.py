@@ -1,4 +1,5 @@
 import math
+import time
 
 import colour
 import numpy as np
@@ -6,7 +7,7 @@ from colour import SpectralDistribution, MultiSpectralDistributions
 from scipy.ndimage import gaussian_filter
 
 default_dtype = np.float32
-colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(380, 780, 10)
+colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(400, 720, 20)
 colour.utilities.set_default_float_dtype(default_dtype)
 
 
@@ -289,7 +290,7 @@ class FilmSpectral:
         return projector_light, xyz_cmfs
 
     @staticmethod
-    def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 3",
+    def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 3", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, verbose=False, print_matrix=False):
         pipeline = [(lambda x: x, 'raw input')]
         if input_colourspace is not None:
@@ -321,6 +322,8 @@ class FilmSpectral:
 
         def convert(x):
             for transform, title in pipeline:
+                if measure_time:
+                    start = time.time()
                 x = transform(x)
                 if verbose:
                     if min(x.shape) > 3 and len(x.shape) == 1:
@@ -330,6 +333,9 @@ class FilmSpectral:
                         print(x.shape, title)
                     else:
                         print(x, title)
+                if measure_time:
+                    end = time.time()
+                    print(f"{title:25} {end - start:.2f}s {x.dtype} {x.shape}")
             return np.clip(x, 0, 1)
 
         return convert
