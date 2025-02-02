@@ -5,8 +5,9 @@ import numpy as np
 from colour import SpectralDistribution, MultiSpectralDistributions
 from scipy.ndimage import gaussian_filter
 
+default_dtype = np.float32
 colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(380, 780, 1)
-
+colour.utilities.set_default_float_dtype(default_dtype)
 
 class FilmSpectral:
     def __init__(self):
@@ -218,6 +219,10 @@ class FilmSpectral:
         correction_factors = self.H_ref / ref_exp
         self.XYZ_to_exp = (self.XYZ_to_exp.T * correction_factors).T
 
+        for key, value in self.__dict__.items():
+            if type(value) is np.ndarray and value.dtype is not default_dtype:
+                self.__dict__[key] = value.astype(default_dtype)
+
     @staticmethod
     def construct_spectral_density(ref_density, bg_cutoff=493, gr_cutoff=598, sigma=25):
         # TODO compute cutoff values intelligently
@@ -235,7 +240,7 @@ class FilmSpectral:
         green_density = np.interp(log_exposure[..., 1], self.green_log_exposure, self.green_density_curve)
         blue_density = np.interp(log_exposure[..., 2], self.blue_log_exposure, self.blue_density_curve)
 
-        return np.stack([red_density, green_density, blue_density], axis=-1)
+        return np.stack([red_density, green_density, blue_density], axis=-1, dtype=default_dtype)
 
     def compute_print_matrix(self, print_film):
         printer_light = self.compute_printer_light(print_film)
@@ -281,8 +286,8 @@ class FilmSpectral:
 
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 3", output_colourspace="sRGB",
-                            projector_kelvin=5500, verbose=False, print_matrix=False):
-        pipeline = []
+                            projector_kelvin=6500, verbose=False, print_matrix=False):
+        pipeline = [(lambda x: x, 'raw input')]
         if input_colourspace is not None:
             pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
         pipeline.append(
