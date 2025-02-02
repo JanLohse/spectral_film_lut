@@ -10,7 +10,7 @@ from reversal_film.kodachrome_64 import Kodachrome64
 from utility import *
 
 
-def create_lut(negative_film, print_film=None, size=16, name="test", verbose=True, **kwargs):
+def create_lut(negative_film, print_film=None, size=33, name="test", verbose=True, **kwargs):
     lut = colour.LUT3D(size=size, name="test")
     transform = FilmSpectral.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
@@ -29,10 +29,10 @@ if __name__ == '__main__':
     kodak2383 = Kodak2383()
     kodachrome64 = Kodachrome64()
     luts = ["LUTs/Filmbox_Full.cube", "LUTs/ARRI_LogC3_709_33.cube"]
-    luts.append(create_lut(kodak5207, kodak2383, size=33, name="2383"))
-    luts.append(create_lut(kodak5207, kodak2393, size=33, name="2393"))
-    luts.append(create_lut(kodak5207, kodak2383, size=33, name="2383_matrix", print_matrix=True))
-    luts.append(create_lut(kodak5207, kodak2393, size=33, name="2393_matrix", print_matrix=True))
+    luts.append(create_lut(kodak5207, kodak2383, size=65, name="2383"))
+    luts.append(create_lut(kodak5207, kodak2393, size=65, name="2393"))
+    luts.append(create_lut(kodak5207, kodak2383, size=65, name="2383_matrix", print_matrix=True))
+    luts.append(create_lut(kodak5207, kodak2393, size=65, name="2393_matrix", print_matrix=True))
     luts.append(create_lut(kodachrome64, size=33, name="Kodachrome"))
     src = "ARRI_ALEXA_Mini_LF_LogC3.tif"
     for lut in luts:

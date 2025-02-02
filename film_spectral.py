@@ -6,7 +6,7 @@ from colour import SpectralDistribution, MultiSpectralDistributions
 from scipy.ndimage import gaussian_filter
 
 default_dtype = np.float32
-colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(380, 780, 1)
+colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(380, 780, 10)
 colour.utilities.set_default_float_dtype(default_dtype)
 
 class FilmSpectral:
@@ -162,11 +162,11 @@ class FilmSpectral:
 
         # extrapolate log_sensitivity to linear sensitivity
         self.red_log_sensitivity = colour.SpectralDistribution(self.red_log_sensitivity).align(
-            colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+            colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).align(colour.SPECTRAL_SHAPE_DEFAULT)
         self.green_log_sensitivity = colour.SpectralDistribution(self.green_log_sensitivity).align(
-            colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+            colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).align(colour.SPECTRAL_SHAPE_DEFAULT)
         self.blue_log_sensitivity = colour.SpectralDistribution(self.blue_log_sensitivity).align(
-            colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+            colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).align(colour.SPECTRAL_SHAPE_DEFAULT)
         self.sensitivity = 10 ** np.stack(
             (self.red_log_sensitivity.values, self.green_log_sensitivity.values, self.blue_log_sensitivity.values)).T
 
@@ -196,9 +196,9 @@ class FilmSpectral:
             self.d_ref_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).values
         if (hasattr(self, 'red_sd') and hasattr(self, 'green_sd')
                 and hasattr(self, 'blue_sd')):
-            self.red_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
-            self.green_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
-            self.blue_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'Linear'})
+            self.red_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).align(colour.SPECTRAL_SHAPE_DEFAULT)
+            self.green_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).align(colour.SPECTRAL_SHAPE_DEFAULT)
+            self.blue_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'Linear'}).align(colour.SPECTRAL_SHAPE_DEFAULT)
             self.spectral_density = np.stack((self.red_sd.values,
                                               self.green_sd.values,
                                               self.blue_sd.values)).T
