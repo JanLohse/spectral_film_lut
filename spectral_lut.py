@@ -1,13 +1,14 @@
 import os
 import time
 
+import colour
 import ffmpeg
 
+from film_spectral import FilmSpectral
 from negative_film.kodak_5207 import Kodak5207
 from print_film.kodak_2383 import Kodak2383
 from print_film.kodak_2393 import Kodak2393
 from reversal_film.kodachrome_64 import Kodachrome64
-from utility import *
 
 
 def create_lut(negative_film, print_film=None, size=33, name="test", verbose=True, **kwargs):
@@ -21,6 +22,7 @@ def create_lut(negative_film, print_film=None, size=33, name="test", verbose=Tru
     if verbose:
         print(f"created {path} in {end - start:.2f} seconds")
     return path
+
 
 if __name__ == '__main__':
     start = time.time()
@@ -40,4 +42,3 @@ if __name__ == '__main__':
         if os.path.isfile(name):
             os.remove(name)
         ffmpeg.input(src).filter('lut3d', file=lut).output(name, loglevel="quiet").run()
-

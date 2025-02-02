@@ -1,7 +1,4 @@
-import colour
-import numpy as np
-
-from film_spectral import FilmSpectral
+from film_spectral import *
 
 
 class Kodak2383(FilmSpectral):
