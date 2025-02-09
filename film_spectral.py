@@ -2,12 +2,12 @@ import math
 import time
 
 import colour
+import cv2
 import numpy as np
+import torch
 from colour import SpectralDistribution, MultiSpectralDistributions
 from scipy.ndimage import gaussian_filter
-import torch
 from torch import nn
-import cv2
 
 default_dtype = np.float32
 colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(380, 700, 5)
@@ -220,7 +220,7 @@ class FilmSpectral:
         # align spectral densities
         if hasattr(self, 'd_min_sd'):
             self.d_min_sd = self.d_min_sd.align(colour.SPECTRAL_SHAPE_DEFAULT,
-                extrapolator_kwargs={'method': 'linear'}).values
+                                                extrapolator_kwargs={'method': 'linear'}).values
         else:
             self.d_min_sd = colour.sd_zeros(colour.SPECTRAL_SHAPE_DEFAULT).values
 
@@ -300,7 +300,8 @@ class FilmSpectral:
         XYZ_values_tensor = torch.tensor(XYZ_values, dtype=torch.float32)
         density_values_tensor = torch.tensor(density_values, dtype=torch.float32)
         density_mat = cv2.resize(density_mat, (density_mat.shape[1], dim), interpolation=cv2.INTER_LINEAR_EXACT)
-        output_mat = cv2.resize(output_mat, (output_mat.shape[1], dim), interpolation=cv2.INTER_LINEAR_EXACT) * output_mat.shape[0] / dim
+        output_mat = cv2.resize(output_mat, (output_mat.shape[1], dim), interpolation=cv2.INTER_LINEAR_EXACT) * \
+                     output_mat.shape[0] / dim
         density_mat_tensor = torch.tensor(density_mat, dtype=torch.float32)
         output_mat_tensor = torch.tensor(output_mat, dtype=torch.float32)
 
@@ -354,12 +355,11 @@ class FilmSpectral:
                 density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film)
                 pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing matrix"))
             else:
-                # pipeline.append((lambda x: np.dot(x, negative_film.spectral_density.T), "negative spectral density"))
                 printer_light = negative_film.compute_printer_light(print_film)
                 density_neg = negative_film.spectral_density.T
                 printing_mat = (print_film.sensitivity.T * printer_light * 10 ** -negative_film.d_min_sd).T
                 pipeline.append((lambda x: np.log10(
-                np.clip(np.dot(10 ** -np.dot(x, density_neg), printing_mat), 0.0001, None)), "printing"))
+                    np.clip(np.dot(10 ** -np.dot(x, density_neg), printing_mat), 0.0001, None)), "printing"))
             pipeline.append((print_film.log_exposure_to_density, "characteristic curve print"))
             output_film = print_film
         else:
