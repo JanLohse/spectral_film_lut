@@ -10,7 +10,7 @@ from scipy.ndimage import gaussian_filter
 from torch import nn
 
 default_dtype = np.float32
-colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(380, 700, 5)
+colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(380, 780, 5)
 colour.utilities.set_default_float_dtype(default_dtype)
 
 
@@ -293,24 +293,28 @@ class FilmSpectral:
         return printer_light
 
     def neural_matrix(self, projection_light, xyz_cmfs, dim=7, verbose=False):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         density_values = np.mgrid[0:1:10j, 0:1:10j, 0:1:10j].reshape(3, -1).T * (self.d_max - self.d_min)
         density_mat = self.spectral_density
         output_mat = (xyz_cmfs.T * projection_light * 10 ** -self.d_min_sd).T
         XYZ_values = np.dot(10 ** -np.dot(density_values, density_mat.T), output_mat)
-        XYZ_values_tensor = torch.tensor(XYZ_values, dtype=torch.float32)
-        density_values_tensor = torch.tensor(density_values, dtype=torch.float32)
+        XYZ_values_tensor = torch.tensor(XYZ_values, dtype=torch.float32).to(device)
+        density_values_tensor = torch.tensor(density_values, dtype=torch.float32).to(device)
         density_mat = cv2.resize(density_mat, (density_mat.shape[1], dim), interpolation=cv2.INTER_LINEAR_EXACT)
         output_mat = cv2.resize(output_mat, (output_mat.shape[1], dim), interpolation=cv2.INTER_LINEAR_EXACT) * \
                      output_mat.shape[0] / dim
-        density_mat_tensor = torch.tensor(density_mat, dtype=torch.float32)
-        output_mat_tensor = torch.tensor(output_mat, dtype=torch.float32)
+        density_mat_tensor = torch.tensor(density_mat, dtype=torch.float32).to(device)
+        output_mat_tensor = torch.tensor(output_mat, dtype=torch.float32).to(device)
+
 
         model = MatrixOutput(density_mat_tensor, output_mat_tensor)
+        model.to(device)
         criterion = nn.MSELoss()
         optim = torch.optim.Rprop(model.parameters(), lr=0.01)
         best_loss = 10
         best_epoch = 0
-        best_matrices = model.density_matrix.weight.detach().numpy(), model.output_matrix.weight.detach().numpy().T
+        best_matrices = model.density_matrix.weight.cpu().detach().numpy(), model.output_matrix.weight.cpu().detach().numpy().T
         start = time.time()
         for t in range(10000):
             y_pred = model(density_values_tensor)
@@ -320,7 +324,7 @@ class FilmSpectral:
             if loss.item() < best_loss:
                 best_loss = loss.item()
                 best_epoch = t
-                best_matrices = model.density_matrix.weight.detach().numpy(), model.output_matrix.weight.detach().numpy().T
+                best_matrices = model.density_matrix.weight.cpu().detach().numpy(), model.output_matrix.weight.cpu().detach().numpy().T
             elif t - best_epoch >= 10:
                 break
             optim.zero_grad()
@@ -339,7 +343,7 @@ class FilmSpectral:
         return projector_light, xyz_cmfs
 
     @staticmethod
-    def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 3", measure_time=False,
+    def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False):
         pipeline = []
 
