@@ -255,18 +255,36 @@ class FilmSpectral:
                 self.__dict__[key] = value.astype(default_dtype)
 
     @staticmethod
-    def construct_spectral_density(ref_density, bg_cutoff=493, gr_cutoff=598, sigma=25):
-        # TODO compute cutoff values intelligently
+    def wavelength_argmax(distribution: SpectralDistribution, low=None, high=None):
+        range = distribution.copy()
+        if low is not None and high is not None:
+            range.trim(colour.SpectralShape(low, high, 1))
+        peak = range.wavelengths[range.values.argmax()]
+        return peak
+
+    @staticmethod
+    def wavelength_argmin(distribution: SpectralDistribution, low=None, high=None):
+        range = distribution.copy()
+        if low is not None and high is not None:
+            range.trim(colour.SpectralShape(low, high, 1))
+        peak = range.wavelengths[range.values.argmin()]
+        return peak
+
+    @staticmethod
+    def construct_spectral_density(ref_density, sigma=25):
+        red_peak = FilmSpectral.wavelength_argmax(ref_density, 600, 750)
+        green_peak = FilmSpectral.wavelength_argmax(ref_density, 500, 600)
+        blue_peak = FilmSpectral.wavelength_argmax(ref_density, 400, 500)
+        bg_cutoff = FilmSpectral.wavelength_argmin(ref_density, blue_peak, green_peak)
+        gr_cutoff = FilmSpectral.wavelength_argmin(ref_density, green_peak, red_peak)
 
         wavelengths = ref_density.wavelengths
         factors = np.stack((np.where(gr_cutoff <= wavelengths, 1., 0.),
                             np.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1., 0.),
                             np.where(wavelengths <= bg_cutoff, 1., 0.)))
         factors = gaussian_filter(factors, sigma=sigma / colour.SPECTRAL_SHAPE_DEFAULT.interval, axes=1)
-        colour.plotting.plot_single_cmfs(MultiSpectralDistributions(factors.T, colour.SPECTRAL_SHAPE_DEFAULT))
 
         out = (factors * ref_density.values).T
-        colour.plotting.plot_single_cmfs(MultiSpectralDistributions(out, colour.SPECTRAL_SHAPE_DEFAULT))
         return out
 
     def log_exposure_to_density(self, log_exposure):
