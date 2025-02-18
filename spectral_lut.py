@@ -3,8 +3,6 @@ import time
 
 import colour
 import ffmpeg
-import numpy as np
-from colour import MultiSpectralDistributions, SpectralDistribution
 
 from film_spectral import FilmSpectral
 from negative_film.kodak_5207 import Kodak5207

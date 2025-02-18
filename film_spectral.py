@@ -262,9 +262,12 @@ class FilmSpectral:
         factors = np.stack((np.where(gr_cutoff <= wavelengths, 1., 0.),
                             np.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1., 0.),
                             np.where(wavelengths <= bg_cutoff, 1., 0.)))
-        factors = gaussian_filter(factors, sigma=sigma, axes=1)
+        factors = gaussian_filter(factors, sigma=sigma / colour.SPECTRAL_SHAPE_DEFAULT.interval, axes=1)
+        colour.plotting.plot_single_cmfs(MultiSpectralDistributions(factors.T, colour.SPECTRAL_SHAPE_DEFAULT))
 
-        return (factors * ref_density.values).T
+        out = (factors * ref_density.values).T
+        colour.plotting.plot_single_cmfs(MultiSpectralDistributions(out, colour.SPECTRAL_SHAPE_DEFAULT))
+        return out
 
     def log_exposure_to_density(self, log_exposure):
         red_density = np.interp(log_exposure[..., 0], self.red_log_exposure, self.red_density_curve)
@@ -306,7 +309,6 @@ class FilmSpectral:
                      output_mat.shape[0] / dim
         density_mat_tensor = torch.tensor(density_mat, dtype=torch.float32).to(device)
         output_mat_tensor = torch.tensor(output_mat, dtype=torch.float32).to(device)
-
 
         model = MatrixOutput(density_mat_tensor, output_mat_tensor)
         model.to(device)
