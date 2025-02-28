@@ -219,20 +219,17 @@ class FilmSpectral:
 
         # align spectral densities
         if hasattr(self, 'd_min_sd'):
-            self.d_min_sd = self.d_min_sd.align(colour.SPECTRAL_SHAPE_DEFAULT,
-                                                extrapolator_kwargs={'method': 'linear'}).values
+            FilmSpectral.gaussian_extrapolation(self.d_min_sd)
+            self.d_min_sd = self.d_min_sd.values
         else:
             self.d_min_sd = colour.sd_zeros(colour.SPECTRAL_SHAPE_DEFAULT).values
 
         if hasattr(self, 'd_ref_sd'):
-            self.d_ref_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).values
+            FilmSpectral.gaussian_extrapolation(self.d_ref_sd)
         if (hasattr(self, 'red_sd') and hasattr(self, 'green_sd') and hasattr(self, 'blue_sd')):
-            self.red_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).align(
-                colour.SPECTRAL_SHAPE_DEFAULT)
-            self.green_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).align(
-                colour.SPECTRAL_SHAPE_DEFAULT)
-            self.blue_sd.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'Linear'}).align(
-                colour.SPECTRAL_SHAPE_DEFAULT)
+            FilmSpectral.gaussian_extrapolation(self.red_sd)
+            FilmSpectral.gaussian_extrapolation(self.green_sd)
+            FilmSpectral.gaussian_extrapolation(self.blue_sd)
             self.spectral_density = np.stack((self.red_sd.values, self.green_sd.values, self.blue_sd.values)).T
         else:
             self.spectral_density = self.construct_spectral_density(self.d_ref_sd - self.d_min_sd)
@@ -253,6 +250,28 @@ class FilmSpectral:
         for key, value in self.__dict__.items():
             if type(value) is np.ndarray and value.dtype is not default_dtype:
                 self.__dict__[key] = value.astype(default_dtype)
+
+    @staticmethod
+    def gaussian_extrapolation(sd: SpectralDistribution):
+        def extrapolate(a_x, a_y, b_x, b_y, wavelengths, d_1=30, d_2=0.75):
+            m = (a_y - b_y) / (a_x - b_x)
+            d = d_1 * m / np.absolute(a_y) ** d_2
+            a = a_y / np.exp(-d ** 2)
+            c = a / m * -2 * d * np.exp(-d ** 2)
+            b = a_x - c * d
+            extrapolator = lambda x: a * np.exp(- (x - b) ** 2 / c ** 2)
+            return extrapolator(wavelengths)
+
+        sd.interpolate(colour.SPECTRAL_SHAPE_DEFAULT)
+
+        def_wv = colour.SPECTRAL_SHAPE_DEFAULT.wavelengths
+        wv_left = def_wv[def_wv < sd.wavelengths[0]]
+        wv_right = def_wv[def_wv > sd.wavelengths[-1]]
+        values_left = extrapolate(sd.wavelengths[0], sd.values[0], sd.wavelengths[1], sd.values[1], wv_left)
+        values_right = extrapolate(sd.wavelengths[-1], sd.values[-1], sd.wavelengths[-2], sd.values[-2], wv_right)
+        sd.values, sd.wavelengths = np.concatenate((values_left, sd.values, values_right)), np.concatenate(
+            (wv_left, sd.wavelengths, wv_right))
+        sd.interpolate(colour.SPECTRAL_SHAPE_DEFAULT)
 
     @staticmethod
     def wavelength_argmax(distribution: SpectralDistribution, low=None, high=None):
