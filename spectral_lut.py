@@ -19,7 +19,7 @@ def create_lut(negative_film, print_film=None, size=67, name="test", verbose=Tru
     start = time.time()
     lut.table = transform(lut.table)
     end = time.time()
-    path = f"LUTs/{name}.cube"
+    path = f"{name}.cube"
     if not os.path.exists("LUTs"):
         os.makedirs("LUTs")
     colour.io.write_LUT(lut, path)
