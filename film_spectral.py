@@ -313,8 +313,8 @@ class FilmSpectral:
 
         return np.stack([red_density, green_density, blue_density], axis=-1, dtype=default_dtype)
 
-    def compute_print_matrix(self, print_film):
-        printer_light = self.compute_printer_light(print_film)
+    def compute_print_matrix(self, print_film, **kwargs):
+        printer_light = self.compute_printer_light(print_film, **kwargs)
         # compute max exposure produced by unfiltered printer light
         peak_exposure = np.log10(print_film.sensitivity.T @ printer_light)
         # compute density matrix from print film sensitivity under adjusted printer light
@@ -324,11 +324,13 @@ class FilmSpectral:
         density_base = print_sensitivity.T @ self.d_min_sd
         return density_matrix, peak_exposure - density_base
 
-    def compute_printer_light(self, print_film):
+    def compute_printer_light(self, print_film, compensation=None):
+        if compensation is None:
+            compensation = np.zeros(3, dtype=default_dtype)
         # transmitted printer lights by middle gray negative
         reduced_lights = (self.printer_lights.T * 10 ** -self.d_ref_sd).T
         # adjust printer lights to produce neutral exposure with middle gray negative
-        light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ print_film.H_ref
+        light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ (print_film.H_ref + compensation)
         printer_light = np.sum(self.printer_lights * light_factors, axis=1)
         return printer_light
 
@@ -383,22 +385,26 @@ class FilmSpectral:
 
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
-                            output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False):
+                            output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
+                            printer_light_comp=None):
+        if printer_light_comp is None:
+            printer_light_comp = [0, 0, 0]
         pipeline = []
 
         if input_colourspace is not None:
             pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
 
+        exp_comp = 2 ** exp_comp
         pipeline.append(
-            (lambda x: np.log10(np.clip(np.dot(x, negative_film.XYZ_to_exp.T), 0.0001, None)), "log exposure"))
+            (lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)), "log exposure"))
         pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
 
         if print_film is not None:
             if matrix_method:
-                density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film)
+                density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film, compenation=printer_light_comp)
                 pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing matrix"))
             else:
-                printer_light = negative_film.compute_printer_light(print_film)
+                printer_light = negative_film.compute_printer_light(print_film, compensation=printer_light_comp)
                 density_neg = negative_film.spectral_density.T
                 printing_mat = (print_film.sensitivity.T * printer_light * 10 ** -negative_film.d_min_sd).T
                 pipeline.append((lambda x: np.log10(
