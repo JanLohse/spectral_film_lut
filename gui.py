@@ -15,6 +15,7 @@ from negative_film.kodak_portra_400 import KodakPortra400
 from print_film.kodak_2383 import Kodak2383
 from print_film.kodak_2393 import Kodak2393
 from print_film.kodak_endura_premier import KodakEnduraPremier
+from reversal_film.fuji_instax_color import FujiInstaxColor
 from reversal_film.kodachrome_64 import Kodachrome64
 from spectral_lut import create_lut
 
@@ -286,7 +287,7 @@ class Slider(QWidget):
 
 
 if __name__ == '__main__':
-    filmstocks = [Kodak5207, KodakPortra400, Kodachrome64, Kodak2383, Kodak2393, KodakEnduraPremier]
+    filmstocks = [Kodak5207, KodakPortra400, Kodachrome64, Kodak2383, Kodak2393, KodakEnduraPremier, FujiInstaxColor]
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
 
