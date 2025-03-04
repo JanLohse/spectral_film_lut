@@ -6,7 +6,7 @@ import ffmpeg
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QPixmap, QIntValidator
 from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget, QHBoxLayout, QComboBox, \
-    QFileDialog, QLineEdit, QGridLayout, QSizePolicy
+    QFileDialog, QLineEdit, QGridLayout, QSizePolicy, QSlider
 from colour.models import RGB_COLOURSPACES
 
 from negative_film.kodak_5207 import Kodak5207
@@ -34,7 +34,6 @@ class MainWindow(QMainWindow):
         sidelayout.setAlignment(Qt.AlignmentFlag.AlignBottom)
 
         self.image = QLabel("Select a reference image for the preview")
-        self.image.setMinimumSize(QSize(10, 10))
         self.image.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image.setMinimumSize(QSize(256, 256))
         self.pixmap = QPixmap()
@@ -69,6 +68,11 @@ class MainWindow(QMainWindow):
         self.print_selector.setCurrentText("Kodak2393")
         add_option(self.print_selector, "Print stock:")
 
+        self.projector_kelvin = Slider()
+        self.projector_kelvin.setMinMaxTicks(2700, 10000, 100)
+        self.projector_kelvin.setValue(6500)
+        add_option(self.projector_kelvin, "Projector wb:")
+
         self.output_colourspace_selector = QComboBox()
         self.output_colourspace_selector.addItems(colourspaces)
         self.output_colourspace_selector.setCurrentText("sRGB")
@@ -90,6 +94,7 @@ class MainWindow(QMainWindow):
         self.output_colourspace_selector.currentTextChanged.connect(self.parameter_changed)
         self.print_selector.currentTextChanged.connect(self.parameter_changed)
         self.image_selector.textChanged.connect(self.parameter_changed)
+        self.projector_kelvin.valueChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -111,12 +116,14 @@ class MainWindow(QMainWindow):
         negative_film = self.filmstocks[self.negative_selector.currentText()]
         print_film = self.filmstocks[self.print_selector.currentText()]
         input_colourspace = self.input_colourspace_selector.currentText()
+        projector_kelvin = self.projector_kelvin.getValue()
         if input_colourspace == "CIE XYZ 1931": input_colourspace = None
 
         output_colourspace = self.output_colourspace_selector.currentText()
         if output_colourspace == "CIE XYZ 1931": output_colourspace = None
         lut = create_lut(negative_film, print_film, name=name, matrix_method=False, size=size,
-                         input_colourspace=input_colourspace, output_colourspace=output_colourspace)
+                         input_colourspace=input_colourspace, output_colourspace=output_colourspace,
+                         projector_kelvin=projector_kelvin)
         return lut
 
     def parameter_changed(self, **kwargs):
@@ -152,12 +159,7 @@ class FileSelector(QWidget):
         layout = QHBoxLayout()
         self.setLayout(layout)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.minimumSize()
 
-        self.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed))
-
-        # file selection
         file_browse = QPushButton('Browse')
         file_browse.setFixedWidth(55)
         file_browse.clicked.connect(self.open_file_dialog)
@@ -179,6 +181,48 @@ class FileSelector(QWidget):
 
     def currentText(self):
         return self.filename_edit.text()
+
+
+class Slider(QWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        layout = QHBoxLayout()
+        self.setLayout(layout)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.slider = QSlider()
+        self.slider.setOrientation(Qt.Orientation.Horizontal)
+        self.setMinMaxTicks(0, 1, 1)
+
+        self.text = QLabel()
+        self.text.setFixedWidth(30)
+
+        layout.addWidget(self.slider)
+        layout.addWidget(self.text)
+
+        self.slider.valueChanged.connect(self.sliderValueChanged)
+
+        self.valueChanged = self.slider.valueChanged
+
+    def setMinMaxTicks(self, min, max, enumerator, denominator=1):
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(int(((max - min) * denominator) / enumerator))
+        self.min = min
+        self.enumerator = enumerator
+        self.denominator = denominator
+
+    def sliderValueChanged(self):
+        value = self.getValue()
+        if value.is_integer():
+            self.text.setText(str(int(value)))
+        else:
+            self.text.setText(f"{value:.2f}")
+
+    def getValue(self):
+        return self.slider.value() * self.enumerator / self.denominator + self.min
+
+    def setValue(self, value):
+        self.slider.setValue(round((value - self.min) * self.denominator / self.enumerator))
 
 
 if __name__ == '__main__':
