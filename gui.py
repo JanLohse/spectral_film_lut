@@ -45,11 +45,15 @@ class MainWindow(QMainWindow):
 
         self.side_counter = -1
 
-        def add_option(widget, name=None):
+        def add_option(widget, name=None, default=None, setter=None):
             self.side_counter += 1
             sidelayout.addWidget(widget, self.side_counter, 1)
-            sidelayout.addWidget(QLabel(name, alignment=(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)),
+            label = QLabel(name, alignment=(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter))
+            sidelayout.addWidget(label,
                                  self.side_counter, 0)
+            if default is not None and setter is not None:
+                label.mouseDoubleClickEvent = lambda *args: setter(default)
+                setter(default)
 
         self.image_selector = FileSelector()
         add_option(self.image_selector, "Reference image:")
@@ -57,30 +61,25 @@ class MainWindow(QMainWindow):
         colourspaces = ["CIE XYZ 1931"] + list(RGB_COLOURSPACES.data.keys())
         self.input_colourspace_selector = QComboBox()
         self.input_colourspace_selector.addItems(colourspaces)
-        self.input_colourspace_selector.setCurrentText("ARRI Wide Gamut 4")
-        add_option(self.input_colourspace_selector, "Input colourspace:")
+        add_option(self.input_colourspace_selector, "Input colourspace:", "ARRI Wide Gamut 4", self.input_colourspace_selector.setCurrentText)
 
         self.exp_comp = Slider()
         self.exp_comp.setMinMaxTicks(-2, 2, 1, 3)
-        self.exp_comp.setValue(0)
-        add_option(self.exp_comp, "Exposure:")
+        add_option(self.exp_comp, "Exposure:", 0, self.exp_comp.setValue)
 
         self.negative_selector = QComboBox()
         self.negative_selector.addItems(list(filmstocks.keys()))
-        add_option(self.negative_selector, "Negativ stock:")
+        add_option(self.negative_selector, "Negativ stock:", "Kodak5207", self.negative_selector.setCurrentText)
 
         self.red_light = Slider()
         self.red_light.setMinMaxTicks(-2, 2, 1, 3)
-        self.red_light.setValue(0)
-        add_option(self.red_light, "Red printer light:")
+        add_option(self.red_light, "Red printer light:", 0, self.red_light.setValue)
         self.green_light = Slider()
         self.green_light.setMinMaxTicks(-2, 2, 1, 3)
-        self.green_light.setValue(0)
-        add_option(self.green_light, "Green printer light:")
+        add_option(self.green_light, "Green printer light:", 0, self.green_light.setValue)
         self.blue_light = Slider()
         self.blue_light.setMinMaxTicks(-2, 2, 1, 3)
-        self.blue_light.setValue(0)
-        add_option(self.blue_light, "Blue printer light:")
+        add_option(self.blue_light, "Blue printer light:", 0, self.blue_light.setValue)
 
         self.link_lights = QCheckBox()
         self.link_lights.setChecked(True)
@@ -90,25 +89,22 @@ class MainWindow(QMainWindow):
         filmstocks["None"] = None
         self.print_selector = QComboBox()
         self.print_selector.addItems(["None"] + list(filmstocks.keys()))
-        self.print_selector.setCurrentText("Kodak2393")
-        add_option(self.print_selector, "Print stock:")
+        add_option(self.print_selector, "Print stock:", "Kodak2383", self.print_selector.setCurrentText)
 
         self.projector_kelvin = Slider()
         self.projector_kelvin.setMinMaxTicks(2700, 10000, 100)
-        self.projector_kelvin.setValue(6500)
-        add_option(self.projector_kelvin, "Projector wb:")
+        add_option(self.projector_kelvin, "Projector wb:", 6500, self.projector_kelvin.setValue)
 
         self.output_colourspace_selector = QComboBox()
         self.output_colourspace_selector.addItems(colourspaces)
-        self.output_colourspace_selector.setCurrentText("sRGB")
-        add_option(self.output_colourspace_selector, "Output colourspace:")
+        add_option(self.output_colourspace_selector, "Output colourspace:", "sRGB", self.output_colourspace_selector.setCurrentText)
 
         self.lut_size = QComboBox()
         self.lut_size.addItems(["17", "33", "67"])
         self.lut_size.setEditable(True)
         self.lut_size.setCurrentText("33")
         self.lut_size.setValidator(QIntValidator())
-        add_option(self.lut_size, "LUT size:")
+        add_option(self.lut_size, "LUT size:", "33", self.lut_size.setCurrentText)
 
         self.save_lut_button = QPushButton("Save LUT")
         self.save_lut_button.released.connect(self.save_lut)
