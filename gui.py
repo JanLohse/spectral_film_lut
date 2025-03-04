@@ -116,7 +116,7 @@ class MainWindow(QMainWindow):
         self.input_colourspace_selector.currentTextChanged.connect(self.parameter_changed)
         self.negative_selector.currentTextChanged.connect(self.parameter_changed)
         self.output_colourspace_selector.currentTextChanged.connect(self.parameter_changed)
-        self.print_selector.currentTextChanged.connect(self.parameter_changed)
+        self.print_selector.currentTextChanged.connect(self.print_changed)
         self.image_selector.textChanged.connect(self.parameter_changed)
         self.projector_kelvin.valueChanged.connect(self.parameter_changed)
         self.exp_comp.valueChanged.connect(self.parameter_changed)
@@ -128,7 +128,7 @@ class MainWindow(QMainWindow):
         widget.setLayout(pagelayout)
         self.setCentralWidget(widget)
 
-        self.resize(QSize(1024, 612))
+        self.resize(QSize(1024, 512))
 
     def scale_pixmap(self):
         if not self.pixmap.isNull():
@@ -148,7 +148,6 @@ class MainWindow(QMainWindow):
         exp_comp = self.exp_comp.getValue()
         printer_light_comp = np.array([self.red_light.getValue(), self.green_light.getValue(), self.blue_light.getValue()])
         if input_colourspace == "CIE XYZ 1931": input_colourspace = None
-
         output_colourspace = self.output_colourspace_selector.currentText()
         if output_colourspace == "CIE XYZ 1931": output_colourspace = None
         lut = create_lut(negative_film, print_film, name=name, matrix_method=False, size=size,
@@ -166,6 +165,19 @@ class MainWindow(QMainWindow):
                 self.blue_light.setPosition(value)
         else:
             self.parameter_changed()
+
+    def print_changed(self):
+        if self.print_selector.currentText() == "None":
+            self.red_light.setDisabled(True)
+            self.green_light.setDisabled(True)
+            self.blue_light.setDisabled(True)
+            self.link_lights.setDisabled(True)
+        else:
+            self.red_light.setDisabled(False)
+            self.green_light.setDisabled(False)
+            self.blue_light.setDisabled(False)
+            self.link_lights.setDisabled(False)
+        self.parameter_changed()
 
     def parameter_changed(self, **kwargs):
         if self.image_selector.currentText() == "" or not os.path.isfile(self.image_selector.currentText()):
