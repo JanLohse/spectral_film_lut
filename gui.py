@@ -8,7 +8,7 @@ import numpy as np
 from PyQt6.QtCore import QSize, Qt, QObject, pyqtSignal, QRunnable, pyqtSlot, QThreadPool
 from PyQt6.QtGui import QPixmap, QIntValidator
 from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget, QHBoxLayout, QComboBox, \
-    QFileDialog, QLineEdit, QGridLayout, QSizePolicy, QSlider, QCheckBox, QLayout
+    QFileDialog, QLineEdit, QGridLayout, QSizePolicy, QSlider, QCheckBox
 from colour.models import RGB_COLOURSPACES
 
 from negative_film.kodak_5207 import Kodak5207
@@ -41,6 +41,7 @@ class WorkerSignals(QObject):
     error = pyqtSignal(tuple)
     result = pyqtSignal(object)
     progress = pyqtSignal(float)
+
 
 class Worker(QRunnable):
     """Worker thread.
@@ -77,6 +78,7 @@ class Worker(QRunnable):
         finally:
             self.signals.finished.emit()
 
+
 class MainWindow(QMainWindow):
     def __init__(self, filmstocks):
         super().__init__()
@@ -106,8 +108,7 @@ class MainWindow(QMainWindow):
             self.side_counter += 1
             sidelayout.addWidget(widget, self.side_counter, 1)
             label = QLabel(name, alignment=(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter))
-            sidelayout.addWidget(label,
-                                 self.side_counter, 0)
+            sidelayout.addWidget(label, self.side_counter, 0)
             if default is not None and setter is not None:
                 label.mouseDoubleClickEvent = lambda *args: setter(default)
                 setter(default)
@@ -118,7 +119,8 @@ class MainWindow(QMainWindow):
         colourspaces = ["CIE XYZ 1931"] + list(RGB_COLOURSPACES.data.keys())
         self.input_colourspace_selector = QComboBox()
         self.input_colourspace_selector.addItems(colourspaces)
-        add_option(self.input_colourspace_selector, "Input colourspace:", "ARRI Wide Gamut 4", self.input_colourspace_selector.setCurrentText)
+        add_option(self.input_colourspace_selector, "Input colourspace:", "ARRI Wide Gamut 4",
+                   self.input_colourspace_selector.setCurrentText)
 
         self.exp_comp = Slider()
         self.exp_comp.setMinMaxTicks(-2, 2, 1, 6)
@@ -154,7 +156,8 @@ class MainWindow(QMainWindow):
 
         self.output_colourspace_selector = QComboBox()
         self.output_colourspace_selector.addItems(colourspaces)
-        add_option(self.output_colourspace_selector, "Output colourspace:", "sRGB", self.output_colourspace_selector.setCurrentText)
+        add_option(self.output_colourspace_selector, "Output colourspace:", "sRGB",
+                   self.output_colourspace_selector.setCurrentText)
 
         self.lut_size = QComboBox()
         self.lut_size.addItems(["17", "33", "67"])
@@ -205,7 +208,8 @@ class MainWindow(QMainWindow):
         input_colourspace = self.input_colourspace_selector.currentText()
         projector_kelvin = self.projector_kelvin.getValue()
         exp_comp = self.exp_comp.getValue()
-        printer_light_comp = np.array([self.red_light.getValue(), self.green_light.getValue(), self.blue_light.getValue()])
+        printer_light_comp = np.array(
+            [self.red_light.getValue(), self.green_light.getValue(), self.blue_light.getValue()])
         if input_colourspace == "CIE XYZ 1931": input_colourspace = None
         output_colourspace = self.output_colourspace_selector.currentText()
         if output_colourspace == "CIE XYZ 1931": output_colourspace = None
@@ -256,9 +260,7 @@ class MainWindow(QMainWindow):
             return
         else:
             self.running = True
-        worker = Worker(
-            self.update_preview
-        )
+        worker = Worker(self.update_preview)
         worker.signals.finished.connect(self.update_finished)
         worker.signals.progress.connect(self.progress_fn)
 
@@ -271,11 +273,12 @@ class MainWindow(QMainWindow):
         lut = self.generate_lut()
 
         src = self.image_selector.currentText()
-        target = "temp.jpg"
+        target = "temp.png"
         if os.path.isfile(target):
             os.remove(target)
         try:
-            ffmpeg.input(src).filter('lut3d', file=lut).output(target, loglevel="quiet").run()
+            ffmpeg.input(src).filter('scale', "1024", "-1").filter('lut3d', file=lut).output(target,
+                                                                                             loglevel="quiet").run()
         except:
             return
         self.pixmap = QPixmap(target)

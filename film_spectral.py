@@ -327,10 +327,13 @@ class FilmSpectral:
     def compute_printer_light(self, print_film, compensation=None):
         if compensation is None:
             compensation = np.zeros(3, dtype=default_dtype)
+        compensation = 2 ** compensation
         # transmitted printer lights by middle gray negative
         reduced_lights = (self.printer_lights.T * 10 ** -self.d_ref_sd).T
         # adjust printer lights to produce neutral exposure with middle gray negative
-        light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ (print_film.H_ref + compensation)
+        light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ np.multiply(print_film.H_ref,
+                                                                                               compensation)
+        print(print_film.H_ref)
         printer_light = np.sum(self.printer_lights * light_factors, axis=1)
         return printer_light
 
@@ -395,13 +398,14 @@ class FilmSpectral:
             pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
 
         exp_comp = 2 ** exp_comp
-        pipeline.append(
-            (lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)), "log exposure"))
+        pipeline.append((
+        lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)), "log exposure"))
         pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
 
         if print_film is not None:
             if matrix_method:
-                density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film, compenation=printer_light_comp)
+                density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film,
+                                                                                   compenation=printer_light_comp)
                 pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing matrix"))
             else:
                 printer_light = negative_film.compute_printer_light(print_film, compensation=printer_light_comp)
