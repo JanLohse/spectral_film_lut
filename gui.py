@@ -1,10 +1,11 @@
 import os
 import sys
+import traceback
 from pathlib import Path
 
 import ffmpeg
 import numpy as np
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import QSize, Qt, QObject, pyqtSignal, QRunnable, pyqtSlot, QThreadPool
 from PyQt6.QtGui import QPixmap, QIntValidator
 from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget, QHBoxLayout, QComboBox, \
     QFileDialog, QLineEdit, QGridLayout, QSizePolicy, QSlider, QCheckBox, QLayout
@@ -19,6 +20,62 @@ from reversal_film.fuji_instax_color import FujiInstaxColor
 from reversal_film.kodachrome_64 import Kodachrome64
 from spectral_lut import create_lut
 
+
+class WorkerSignals(QObject):
+    """Signals from a running worker thread.
+
+    finished
+        No data
+
+    error
+        tuple (exctype, value, traceback.format_exc())
+
+    result
+        object data returned from processing, anything
+
+    progress
+        float indicating % progress
+    """
+
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    result = pyqtSignal(object)
+    progress = pyqtSignal(float)
+
+class Worker(QRunnable):
+    """Worker thread.
+
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
+
+    :param callback: The function callback to run on this worker thread.
+                     Supplied args and
+                     kwargs will be passed through to the runner.
+    :type callback: function
+    :param args: Arguments to pass to the callback function
+    :param kwargs: Keywords to pass to the callback function
+    """
+
+    def __init__(self, fn, *args, **kwargs):
+        super().__init__()
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()
+        # Add the callback to our kwargs
+        self.kwargs["progress_callback"] = self.signals.progress
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            result = self.fn(*self.args, **self.kwargs)
+        except Exception:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
+        else:
+            self.signals.result.emit(result)
+        finally:
+            self.signals.finished.emit()
 
 class MainWindow(QMainWindow):
     def __init__(self, filmstocks):
@@ -64,7 +121,7 @@ class MainWindow(QMainWindow):
         add_option(self.input_colourspace_selector, "Input colourspace:", "ARRI Wide Gamut 4", self.input_colourspace_selector.setCurrentText)
 
         self.exp_comp = Slider()
-        self.exp_comp.setMinMaxTicks(-2, 2, 1, 3)
+        self.exp_comp.setMinMaxTicks(-2, 2, 1, 6)
         add_option(self.exp_comp, "Exposure:", 0, self.exp_comp.setValue)
 
         self.negative_selector = QComboBox()
@@ -72,13 +129,13 @@ class MainWindow(QMainWindow):
         add_option(self.negative_selector, "Negativ stock:", "Kodak5207", self.negative_selector.setCurrentText)
 
         self.red_light = Slider()
-        self.red_light.setMinMaxTicks(-2, 2, 1, 3)
+        self.red_light.setMinMaxTicks(-2, 2, 1, 6)
         add_option(self.red_light, "Red printer light:", 0, self.red_light.setValue)
         self.green_light = Slider()
-        self.green_light.setMinMaxTicks(-2, 2, 1, 3)
+        self.green_light.setMinMaxTicks(-2, 2, 1, 6)
         add_option(self.green_light, "Green printer light:", 0, self.green_light.setValue)
         self.blue_light = Slider()
-        self.blue_light.setMinMaxTicks(-2, 2, 1, 3)
+        self.blue_light.setMinMaxTicks(-2, 2, 1, 6)
         add_option(self.blue_light, "Blue printer light:", 0, self.blue_light.setValue)
 
         self.link_lights = QCheckBox()
@@ -113,7 +170,7 @@ class MainWindow(QMainWindow):
         self.input_colourspace_selector.currentTextChanged.connect(self.parameter_changed)
         self.negative_selector.currentTextChanged.connect(self.parameter_changed)
         self.output_colourspace_selector.currentTextChanged.connect(self.parameter_changed)
-        self.print_selector.currentTextChanged.connect(self.print_changed)
+        self.print_selector.currentTextChanged.connect(self.print_light_changed)
         self.image_selector.textChanged.connect(self.parameter_changed)
         self.projector_kelvin.valueChanged.connect(self.parameter_changed)
         self.exp_comp.valueChanged.connect(self.parameter_changed)
@@ -127,6 +184,11 @@ class MainWindow(QMainWindow):
 
         self.resize(QSize(1024, 512))
 
+        self.waiting = False
+        self.running = False
+
+        self.threadpool = QThreadPool()
+
     def scale_pixmap(self):
         if not self.pixmap.isNull():
             scaled_pixmap = self.pixmap.scaled(self.image.size(), Qt.AspectRatioMode.KeepAspectRatio,
@@ -137,7 +199,7 @@ class MainWindow(QMainWindow):
         self.scale_pixmap()
         super().resizeEvent(event)
 
-    def generate_lut(self, name="temp", size=33):
+    def generate_lut(self, name="temp", size=17):
         negative_film = self.filmstocks[self.negative_selector.currentText()]
         print_film = self.filmstocks[self.print_selector.currentText()]
         input_colourspace = self.input_colourspace_selector.currentText()
@@ -163,7 +225,7 @@ class MainWindow(QMainWindow):
         else:
             self.parameter_changed()
 
-    def print_changed(self):
+    def print_light_changed(self):
         if self.print_selector.currentText() == "None":
             self.red_light.setDisabled(True)
             self.green_light.setDisabled(True)
@@ -176,7 +238,33 @@ class MainWindow(QMainWindow):
             self.link_lights.setDisabled(False)
         self.parameter_changed()
 
-    def parameter_changed(self, **kwargs):
+    def print_output(self, s):
+        print(s)
+
+    def update_finished(self):
+        self.running = False
+        if self.waiting:
+            self.waiting = False
+            self.parameter_changed()
+
+    def progress_fn(self, n):
+        print(f"{n:.1f}% done")
+
+    def parameter_changed(self):
+        if self.running:
+            self.waiting = True
+            return
+        else:
+            self.running = True
+        worker = Worker(
+            self.update_preview
+        )
+        worker.signals.finished.connect(self.update_finished)
+        worker.signals.progress.connect(self.progress_fn)
+
+        self.threadpool.start(worker)
+
+    def update_preview(self, *args, **kwargs):
         if self.image_selector.currentText() == "" or not os.path.isfile(self.image_selector.currentText()):
             return
 
