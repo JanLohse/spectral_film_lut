@@ -273,7 +273,7 @@ class MainWindow(QMainWindow):
         lut = self.generate_lut()
 
         src = self.image_selector.currentText()
-        target = "temp.png"
+        target = "temp.jpg"
         if os.path.isfile(target):
             os.remove(target)
         try:
