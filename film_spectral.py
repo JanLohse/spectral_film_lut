@@ -404,7 +404,7 @@ class FilmSpectral:
         if print_film is not None:
             if matrix_method:
                 density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film,
-                                                                                   compenation=printer_light_comp)
+                                                                                   compensation=printer_light_comp)
                 pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing matrix"))
             else:
                 printer_light = negative_film.compute_printer_light(print_film, compensation=printer_light_comp)

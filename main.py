@@ -1,9 +1,9 @@
 import ffmpeg
 import numpy as np
+from PIL import Image
 from PyQt6.QtCore import QSize, QThreadPool
-from PyQt6.QtGui import QPixmap, QIntValidator
-from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, \
-    QGridLayout, QSizePolicy, QCheckBox
+from PyQt6.QtGui import QPixmap, QIntValidator, QImage
+from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
 
 from negative_film.kodak_5207 import Kodak5207
@@ -103,6 +103,9 @@ class MainWindow(QMainWindow):
         self.lut_size.setValidator(QIntValidator())
         add_option(self.lut_size, "LUT size:", "33", self.lut_size.setCurrentText)
 
+        self.matrix_preview = QCheckBox()
+        add_option(self.matrix_preview, "Matrix preview:", False, self.matrix_preview.setChecked)
+
         self.save_lut_button = QPushButton("Save LUT")
         self.save_lut_button.released.connect(self.save_lut)
         add_option(self.save_lut_button)
@@ -117,6 +120,7 @@ class MainWindow(QMainWindow):
         self.red_light.valueChanged.connect(self.lights_changed)
         self.green_light.valueChanged.connect(self.lights_changed)
         self.blue_light.valueChanged.connect(self.lights_changed)
+        self.matrix_preview.checkStateChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -179,7 +183,8 @@ class MainWindow(QMainWindow):
             self.link_lights.setDisabled(False)
         self.parameter_changed()
 
-    def print_output(self, s):
+    @staticmethod
+    def print_output(s):
         print(s)
 
     def update_finished(self):
@@ -188,7 +193,8 @@ class MainWindow(QMainWindow):
             self.waiting = False
             self.parameter_changed()
 
-    def progress_fn(self, n):
+    @staticmethod
+    def progress_fn(n):
         print(f"{n:.1f}% done")
 
     def parameter_changed(self):
@@ -197,7 +203,10 @@ class MainWindow(QMainWindow):
             return
         else:
             self.running = True
-        worker = Worker(self.update_preview)
+        if self.matrix_preview.isChecked():
+            worker = Worker(self.update_preview_matrix)
+        else:
+            worker = Worker(self.update_preview)
         worker.signals.finished.connect(self.update_finished)
         worker.signals.progress.connect(self.progress_fn)
 
@@ -223,6 +232,39 @@ class MainWindow(QMainWindow):
         self.scale_pixmap()
         os.remove(target)
         os.remove(lut)
+
+    def update_preview_matrix(self, *args, **kwargs):
+        negative_film = self.filmstocks[self.negative_selector.currentText()]
+        print_film = self.filmstocks[self.print_selector.currentText()]
+        input_colourspace = self.input_colourspace_selector.currentText()
+        projector_kelvin = self.projector_kelvin.getValue()
+        exp_comp = self.exp_comp.getValue()
+        printer_light_comp = np.array(
+            [self.red_light.getValue(), self.green_light.getValue(), self.blue_light.getValue()])
+        if input_colourspace == "CIE XYZ 1931": input_colourspace = None
+        output_colourspace = self.output_colourspace_selector.currentText()
+        if output_colourspace == "CIE XYZ 1931": output_colourspace = None
+
+        transform = FilmSpectral.generate_conversion(negative_film, print_film, matrix_method=True,
+                                                     input_colourspace=input_colourspace,
+                                                     output_colourspace=output_colourspace,
+                                                     projector_kelvin=projector_kelvin, exp_comp=exp_comp,
+                                                     printer_light_comp=printer_light_comp, measure_time=True)
+        print(1)
+        image = np.asarray(Image.open(self.image_selector.currentText())).astype(np.float32) / (16 ** 2 - 1)
+        print(2, image.shape, image.min(), image.max())
+        start = time.time()
+        image = transform(image) * 255
+        print(3, image.shape, image.min(), image.max(), f"{time.time() - start:.2f}s")
+        image = image.astype(np.uint8)
+        print(4, image.shape, image.min(), image.max())
+        height, width, channel = image.shape
+        bytesPerLine = 3 * width
+        qImg = QImage(image.data, width, height, bytesPerLine, QImage.Format.Format_RGB888)
+
+        self.pixmap = QPixmap.fromImage(qImg)
+        self.image.setPixmap(self.pixmap)
+        self.scale_pixmap()
 
     def save_lut(self):
         filename, ok = QFileDialog.getSaveFileName(self)
