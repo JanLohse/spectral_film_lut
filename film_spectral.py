@@ -333,7 +333,6 @@ class FilmSpectral:
         # adjust printer lights to produce neutral exposure with middle gray negative
         light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ np.multiply(print_film.H_ref,
                                                                                                compensation)
-        print(print_film.H_ref)
         printer_light = np.sum(self.printer_lights * light_factors, axis=1)
         return printer_light
 
