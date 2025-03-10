@@ -2,8 +2,8 @@ from film_spectral import *
 
 
 class KodakEnduraPremier(FilmSpectral):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.lad = [0.7, 0.7, 0.7]
         self.density_measure = 'status_a'

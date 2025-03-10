@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDial
 from film_spectral import FilmSpectral
 
 
-def create_lut(negative_film, print_film=None, size=67, name="test", verbose=True, **kwargs):
+def create_lut(negative_film, print_film=None, size=33, name="test", verbose=True, **kwargs):
     lut = colour.LUT3D(size=size, name="test")
     transform = FilmSpectral.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()

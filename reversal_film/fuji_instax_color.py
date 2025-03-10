@@ -2,8 +2,8 @@ from film_spectral import *
 
 
 class FujiInstaxColor(FilmSpectral):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.iso = 800
         self.density_measure = "status_a"

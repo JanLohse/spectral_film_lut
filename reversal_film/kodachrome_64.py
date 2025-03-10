@@ -2,8 +2,8 @@ from film_spectral import *
 
 
 class Kodachrome64(FilmSpectral):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.iso = 64
         self.density_measure = "status_a"

@@ -2,50 +2,24 @@ import math
 import time
 
 import colour
-import cv2
 import numpy as np
-import torch
 from colour import SpectralDistribution, MultiSpectralDistributions
 from scipy.ndimage import gaussian_filter
-from torch import nn
 
 default_dtype = np.float32
-colour.SPECTRAL_SHAPE_DEFAULT = colour.SpectralShape(380, 780, 5)
 colour.utilities.set_default_float_dtype(default_dtype)
 
 
-class MatrixOutput(nn.Module):
-    def __init__(self, density_matrix=None, output_matrix=None, hidden_dim=None):
-        super(MatrixOutput, self).__init__()
-        if hidden_dim is None:
-            if density_matrix is not None:
-                hidden_dim = density_matrix.shape[-1]
-            elif output_matrix is not None:
-                hidden_dim = output_matrix.shape[0]
-            else:
-                hidden_dim = 3
-        self.density_matrix = nn.Linear(3, hidden_dim, bias=False)
-        self.output_matrix = nn.Linear(hidden_dim, 3, bias=False)
-        if density_matrix is not None:
-            self.density_matrix.weight.data = density_matrix
-        if output_matrix is not None:
-            self.output_matrix.weight.data = output_matrix.T
-
-    def forward(self, x):
-        x = self.density_matrix(x)
-        x = 10 ** -x
-        x = self.output_matrix(x)
-        return x
-
-
 class FilmSpectral:
-    def __init__(self):
+    def __init__(self, spectral_shape=None):
+        if spectral_shape is None:
+            self.spectral_shape = colour.SpectralShape(380, 780, 5)
+        else:
+            self.spectral_shape = spectral_shape
         # TODO move these to dedicated class
-        self.xyz_cmfs = colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].align(
-            colour.SPECTRAL_SHAPE_DEFAULT).values
+        self.xyz_cmfs = colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].align(self.spectral_shape).values
 
-        reference_sds = colour.characterisation.read_training_data_rawtoaces_v1().align(
-            colour.SPECTRAL_SHAPE_DEFAULT).values
+        reference_sds = colour.characterisation.read_training_data_rawtoaces_v1().align(self.spectral_shape).values
         reference_xyz = reference_sds.T @ self.xyz_cmfs
         self.xyz_dual = np.linalg.lstsq(reference_xyz, reference_sds.T, rcond=None)[0].T
 
@@ -133,10 +107,10 @@ class FilmSpectral:
         def interpolate_status_density(status):
             result = []
             for i, density in enumerate(status):
-                density = SpectralDistribution(density).extrapolate(colour.SPECTRAL_SHAPE_DEFAULT,
+                density = SpectralDistribution(density).extrapolate(self.spectral_shape,
                                                                     extrapolator_kwargs={'method': 'linear'})
                 density.values = 10 ** density.values
-                density.interpolate(colour.SPECTRAL_SHAPE_DEFAULT)
+                density.interpolate(self.spectral_shape)
                 density /= sum(density.values)
                 result.append(density)
             result = MultiSpectralDistributions(result)
@@ -144,7 +118,7 @@ class FilmSpectral:
 
         self.status_a = interpolate_status_density(status_a)
         self.status_m = interpolate_status_density(status_m)
-        self.apd = MultiSpectralDistributions(apd).align(colour.SPECTRAL_SHAPE_DEFAULT).values
+        self.apd = MultiSpectralDistributions(apd).align(self.spectral_shape).values
         self.apd /= np.sum(self.apd, axis=0)
 
         self.densiometry = {'status_a': self.status_a, 'status_m': self.status_m, 'apd': self.apd}
@@ -174,7 +148,7 @@ class FilmSpectral:
              696: 1.3926, 698: 1.3880, 700: 1.3813, 702: 1.3714, 704: 1.3590, 706: 1.3450, 708: 1.3305, 710: 1.3163,
              712: 1.3030, 714: 1.2904, 716: 1.2781, 718: 1.2656, 720: 1.2526, 722: 1.2387, 724: 1.2242, 726: 1.2091,
              728: 1.1937, 730: 1.1782})
-        printer_light.align(colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'})
+        printer_light.align(self.spectral_shape, extrapolator_kwargs={'method': 'linear'})
 
         self.printer_lights = self.construct_spectral_density(printer_light, sigma=5)
 
@@ -190,15 +164,12 @@ class FilmSpectral:
         self.H_ref = 10 ** self.log_H_ref
 
         # extrapolate log_sensitivity to linear sensitivity
-        self.red_log_sensitivity = colour.SpectralDistribution(self.red_log_sensitivity).align(
-            colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.green_log_sensitivity = colour.SpectralDistribution(self.green_log_sensitivity).align(
-            colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
-        self.blue_log_sensitivity = colour.SpectralDistribution(self.blue_log_sensitivity).align(
-            colour.SPECTRAL_SHAPE_DEFAULT, extrapolator_kwargs={'method': 'linear'}).align(
-            colour.SPECTRAL_SHAPE_DEFAULT)
+        self.red_log_sensitivity = colour.SpectralDistribution(self.red_log_sensitivity).align(self.spectral_shape,
+            extrapolator_kwargs={'method': 'linear'}).align(self.spectral_shape)
+        self.green_log_sensitivity = colour.SpectralDistribution(self.green_log_sensitivity).align(self.spectral_shape,
+            extrapolator_kwargs={'method': 'linear'}).align(self.spectral_shape)
+        self.blue_log_sensitivity = colour.SpectralDistribution(self.blue_log_sensitivity).align(self.spectral_shape,
+            extrapolator_kwargs={'method': 'linear'}).align(self.spectral_shape)
         self.sensitivity = 10 ** np.stack(
             (self.red_log_sensitivity.values, self.green_log_sensitivity.values, self.blue_log_sensitivity.values)).T
 
@@ -219,17 +190,17 @@ class FilmSpectral:
 
         # align spectral densities
         if hasattr(self, 'd_min_sd'):
-            FilmSpectral.gaussian_extrapolation(self.d_min_sd)
+            self.gaussian_extrapolation(self.d_min_sd)
             self.d_min_sd = self.d_min_sd.values
         else:
-            self.d_min_sd = colour.sd_zeros(colour.SPECTRAL_SHAPE_DEFAULT).values
+            self.d_min_sd = colour.sd_zeros(self.spectral_shape).values
 
         if hasattr(self, 'd_ref_sd'):
-            FilmSpectral.gaussian_extrapolation(self.d_ref_sd)
+            self.gaussian_extrapolation(self.d_ref_sd)
         if (hasattr(self, 'red_sd') and hasattr(self, 'green_sd') and hasattr(self, 'blue_sd')):
-            FilmSpectral.gaussian_extrapolation(self.red_sd)
-            FilmSpectral.gaussian_extrapolation(self.green_sd)
-            FilmSpectral.gaussian_extrapolation(self.blue_sd)
+            self.gaussian_extrapolation(self.red_sd)
+            self.gaussian_extrapolation(self.green_sd)
+            self.gaussian_extrapolation(self.blue_sd)
             self.spectral_density = np.stack((self.red_sd.values, self.green_sd.values, self.blue_sd.values)).T
         else:
             self.spectral_density = self.construct_spectral_density(self.d_ref_sd - self.d_min_sd)
@@ -238,7 +209,7 @@ class FilmSpectral:
         self.d_min_sd = self.d_min_sd + self.spectral_density @ (
                 self.d_min - self.densiometry[self.density_measure].T @ self.d_min_sd)
         self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
-        white_spectrum = self.white_sd.align(colour.SPECTRAL_SHAPE_DEFAULT).normalise().values
+        white_spectrum = self.white_sd.align(self.spectral_shape).normalise().values
         self.sensitivity *= self.H_ref / (self.sensitivity.T @ white_spectrum)
 
         gray = colour.xyY_to_XYZ((0.3127, 0.329, 0.18))
@@ -251,8 +222,7 @@ class FilmSpectral:
             if type(value) is np.ndarray and value.dtype is not default_dtype:
                 self.__dict__[key] = value.astype(default_dtype)
 
-    @staticmethod
-    def gaussian_extrapolation(sd: SpectralDistribution):
+    def gaussian_extrapolation(self, sd: SpectralDistribution):
         def extrapolate(a_x, a_y, b_x, b_y, wavelengths, d_1=30, d_2=0.75):
             m = (a_y - b_y) / (a_x - b_x)
             d = d_1 * m / np.absolute(a_y) ** d_2
@@ -262,16 +232,16 @@ class FilmSpectral:
             extrapolator = lambda x: a * np.exp(- (x - b) ** 2 / c ** 2)
             return extrapolator(wavelengths)
 
-        sd.interpolate(colour.SPECTRAL_SHAPE_DEFAULT)
+        sd.interpolate(self.spectral_shape)
 
-        def_wv = colour.SPECTRAL_SHAPE_DEFAULT.wavelengths
+        def_wv = self.spectral_shape.wavelengths
         wv_left = def_wv[def_wv < sd.wavelengths[0]]
         wv_right = def_wv[def_wv > sd.wavelengths[-1]]
         values_left = extrapolate(sd.wavelengths[0], sd.values[0], sd.wavelengths[1], sd.values[1], wv_left)
         values_right = extrapolate(sd.wavelengths[-1], sd.values[-1], sd.wavelengths[-2], sd.values[-2], wv_right)
         sd.values, sd.wavelengths = np.concatenate((values_left, sd.values, values_right)), np.concatenate(
             (wv_left, sd.wavelengths, wv_right))
-        sd.interpolate(colour.SPECTRAL_SHAPE_DEFAULT)
+        sd.interpolate(self.spectral_shape)
 
     @staticmethod
     def wavelength_argmax(distribution: SpectralDistribution, low=None, high=None):
@@ -289,11 +259,10 @@ class FilmSpectral:
         peak = range.wavelengths[range.values.argmin()]
         return peak
 
-    @staticmethod
-    def construct_spectral_density(ref_density, sigma=25):
-        red_peak = FilmSpectral.wavelength_argmax(ref_density, 600, 750)
+    def construct_spectral_density(self, ref_density, sigma=25):
+        red_peak = FilmSpectral.wavelength_argmax(ref_density, 600, min(750, self.spectral_shape.end))
         green_peak = FilmSpectral.wavelength_argmax(ref_density, 500, 600)
-        blue_peak = FilmSpectral.wavelength_argmax(ref_density, 400, 500)
+        blue_peak = FilmSpectral.wavelength_argmax(ref_density, max(400, self.spectral_shape.start), 500)
         bg_cutoff = FilmSpectral.wavelength_argmin(ref_density, blue_peak, green_peak)
         gr_cutoff = FilmSpectral.wavelength_argmin(ref_density, green_peak, red_peak)
 
@@ -301,7 +270,7 @@ class FilmSpectral:
         factors = np.stack((np.where(gr_cutoff <= wavelengths, 1., 0.),
                             np.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1., 0.),
                             np.where(wavelengths <= bg_cutoff, 1., 0.)))
-        factors = gaussian_filter(factors, sigma=sigma / colour.SPECTRAL_SHAPE_DEFAULT.interval, axes=1)
+        factors = gaussian_filter(factors, sigma=sigma / self.spectral_shape.interval, axes=1)
 
         out = (factors * ref_density.values).T
         return out
@@ -336,59 +305,19 @@ class FilmSpectral:
         printer_light = np.sum(self.printer_lights * light_factors, axis=1)
         return printer_light
 
-    def neural_matrix(self, projection_light, xyz_cmfs, dim=7, verbose=False):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-        density_values = np.mgrid[0:1:10j, 0:1:10j, 0:1:10j].reshape(3, -1).T * (self.d_max - self.d_min)
-        density_mat = self.spectral_density
-        output_mat = (xyz_cmfs.T * projection_light * 10 ** -self.d_min_sd).T
-        XYZ_values = np.dot(10 ** -np.dot(density_values, density_mat.T), output_mat)
-        XYZ_values_tensor = torch.tensor(XYZ_values, dtype=torch.float32).to(device)
-        density_values_tensor = torch.tensor(density_values, dtype=torch.float32).to(device)
-        density_mat = cv2.resize(density_mat, (density_mat.shape[1], dim), interpolation=cv2.INTER_LINEAR_EXACT)
-        output_mat = cv2.resize(output_mat, (output_mat.shape[1], dim), interpolation=cv2.INTER_LINEAR_EXACT) * \
-                     output_mat.shape[0] / dim
-        density_mat_tensor = torch.tensor(density_mat, dtype=torch.float32).to(device)
-        output_mat_tensor = torch.tensor(output_mat, dtype=torch.float32).to(device)
-
-        model = MatrixOutput(density_mat_tensor, output_mat_tensor)
-        model.to(device)
-        criterion = nn.MSELoss()
-        optim = torch.optim.Rprop(model.parameters(), lr=0.01)
-        best_loss = 10
-        best_epoch = 0
-        best_matrices = model.density_matrix.weight.cpu().detach().numpy(), model.output_matrix.weight.cpu().detach().numpy().T
-        start = time.time()
-        for t in range(10000):
-            y_pred = model(density_values_tensor)
-            loss = criterion(y_pred, XYZ_values_tensor)
-            if t == 0 and verbose:
-                print(f"init loss={loss.item()}")
-            if loss.item() < best_loss:
-                best_loss = loss.item()
-                best_epoch = t
-                best_matrices = model.density_matrix.weight.cpu().detach().numpy(), model.output_matrix.weight.cpu().detach().numpy().T
-            elif t - best_epoch >= 10:
-                break
-            optim.zero_grad()
-            loss.backward()
-            optim.step()
-        if verbose:
-            print(f"{best_epoch=} {best_loss=} {time.time() - start:.2f}s")
-        return best_matrices
-
-    def compute_projection_light(self, projector_kelvin=5500, reference_kelvin=6504):
-        reference_light = colour.sd_blackbody(reference_kelvin).align(colour.SPECTRAL_SHAPE_DEFAULT).normalise().values
-        projector_light = colour.sd_blackbody(projector_kelvin).align(colour.SPECTRAL_SHAPE_DEFAULT).normalise().values
+    def compute_projection_light(self, projector_kelvin=5500, reference_kelvin=6504, white_point=1.):
+        reference_light = colour.sd_blackbody(reference_kelvin).align(self.spectral_shape).normalise().values
+        projector_light = colour.sd_blackbody(projector_kelvin).align(self.spectral_shape).normalise().values
         reference_white = colour.xyY_to_XYZ([*colour.CCT_to_xy(reference_kelvin), 1.])
         xyz_cmfs = self.xyz_cmfs * (reference_white / (self.xyz_cmfs.T @ reference_light))
-        projector_light /= np.max(colour.XYZ_to_RGB(xyz_cmfs.T @ (projector_light * 10 ** -self.d_min_sd), "sRGB"))
+        peak_xyz = colour.XYZ_to_RGB(xyz_cmfs.T @ (projector_light * 10 ** -self.d_min_sd), "sRGB")
+        projector_light /= np.max(peak_xyz) / white_point
         return projector_light, xyz_cmfs
 
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
-                            printer_light_comp=None):
+                            printer_light_comp=None, white_point=1.):
         if printer_light_comp is None:
             printer_light_comp = [0, 0, 0]
         pipeline = []
@@ -397,8 +326,8 @@ class FilmSpectral:
             pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
 
         exp_comp = 2 ** exp_comp
-        pipeline.append((
-        lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)), "log exposure"))
+        pipeline.append((lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)),
+                         "log exposure"))
         pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
 
         if print_film is not None:
@@ -417,14 +346,13 @@ class FilmSpectral:
         else:
             output_film = negative_film
 
-        projection_light, xyz_cmfs = output_film.compute_projection_light(projector_kelvin=projector_kelvin)
+        projection_light, xyz_cmfs = output_film.compute_projection_light(projector_kelvin=projector_kelvin,
+                                                                          white_point=white_point)
         d_min_sd = output_film.d_min_sd
 
-        if matrix_method:
-            density_mat, output_mat = output_film.neural_matrix(projection_light, xyz_cmfs)
-        else:
-            density_mat = output_film.spectral_density
-            output_mat = (xyz_cmfs.T * projection_light * 10 ** -d_min_sd).T
+        # TODO: matrix output here
+        density_mat = output_film.spectral_density
+        output_mat = (xyz_cmfs.T * projection_light * 10 ** -d_min_sd).T
         pipeline.append((lambda x: np.dot(10 ** -np.dot(x, density_mat.T), output_mat), "output matrix"))
 
         if output_colourspace is not None:

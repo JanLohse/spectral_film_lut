@@ -1,9 +1,8 @@
 import ffmpeg
 import numpy as np
 from PyQt6.QtCore import QSize, QThreadPool
-from PyQt6.QtGui import QPixmap, QIntValidator
-from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, \
-    QGridLayout, QSizePolicy, QCheckBox
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
 
 from negative_film.kodak_5207 import Kodak5207
@@ -91,17 +90,18 @@ class MainWindow(QMainWindow):
         self.projector_kelvin.setMinMaxTicks(2700, 10000, 100)
         add_option(self.projector_kelvin, "Projector wb:", 6500, self.projector_kelvin.setValue)
 
+        self.white_point = Slider()
+        self.white_point.setMinMaxTicks(.5, 2., 1, 20)
+        add_option(self.white_point, "White point:", 1., self.white_point.setValue)
+
         self.output_colourspace_selector = QComboBox()
         self.output_colourspace_selector.addItems(colourspaces)
         add_option(self.output_colourspace_selector, "Output colourspace:", "sRGB",
                    self.output_colourspace_selector.setCurrentText)
 
-        self.lut_size = QComboBox()
-        self.lut_size.addItems(["17", "33", "67"])
-        self.lut_size.setEditable(True)
-        self.lut_size.setCurrentText("33")
-        self.lut_size.setValidator(QIntValidator())
-        add_option(self.lut_size, "LUT size:", "33", self.lut_size.setCurrentText)
+        self.lut_size = Slider()
+        self.lut_size.setMinMaxTicks(2, 67)
+        add_option(self.lut_size, "LUT size:", 33, self.lut_size.setValue)
 
         self.save_lut_button = QPushButton("Save LUT")
         self.save_lut_button.released.connect(self.save_lut)
@@ -117,6 +117,8 @@ class MainWindow(QMainWindow):
         self.red_light.valueChanged.connect(self.lights_changed)
         self.green_light.valueChanged.connect(self.lights_changed)
         self.blue_light.valueChanged.connect(self.lights_changed)
+        self.lut_size.valueChanged.connect(self.parameter_changed)
+        self.white_point.valueChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -139,7 +141,7 @@ class MainWindow(QMainWindow):
         self.scale_pixmap()
         super().resizeEvent(event)
 
-    def generate_lut(self, name="temp", size=17):
+    def generate_lut(self, name="temp"):
         negative_film = self.filmstocks[self.negative_selector.currentText()]
         print_film = self.filmstocks[self.print_selector.currentText()]
         input_colourspace = self.input_colourspace_selector.currentText()
@@ -150,9 +152,12 @@ class MainWindow(QMainWindow):
         if input_colourspace == "CIE XYZ 1931": input_colourspace = None
         output_colourspace = self.output_colourspace_selector.currentText()
         if output_colourspace == "CIE XYZ 1931": output_colourspace = None
+        size = int(self.lut_size.getValue())
+        white_point = self.white_point.getValue()
         lut = create_lut(negative_film, print_film, name=name, matrix_method=False, size=size,
                          input_colourspace=input_colourspace, output_colourspace=output_colourspace,
-                         projector_kelvin=projector_kelvin, exp_comp=exp_comp, printer_light_comp=printer_light_comp)
+                         projector_kelvin=projector_kelvin, exp_comp=exp_comp, printer_light_comp=printer_light_comp,
+                         white_point=white_point)
         return lut
 
     def lights_changed(self, value):
@@ -214,8 +219,10 @@ class MainWindow(QMainWindow):
         if os.path.isfile(target):
             os.remove(target)
         try:
+            start = time.time()
             ffmpeg.input(src).filter('scale', "1024", "-1").filter('lut3d', file=lut).output(target,
                                                                                              loglevel="quiet").run()
+            print(f"applied lut in {time.time() - start:.2f} seconds")
         except:
             return
         self.pixmap = QPixmap(target)

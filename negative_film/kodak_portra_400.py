@@ -2,8 +2,8 @@ from film_spectral import *
 
 
 class KodakPortra400(FilmSpectral):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.iso = 400
         # self.log_H_ref = 1.44
