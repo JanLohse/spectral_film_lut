@@ -103,6 +103,10 @@ class MainWindow(QMainWindow):
         self.lut_size.setMinMaxTicks(2, 67)
         add_option(self.lut_size, "LUT size:", 33, self.lut_size.setValue)
 
+        self.mode = QComboBox()
+        self.mode.addItems(['full', 'negative', 'print'])
+        add_option(self.mode, "Mode:", "full", self.mode.setCurrentText)
+
         self.save_lut_button = QPushButton("Save LUT")
         self.save_lut_button.released.connect(self.save_lut)
         add_option(self.save_lut_button)
@@ -119,6 +123,7 @@ class MainWindow(QMainWindow):
         self.blue_light.valueChanged.connect(self.lights_changed)
         self.lut_size.valueChanged.connect(self.parameter_changed)
         self.white_point.valueChanged.connect(self.parameter_changed)
+        self.mode.currentTextChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -154,10 +159,11 @@ class MainWindow(QMainWindow):
         if output_colourspace == "CIE XYZ 1931": output_colourspace = None
         size = int(self.lut_size.getValue())
         white_point = self.white_point.getValue()
+        mode = self.mode.currentText()
         lut = create_lut(negative_film, print_film, name=name, matrix_method=False, size=size,
                          input_colourspace=input_colourspace, output_colourspace=output_colourspace,
                          projector_kelvin=projector_kelvin, exp_comp=exp_comp, printer_light_comp=printer_light_comp,
-                         white_point=white_point)
+                         white_point=white_point, mode=mode)
         return lut
 
     def lights_changed(self, value):

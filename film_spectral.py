@@ -317,46 +317,53 @@ class FilmSpectral:
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
-                            printer_light_comp=None, white_point=1.):
+                            printer_light_comp=None, white_point=1., mode='full', density_scale=4):
         if printer_light_comp is None:
             printer_light_comp = [0, 0, 0]
         pipeline = []
+        if mode == 'negative' or mode == 'full':
 
-        if input_colourspace is not None:
-            pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
+            if input_colourspace is not None:
+                pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
 
-        exp_comp = 2 ** exp_comp
-        pipeline.append((lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)),
-                         "log exposure"))
-        pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
+            exp_comp = 2 ** exp_comp
+            pipeline.append((lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)),
+                             "log exposure"))
+            pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
 
-        if print_film is not None:
-            if matrix_method:
-                density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film,
-                                                                                   compenation=printer_light_comp)
-                pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing matrix"))
+        if mode == 'negative':
+            pipeline.append((lambda x: x / density_scale, 'scale density'))
+        elif mode == 'print':
+            pipeline.append((lambda x: x * density_scale, 'scale density'))
+
+        if mode == 'print' or mode == 'full':
+            if print_film is not None:
+                if matrix_method:
+                    density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film,
+                                                                                       compenation=printer_light_comp)
+                    pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing matrix"))
+                else:
+                    printer_light = negative_film.compute_printer_light(print_film, compensation=printer_light_comp)
+                    density_neg = negative_film.spectral_density.T
+                    printing_mat = (print_film.sensitivity.T * printer_light * 10 ** -negative_film.d_min_sd).T
+                    pipeline.append((lambda x: np.log10(
+                        np.clip(np.dot(10 ** -np.dot(x, density_neg), printing_mat), 0.0001, None)), "printing"))
+                pipeline.append((print_film.log_exposure_to_density, "characteristic curve print"))
+                output_film = print_film
             else:
-                printer_light = negative_film.compute_printer_light(print_film, compensation=printer_light_comp)
-                density_neg = negative_film.spectral_density.T
-                printing_mat = (print_film.sensitivity.T * printer_light * 10 ** -negative_film.d_min_sd).T
-                pipeline.append((lambda x: np.log10(
-                    np.clip(np.dot(10 ** -np.dot(x, density_neg), printing_mat), 0.0001, None)), "printing"))
-            pipeline.append((print_film.log_exposure_to_density, "characteristic curve print"))
-            output_film = print_film
-        else:
-            output_film = negative_film
+                output_film = negative_film
 
-        projection_light, xyz_cmfs = output_film.compute_projection_light(projector_kelvin=projector_kelvin,
-                                                                          white_point=white_point)
-        d_min_sd = output_film.d_min_sd
+            projection_light, xyz_cmfs = output_film.compute_projection_light(projector_kelvin=projector_kelvin,
+                                                                              white_point=white_point)
+            d_min_sd = output_film.d_min_sd
 
-        # TODO: matrix output here
-        density_mat = output_film.spectral_density
-        output_mat = (xyz_cmfs.T * projection_light * 10 ** -d_min_sd).T
-        pipeline.append((lambda x: np.dot(10 ** -np.dot(x, density_mat.T), output_mat), "output matrix"))
+            # TODO: matrix output here
+            density_mat = output_film.spectral_density
+            output_mat = (xyz_cmfs.T * projection_light * 10 ** -d_min_sd).T
+            pipeline.append((lambda x: np.dot(10 ** -np.dot(x, density_mat.T), output_mat), "output matrix"))
 
-        if output_colourspace is not None:
-            pipeline.append((lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
+            if output_colourspace is not None:
+                pipeline.append((lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
 
         def convert(x):
             start = time.time()
