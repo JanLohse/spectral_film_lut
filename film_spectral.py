@@ -317,7 +317,7 @@ class FilmSpectral:
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
-                            printer_light_comp=None, white_point=1., mode='full', density_scale=4):
+                            printer_light_comp=None, white_point=1., mode='full', density_scale=6):
         if printer_light_comp is None:
             printer_light_comp = [0, 0, 0]
         pipeline = []

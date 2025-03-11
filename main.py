@@ -241,7 +241,7 @@ class MainWindow(QMainWindow):
         filename, ok = QFileDialog.getSaveFileName(self)
 
         if ok:
-            self.generate_lut(filename, int(self.lut_size.currentText()))
+            self.generate_lut(filename)
 
 
 if __name__ == '__main__':
