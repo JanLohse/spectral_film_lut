@@ -1,4 +1,4 @@
-from film_spectral import *
+from spectral_film_lut.film_spectral import *
 
 
 class KodakEnduraPremier(FilmSpectral):

@@ -5,14 +5,14 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
 
-from negative_film.kodak_5207 import Kodak5207
-from negative_film.kodak_portra_400 import KodakPortra400
-from print_film.kodak_2383 import Kodak2383
-from print_film.kodak_2393 import Kodak2393
-from print_film.kodak_endura_premier import KodakEnduraPremier
-from reversal_film.fuji_instax_color import FujiInstaxColor
-from reversal_film.kodachrome_64 import Kodachrome64
-from utils import *
+from spectral_film_lut.negative_film.kodak_5207 import Kodak5207
+from spectral_film_lut.negative_film.kodak_portra_400 import KodakPortra400
+from spectral_film_lut.print_film.kodak_2383 import Kodak2383
+from spectral_film_lut.print_film.kodak_2393 import Kodak2393
+from spectral_film_lut.print_film.kodak_endura_premier import KodakEnduraPremier
+from spectral_film_lut.reversal_film.fuji_instax_color import FujiInstaxColor
+from spectral_film_lut.reversal_film.kodachrome_64 import Kodachrome64
+from spectral_film_lut.utils import *
 
 
 class MainWindow(QMainWindow):
@@ -191,7 +191,7 @@ class MainWindow(QMainWindow):
         self.parameter_changed()
 
     def print_output(self, s):
-        print(s)
+        return
 
     def update_finished(self):
         self.running = False
@@ -200,7 +200,7 @@ class MainWindow(QMainWindow):
             self.parameter_changed()
 
     def progress_fn(self, n):
-        print(f"{n:.1f}% done")
+        return
 
     def parameter_changed(self):
         if self.running:
@@ -214,7 +214,7 @@ class MainWindow(QMainWindow):
 
         self.threadpool.start(worker)
 
-    def update_preview(self, *args, **kwargs):
+    def update_preview(self, verbose=False, *args, **kwargs):
         if self.image_selector.currentText() == "" or not os.path.isfile(self.image_selector.currentText()):
             return
 
@@ -226,9 +226,10 @@ class MainWindow(QMainWindow):
             os.remove(target)
         try:
             start = time.time()
-            ffmpeg.input(src).filter('scale', "1024", "-1").filter('lut3d', file=lut).output(target,
-                                                                                             loglevel="quiet").run()
-            print(f"applied lut in {time.time() - start:.2f} seconds")
+            run(ffmpeg.input(src).filter('scale', "1024", "-1").filter('lut3d', file=lut).output(target,
+                                                                                                 loglevel="quiet"))
+            if verbose:
+                print(f"applied lut in {time.time() - start:.2f} seconds")
         except:
             return
         self.pixmap = QPixmap(target)
@@ -244,7 +245,7 @@ class MainWindow(QMainWindow):
             self.generate_lut(filename)
 
 
-if __name__ == '__main__':
+def main():
     filmstocks = [Kodak5207, KodakPortra400, Kodachrome64, Kodak2383, Kodak2393, KodakEnduraPremier, FujiInstaxColor]
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
@@ -253,3 +254,7 @@ if __name__ == '__main__':
     w = MainWindow(filmstocks)
     w.show()
     app.exec()
+
+
+if __name__ == '__main__':
+    main()

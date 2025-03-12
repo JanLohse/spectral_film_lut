@@ -3,23 +3,28 @@ import sys
 import time
 import traceback
 from pathlib import Path
+import subprocess
 
 import colour
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
 
-from film_spectral import FilmSpectral
+from ffmpeg.nodes import output_operator
+from ffmpeg._run import compile, run
+
+from spectral_film_lut.film_spectral import FilmSpectral
 
 
-def create_lut(negative_film, print_film=None, size=33, name="test", verbose=True, **kwargs):
+
+def create_lut(negative_film, print_film=None, size=33, name="test", verbose=False, **kwargs):
     lut = colour.LUT3D(size=size, name="test")
     transform = FilmSpectral.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
     lut.table = transform(lut.table)
     end = time.time()
     path = f"{name}.cube"
-    if not os.path.exists("LUTs"):
-        os.makedirs("LUTs")
+    if not os.path.exists("../../LUTs"):
+        os.makedirs("../../LUTs")
     colour.io.write_LUT(lut, path)
     if verbose:
         print(f"created {path} in {end - start:.2f} seconds")
@@ -161,3 +166,72 @@ class Slider(QWidget):
 
     def getPosition(self):
         return self.slider.value()
+
+
+
+class Error(Exception):
+    def __init__(self, cmd, stdout, stderr):
+        super(Error, self).__init__(
+            '{} error (see stderr output for detail)'.format(cmd)
+        )
+        self.stdout = stdout
+        self.stderr = stderr
+
+@output_operator()
+def run_async(
+    stream_spec,
+    cmd='ffmpeg',
+    pipe_stdin=False,
+    pipe_stdout=False,
+    pipe_stderr=False,
+    quiet=False,
+    overwrite_output=False,
+):
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    args = compile(stream_spec, cmd, overwrite_output=overwrite_output)
+    stdin_stream = subprocess.PIPE if pipe_stdin else None
+    stdout_stream = subprocess.PIPE if pipe_stdout or quiet else None
+    stderr_stream = subprocess.PIPE if pipe_stderr or quiet else None
+    return subprocess.Popen(
+        args, stdin=stdin_stream, stdout=stdout_stream, stderr=stderr_stream, startupinfo=startupinfo
+    )
+
+@output_operator()
+def run(
+    stream_spec,
+    cmd='ffmpeg',
+    capture_stdout=False,
+    capture_stderr=False,
+    input=None,
+    quiet=False,
+    overwrite_output=False,
+):
+    """Invoke ffmpeg for the supplied node graph.
+
+    Args:
+        capture_stdout: if True, capture stdout (to be used with
+            ``pipe:`` ffmpeg outputs).
+        capture_stderr: if True, capture stderr.
+        quiet: shorthand for setting ``capture_stdout`` and ``capture_stderr``.
+        input: text to be sent to stdin (to be used with ``pipe:``
+            ffmpeg inputs)
+        **kwargs: keyword-arguments passed to ``get_args()`` (e.g.
+            ``overwrite_output=True``).
+
+    Returns: (out, err) tuple containing captured stdout and stderr data.
+    """
+    process = run_async(
+        stream_spec,
+        cmd,
+        pipe_stdin=input is not None,
+        pipe_stdout=capture_stdout,
+        pipe_stderr=capture_stderr,
+        quiet=quiet,
+        overwrite_output=overwrite_output,
+    )
+    out, err = process.communicate(input)
+    retcode = process.poll()
+    if retcode:
+        raise Error('ffmpeg', out, err)
+    return out, err

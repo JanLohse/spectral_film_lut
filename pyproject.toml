@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spectral_film_lut"
+version = "0.0.1"
+authors = [
+  { name="Jan Lohse" },
+]
+description = "GUI to create LUTs to emulate film from spectral datasheets."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/JanLohse/spectral_film_lut"
+Issues = "https://github.com/JanLohse/spectral_film_lut/issues"
+
+[project.gui-scripts]
+spectral_film_lut = "spectral_film_lut:main"
