@@ -1,4 +1,7 @@
-on: push
+on: 
+  push:
+    tags:
+    - 'v*'
 
 name: Release Python Package
 
