@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 61.0"]
+requires = ["setuptools >= 61.0", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -22,3 +22,5 @@ Issues = "https://github.com/JanLohse/spectral_film_lut/issues"
 
 [project.gui-scripts]
 spectral_film_lut = "spectral_film_lut:main"
+
+[tool.setuptools_scm]
