@@ -15,6 +15,13 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    "numpy",
+    "colour-science",
+    "scipy",
+    "pyqt6",
+    "ffmpeg-python"
+]
 
 [project.urls]
 Homepage = "https://github.com/JanLohse/spectral_film_lut"

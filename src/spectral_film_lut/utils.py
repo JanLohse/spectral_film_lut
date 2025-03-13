@@ -10,7 +10,7 @@ from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
 
 from ffmpeg.nodes import output_operator
-from ffmpeg._run import compile, run
+from ffmpeg._run import compile
 
 from spectral_film_lut.film_spectral import FilmSpectral
 
