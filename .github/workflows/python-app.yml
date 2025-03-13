@@ -1,7 +1,4 @@
-on: 
-  push:
-    tags:
-    - 'v*'
+on: push
 
 name: Release Python Package
 
@@ -21,6 +18,6 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          file: dist/spectral_film_lut-*.tar.gz
+          files: dist/spectral_film_lut-*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
