@@ -1,4 +1,4 @@
-name: Upload Python Package
+name: Release Python Package
 
 on:
   release:
@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
@@ -24,8 +25,8 @@ jobs:
           python -m pip install build
           python -m build
 
-      - name: Upload distributions
-        uses: actions/upload-artifact@v4
+      - name: Release
+        uses: softprops/action-gh-release@v2
         with:
           name: release-dists
           path: dist/
