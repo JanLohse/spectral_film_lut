@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spectral_film_lut"
-version = "0.0.1"
+dynamic = ["version"]
 authors = [
   { name="Jan Lohse" },
 ]
