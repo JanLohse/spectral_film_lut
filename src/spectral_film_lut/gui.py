@@ -5,6 +5,7 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
 
+from spectral_film_lut.reversal_film.kodak_ektachrome_100d import KodakEktachrome100D
 from spectral_film_lut.negative_film.kodak_5207 import Kodak5207
 from spectral_film_lut.negative_film.kodak_portra_400 import KodakPortra400
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
@@ -246,7 +247,8 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    filmstocks = [Kodak5207, KodakPortra400, Kodachrome64, Kodak2383, Kodak2393, KodakEnduraPremier, FujiInstaxColor]
+    filmstocks = [Kodak5207, KodakPortra400, Kodachrome64, Kodak2383, Kodak2393, KodakEnduraPremier, FujiInstaxColor,
+                  KodakEktachrome100D]
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
 
