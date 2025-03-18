@@ -220,21 +220,9 @@ class FilmSpectral:
 
         if all([hasattr(self, x) for x in
                 ['red_rms', 'green_rms', 'blue_rms', 'red_rms_density', 'green_rms_density', 'blue_rms_density']]):
-            xp = np.array(list(self.red_rms_density.keys()), dtype=default_dtype)
-            fp = np.array(list(self.red_rms_density.values()), dtype=default_dtype)
-            fp -= fp.min()
-            self.red_rms_density = np.interp(np.array(list(self.red_rms.keys()), dtype=default_dtype), xp, fp)
-            self.red_rms = np.array(list(self.red_rms.values()), dtype=default_dtype)
-            xp = np.array(list(self.green_rms_density.keys()), dtype=default_dtype)
-            fp = np.array(list(self.green_rms_density.values()), dtype=default_dtype)
-            fp -= fp.min()
-            self.green_rms_density = np.interp(np.array(list(self.green_rms.keys()), dtype=default_dtype), xp, fp)
-            self.green_rms = np.array(list(self.green_rms.values()), dtype=default_dtype)
-            xp = np.array(list(self.blue_rms_density.keys()), dtype=default_dtype)
-            fp = np.array(list(self.blue_rms_density.values()), dtype=default_dtype)
-            fp -= fp.min()
-            self.blue_rms_density = np.interp(np.array(list(self.blue_rms.keys()), dtype=default_dtype), xp, fp)
-            self.blue_rms = np.array(list(self.blue_rms.values()), dtype=default_dtype)
+            self.red_rms, self.red_rms_density = self.prepare_rms_data(self.red_rms, self.red_rms_density)
+            self.green_rms, self.green_rms_density = self.prepare_rms_data(self.green_rms, self.green_rms_density)
+            self.blue_rms, self.blue_rms_density = self.prepare_rms_data(self.blue_rms, self.blue_rms_density)
             if hasattr(self, 'rms'):
                 ref_rms = np.interp(1, self.green_rms_density, self.green_rms)
                 if self.rms > 1:
@@ -243,10 +231,25 @@ class FilmSpectral:
                 self.red_rms *= factor
                 self.green_rms *= factor
                 self.blue_rms *= factor
+                print(ref_rms, factor, np.interp(1, self.green_rms_density, self.green_rms))
+            else:
+                print(np.interp(1, self.green_rms_density, self.green_rms))
 
         for key, value in self.__dict__.items():
             if type(value) is np.ndarray and value.dtype is not default_dtype:
                 self.__dict__[key] = value.astype(default_dtype)
+
+    @staticmethod
+    def prepare_rms_data(rms, density):
+        xp = np.array(list(density.keys()), dtype=default_dtype)
+        fp = np.array(list(density.values()), dtype=default_dtype)
+        fp -= fp.min() - 0.01
+        density = np.concatenate((np.zeros(1), np.interp(np.array(list(rms.keys()), dtype=default_dtype), xp, fp)))
+        rms = np.array([0] + list(rms.values()), dtype=default_dtype)
+        sorting = density.argsort()
+        density = density[sorting]
+        rms = rms[sorting]
+        return rms, density
 
     def gaussian_extrapolation(self, sd: SpectralDistribution):
         def extrapolate(a_x, a_y, b_x, b_y, wavelengths, d_1=30, d_2=0.75):
