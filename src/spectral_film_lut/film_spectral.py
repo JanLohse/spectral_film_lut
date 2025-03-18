@@ -218,6 +218,32 @@ class FilmSpectral:
         correction_factors = self.H_ref / ref_exp
         self.XYZ_to_exp = (self.XYZ_to_exp.T * correction_factors).T
 
+        if all([hasattr(self, x) for x in
+                ['red_rms', 'green_rms', 'blue_rms', 'red_rms_density', 'green_rms_density', 'blue_rms_density']]):
+            xp = np.array(list(self.red_rms_density.keys()), dtype=default_dtype)
+            fp = np.array(list(self.red_rms_density.values()), dtype=default_dtype)
+            fp -= fp.min()
+            self.red_rms_density = np.interp(np.array(list(self.red_rms.keys()), dtype=default_dtype), xp, fp)
+            self.red_rms = np.array(list(self.red_rms.values()), dtype=default_dtype)
+            xp = np.array(list(self.green_rms_density.keys()), dtype=default_dtype)
+            fp = np.array(list(self.green_rms_density.values()), dtype=default_dtype)
+            fp -= fp.min()
+            self.green_rms_density = np.interp(np.array(list(self.green_rms.keys()), dtype=default_dtype), xp, fp)
+            self.green_rms = np.array(list(self.green_rms.values()), dtype=default_dtype)
+            xp = np.array(list(self.blue_rms_density.keys()), dtype=default_dtype)
+            fp = np.array(list(self.blue_rms_density.values()), dtype=default_dtype)
+            fp -= fp.min()
+            self.blue_rms_density = np.interp(np.array(list(self.blue_rms.keys()), dtype=default_dtype), xp, fp)
+            self.blue_rms = np.array(list(self.blue_rms.values()), dtype=default_dtype)
+            if hasattr(self, 'rms'):
+                ref_rms = np.interp(1, self.green_rms_density, self.green_rms)
+                if self.rms > 1:
+                    self.rms /= 1000
+                factor = self.rms / ref_rms
+                self.red_rms *= factor
+                self.green_rms *= factor
+                self.blue_rms *= factor
+
         for key, value in self.__dict__.items():
             if type(value) is np.ndarray and value.dtype is not default_dtype:
                 self.__dict__[key] = value.astype(default_dtype)
