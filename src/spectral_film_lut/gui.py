@@ -13,6 +13,7 @@ from spectral_film_lut.print_film.kodak_2393 import Kodak2393
 from spectral_film_lut.print_film.kodak_endura_premier import KodakEnduraPremier
 from spectral_film_lut.reversal_film.fuji_instax_color import FujiInstaxColor
 from spectral_film_lut.reversal_film.kodachrome_64 import Kodachrome64
+from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
 from spectral_film_lut.utils import *
 
 
@@ -248,7 +249,7 @@ class MainWindow(QMainWindow):
 
 def main():
     filmstocks = [Kodak5207, KodakPortra400, Kodachrome64, Kodak2383, Kodak2393, KodakEnduraPremier, FujiInstaxColor,
-                  KodakEktachrome100D]
+                  KodakEktachrome100D, FujiCrystalArchiveDPII]
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
 
