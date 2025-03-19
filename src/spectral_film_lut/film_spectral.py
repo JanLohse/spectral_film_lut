@@ -231,9 +231,6 @@ class FilmSpectral:
                 self.red_rms *= factor
                 self.green_rms *= factor
                 self.blue_rms *= factor
-                print(ref_rms, factor, np.interp(1, self.green_rms_density, self.green_rms))
-            else:
-                print(np.interp(1, self.green_rms_density, self.green_rms))
 
         for key, value in self.__dict__.items():
             if type(value) is np.ndarray and value.dtype is not default_dtype:
