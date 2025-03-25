@@ -7,8 +7,8 @@ class Kodak5207(FilmSpectral):
 
         self.iso = 250
         self.density_measure = 'status_m'
-        self.white_xy = [0.3127, 0.329]
-        self.white_sd = colour.SDS_ILLUMINANTS['D65']
+        self.exposure_kelvin = 5500
+        self.projection_kelvin = None
 
         # spectral sensitivity
         self.red_log_sensitivity = {530.0364: 0.0532, 535.5542: 0.0346, 542.0752: 0.0346, 549.5994: 0.0930,

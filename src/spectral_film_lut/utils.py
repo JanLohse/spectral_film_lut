@@ -16,8 +16,8 @@ from spectral_film_lut.film_spectral import FilmSpectral
 
 
 
-def create_lut(negative_film, print_film=None, size=33, name="test", verbose=False, **kwargs):
-    lut = colour.LUT3D(size=size, name="test")
+def create_lut(negative_film, print_film=None, lut_size=33, name="test", verbose=False, **kwargs):
+    lut = colour.LUT3D(size=lut_size, name="test")
     transform = FilmSpectral.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
     lut.table = transform(lut.table)
@@ -235,3 +235,4 @@ def run(
     if retcode:
         raise Error('ffmpeg', out, err)
     return out, err
+

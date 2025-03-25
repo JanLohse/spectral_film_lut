@@ -7,8 +7,8 @@ class FujiInstaxColor(FilmSpectral):
 
         self.iso = 800
         self.density_measure = "status_a"
-        self.white_xy = [0.3127, 0.329]
-        self.white_sd = colour.SDS_ILLUMINANTS['D55']
+        self.exposure_kelvin = 5500
+        self.projection_kelvin = 5500
 
         # spectral sensitivity
         self.red_log_sensitivity = {575.0794: -0.1667, 579.2737: 0.0402, 586.5731: 0.3226, 594.1176: 0.5849,

@@ -65,18 +65,21 @@ class MainWindow(QMainWindow):
         self.exp_comp.setMinMaxTicks(-2, 2, 1, 6)
         add_option(self.exp_comp, "Exposure:", 0, self.exp_comp.setValue)
 
+        self.exp_wb = Slider()
+        self.exp_wb.setMinMaxTicks(2000, 15000, 100)
+        add_option(self.exp_wb, "WB:", 6500, self.exp_wb.setValue)
         self.negative_selector = QComboBox()
         self.negative_selector.addItems(list(filmstocks.keys()))
         add_option(self.negative_selector, "Negativ stock:", "Kodak5207", self.negative_selector.setCurrentText)
 
         self.red_light = Slider()
-        self.red_light.setMinMaxTicks(-2, 2, 1, 6)
+        self.red_light.setMinMaxTicks(-1, 1, 1, 20)
         add_option(self.red_light, "Red printer light:", 0, self.red_light.setValue)
         self.green_light = Slider()
-        self.green_light.setMinMaxTicks(-2, 2, 1, 6)
+        self.green_light.setMinMaxTicks(-1, 1, 1, 20)
         add_option(self.green_light, "Green printer light:", 0, self.green_light.setValue)
         self.blue_light = Slider()
-        self.blue_light.setMinMaxTicks(-2, 2, 1, 6)
+        self.blue_light.setMinMaxTicks(-1, 1, 1, 20)
         add_option(self.blue_light, "Blue printer light:", 0, self.blue_light.setValue)
 
         self.link_lights = QCheckBox()
@@ -121,6 +124,7 @@ class MainWindow(QMainWindow):
         self.image_selector.textChanged.connect(self.parameter_changed)
         self.projector_kelvin.valueChanged.connect(self.parameter_changed)
         self.exp_comp.valueChanged.connect(self.parameter_changed)
+        self.exp_wb.valueChanged.connect(self.parameter_changed)
         self.red_light.valueChanged.connect(self.lights_changed)
         self.green_light.valueChanged.connect(self.lights_changed)
         self.blue_light.valueChanged.connect(self.lights_changed)
@@ -163,10 +167,11 @@ class MainWindow(QMainWindow):
         size = int(self.lut_size.getValue())
         white_point = self.white_point.getValue()
         mode = self.mode.currentText()
-        lut = create_lut(negative_film, print_film, name=name, matrix_method=False, size=size,
+        exp_wb = self.exp_wb.getValue()
+        lut = create_lut(negative_film, print_film, name=name, matrix_method=False, lut_size=size,
                          input_colourspace=input_colourspace, output_colourspace=output_colourspace,
                          projector_kelvin=projector_kelvin, exp_comp=exp_comp, printer_light_comp=printer_light_comp,
-                         white_point=white_point, mode=mode)
+                         white_point=white_point, exposure_kelvin=exp_wb, mode=mode)
         return lut
 
     def lights_changed(self, value):

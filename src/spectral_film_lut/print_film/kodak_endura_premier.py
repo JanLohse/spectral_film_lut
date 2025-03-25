@@ -7,8 +7,8 @@ class KodakEnduraPremier(FilmSpectral):
 
         self.lad = [0.7, 0.7, 0.7]
         self.density_measure = 'status_a'
-        self.white_xy = [0.44758, 0.40745]
-        self.white_sd = colour.SDS_ILLUMINANTS['A']
+        self.exposure_kelvin = None
+        self.projection_kelvin = 5500
 
         # spectral sensitivity
         self.red_log_sensitivity = {529.6309: -1.6360, 551.2775: -1.5910, 565.1171: -1.5122, 569.9077: -1.5272,

@@ -7,8 +7,8 @@ class KodakEktachrome100D(FilmSpectral):
 
         self.iso = 100
         self.density_measure = "status_a"
-        self.white_xy = [0.3127, 0.329]
-        self.white_sd = colour.SDS_ILLUMINANTS['D65']
+        self.exposure_kelvin = 5500
+        self.projection_kelvin = 5500
 
         # spectral sensitivity
         self.red_log_sensitivity = {554.0856: -1.0220, 564.3580: -0.9702, 573.3463: -0.6981, 588.6381: 0.4380,

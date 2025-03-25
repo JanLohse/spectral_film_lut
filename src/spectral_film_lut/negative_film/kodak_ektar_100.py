@@ -8,8 +8,8 @@ class KodakEktar100(FilmSpectral):
         self.iso = 100
         # self.log_H_ref = 1.44
         self.density_measure = 'status_m'
-        self.white_xy = [0.3127, 0.329]
-        self.white_sd = colour.SDS_ILLUMINANTS['D65']
+        self.exposure_kelvin = 5500
+        self.projection_kelvin = None
 
         # spectral sensitivity
         self.red_log_sensitivity = {554.7585: 0.1914, 559.3798: 0.2841, 562.2572: 0.3312, 565.1347: 0.3588,

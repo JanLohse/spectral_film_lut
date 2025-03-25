@@ -7,8 +7,8 @@ class Kodachrome64(FilmSpectral):
 
         self.iso = 64
         self.density_measure = "status_a"
-        self.white_xy = [0.3127, 0.329]
-        self.white_sd = colour.SDS_ILLUMINANTS['D65']
+        self.exposure_kelvin = 5500
+        self.projection_kelvin = 5500
 
         # spectral sensitivity
         self.red_log_sensitivity = {481.3051: -1.8515, 495.4145: -1.7974, 503.3510: -1.7516, 513.0511: -1.5836,

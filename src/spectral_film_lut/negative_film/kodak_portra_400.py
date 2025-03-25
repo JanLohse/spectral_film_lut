@@ -8,8 +8,8 @@ class KodakPortra400(FilmSpectral):
         self.iso = 400
         # self.log_H_ref = 1.44
         self.density_measure = 'status_m'
-        self.white_xy = [0.3127, 0.329]
-        self.white_sd = colour.SDS_ILLUMINANTS['D65']
+        self.exposure_kelvin = 5500
+        self.projection_kelvin = None
 
         # spectral sensitivity
         self.red_log_sensitivity = {489.8305: 0.3816, 510.5932: 0.6779, 518.6441: 0.7632, 525.4237: 0.8081,

@@ -209,10 +209,11 @@ class FilmSpectral:
         self.d_min_sd = self.d_min_sd + self.spectral_density @ (
                 self.d_min - self.densiometry[self.density_measure].T @ self.d_min_sd)
         self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
-        white_spectrum = self.white_sd.align(self.spectral_shape).normalise().values
-        self.sensitivity *= self.H_ref / (self.sensitivity.T @ white_spectrum)
 
-        gray = colour.xyY_to_XYZ((0.3127, 0.329, 0.18))
+        if self.exposure_kelvin is None:
+            self.exposure_kelvin = 6500
+
+        gray = self.CCT_to_XYZ(self.exposure_kelvin, 0.18)
         self.XYZ_to_exp = self.sensitivity.T @ self.xyz_dual
         ref_exp = self.XYZ_to_exp @ gray
         correction_factors = self.H_ref / ref_exp
@@ -343,12 +344,16 @@ class FilmSpectral:
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
-                            printer_light_comp=None, white_point=1., mode='full', density_scale=6):
+                            printer_light_comp=None, white_point=1., mode='full', density_scale=6, exposure_kelvin=6500,
+                            **kwargs):
         pipeline = []
         if mode == 'negative' or mode == 'full':
 
             if input_colourspace is not None:
                 pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
+
+            if exposure_kelvin != negative_film.exposure_kelvin:
+                pipeline.append((lambda x: colour.chromatic_adaptation(x, FilmSpectral.CCT_to_XYZ(exposure_kelvin), FilmSpectral.CCT_to_XYZ(negative_film.exposure_kelvin)), "chromatic adaptation"))
 
             exp_comp = 2 ** exp_comp
             pipeline.append((lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)),
@@ -400,3 +405,10 @@ class FilmSpectral:
             return np.clip(x, 0, 1)
 
         return convert
+
+    @staticmethod
+    def CCT_to_XYZ(CCT, Y=1.):
+        xy = colour.CCT_to_xy(CCT)
+        xyY = (xy[0], xy[1], Y)
+        XYZ = colour.xyY_to_XYZ(xyY)
+        return XYZ
