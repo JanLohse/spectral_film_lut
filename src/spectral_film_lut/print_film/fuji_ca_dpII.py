@@ -5,7 +5,7 @@ class FujiCrystalArchiveDPII(FilmSpectral):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.lad = [0.7, 0.7, 0.7]
+        self.lad = [1, 1, 1]
         self.density_measure = 'status_a'
         self.exposure_kelvin = None
         self.projection_kelvin = 5500
@@ -50,8 +50,8 @@ class FujiCrystalArchiveDPII(FilmSpectral):
         self.green_density_curve = np.array(list(green_curve.values()))
         self.blue_log_exposure = np.array(list(blue_curve.keys()))
         self.blue_density_curve = np.array(list(blue_curve.values()))
-        self.lad += np.array(
-            [self.red_density_curve.min(), self.green_density_curve.min(), self.blue_density_curve.min()])
+        # self.lad += np.array(
+        #     [self.red_density_curve.min(), self.green_density_curve.min(), self.blue_density_curve.min()])
 
         self.exposure_base = 10
 

@@ -113,6 +113,8 @@ class KodakEktar100(FilmSpectral):
         self.blue_rms_density = {0.0000: 1.0071, 0.6418: 1.0119, 0.9350: 1.0310, 1.1648: 1.0810, 1.4342: 1.1762,
                                  1.7868: 1.3452, 2.2464: 1.6452, 2.9279: 2.0452, 3.8788: 2.6119, 4.2353: 2.7881,
                                  4.5840: 2.9190, 4.8732: 2.9929}
+        # guessed value:
+        self.rms = 4
 
         self.d_ref_sd = colour.SpectralDistribution(midscale_spectral_density)
         self.d_min_sd = colour.SpectralDistribution(minimum_spectral_density)

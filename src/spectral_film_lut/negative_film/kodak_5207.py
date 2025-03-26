@@ -7,7 +7,7 @@ class Kodak5207(FilmSpectral):
 
         self.iso = 250
         self.density_measure = 'status_m'
-        self.exposure_kelvin = 5500
+        self.exposure_kelvin = 2800
         self.projection_kelvin = None
 
         # spectral sensitivity
