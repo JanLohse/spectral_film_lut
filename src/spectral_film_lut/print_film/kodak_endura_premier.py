@@ -5,7 +5,7 @@ class KodakEnduraPremier(FilmSpectral):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.lad = [0.7, 0.7, 0.7]
+        self.lad = [1, 1, 1]
         self.density_measure = 'status_a'
         self.exposure_kelvin = None
         self.projection_kelvin = 5500
@@ -54,7 +54,7 @@ class KodakEnduraPremier(FilmSpectral):
         self.blue_density_curve = np.array(
             [0.1085, 0.1145, 0.1293, 0.1606, 0.2230, 0.3241, 0.5114, 0.6155, 0.7582, 1.0377, 1.3707, 1.5654, 1.7958,
              2.0040, 2.1199, 2.2255, 2.3162, 2.3741, 2.4039, 2.4277, 2.4277, 2.4395, 2.4485, 2.4381])
-        self.lad += np.array([self.red_density_curve.min(), self.green_density_curve.min(), self.blue_density_curve.min()])
+        # self.lad += np.array([self.red_density_curve.min(), self.green_density_curve.min(), self.blue_density_curve.min()])
 
         self.exposure_base = 10
 

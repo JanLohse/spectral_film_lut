@@ -344,7 +344,7 @@ class FilmSpectral:
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
-                            printer_light_comp=None, white_point=1., mode='full', density_scale=6, exposure_kelvin=6500,
+                            printer_light_comp=None, white_point=1., mode='full', exposure_kelvin=6500, d_buffer=0.5,
                             **kwargs):
         pipeline = []
         if mode == 'negative' or mode == 'full':
@@ -360,10 +360,11 @@ class FilmSpectral:
                              "log exposure"))
             pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
 
+        density_scale = (negative_film.d_max.max() + d_buffer)
         if mode == 'negative':
-            pipeline.append((lambda x: x / density_scale, 'scale density'))
+            pipeline.append((lambda x: (x + d_buffer / 2) / density_scale, 'scale density'))
         elif mode == 'print':
-            pipeline.append((lambda x: x * density_scale, 'scale density'))
+            pipeline.append((lambda x: x * density_scale - d_buffer / 2, 'scale density'))
 
         if mode == 'print' or mode == 'full':
             if print_film is not None:
@@ -404,7 +405,10 @@ class FilmSpectral:
                 start = time.time()
             return np.clip(x, 0, 1)
 
-        return convert
+        if mode == 'print' or mode == 'negative':
+            return convert, density_scale
+        else:
+            return convert, 0
 
     @staticmethod
     def CCT_to_XYZ(CCT, Y=1.):

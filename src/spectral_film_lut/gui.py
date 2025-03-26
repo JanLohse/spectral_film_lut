@@ -68,6 +68,7 @@ class MainWindow(QMainWindow):
         self.exp_wb = Slider()
         self.exp_wb.setMinMaxTicks(2000, 15000, 100)
         add_option(self.exp_wb, "WB:", 6500, self.exp_wb.setValue)
+
         self.negative_selector = QComboBox()
         self.negative_selector.addItems(list(filmstocks.keys()))
         add_option(self.negative_selector, "Negativ stock:", "Kodak5207", self.negative_selector.setCurrentText)

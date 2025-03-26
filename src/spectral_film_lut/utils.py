@@ -18,7 +18,7 @@ from spectral_film_lut.film_spectral import FilmSpectral
 
 def create_lut(negative_film, print_film=None, lut_size=33, name="test", verbose=False, **kwargs):
     lut = colour.LUT3D(size=lut_size, name="test")
-    transform = FilmSpectral.generate_conversion(negative_film, print_film, **kwargs)
+    transform, _ = FilmSpectral.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
     lut.table = transform(lut.table)
     end = time.time()
