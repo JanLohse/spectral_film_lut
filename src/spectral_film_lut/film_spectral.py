@@ -164,11 +164,17 @@ class FilmSpectral:
 
         # extrapolate log_sensitivity to linear sensitivity
         self.red_log_sensitivity = colour.SpectralDistribution(self.red_log_sensitivity).align(self.spectral_shape,
-            extrapolator_kwargs={'method': 'linear'}).align(self.spectral_shape)
+                                                                                               extrapolator_kwargs={
+                                                                                                   'method': 'linear'}).align(
+            self.spectral_shape)
         self.green_log_sensitivity = colour.SpectralDistribution(self.green_log_sensitivity).align(self.spectral_shape,
-            extrapolator_kwargs={'method': 'linear'}).align(self.spectral_shape)
+                                                                                                   extrapolator_kwargs={
+                                                                                                       'method': 'linear'}).align(
+            self.spectral_shape)
         self.blue_log_sensitivity = colour.SpectralDistribution(self.blue_log_sensitivity).align(self.spectral_shape,
-            extrapolator_kwargs={'method': 'linear'}).align(self.spectral_shape)
+                                                                                                 extrapolator_kwargs={
+                                                                                                     'method': 'linear'}).align(
+            self.spectral_shape)
         self.sensitivity = 10 ** np.stack(
             (self.red_log_sensitivity.values, self.green_log_sensitivity.values, self.blue_log_sensitivity.values)).T
 
@@ -344,19 +350,26 @@ class FilmSpectral:
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
                             printer_light_comp=None, white_point=1., mode='full', exposure_kelvin=6500, d_buffer=0.5,
-                            **kwargs):
+                            gamma=1, **kwargs):
         pipeline = []
         if mode == 'negative' or mode == 'full':
+
+            if gamma != 1:
+                pipeline.append((lambda x: x ** gamma, "gamma"))
 
             if input_colourspace is not None:
                 pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
 
             if exposure_kelvin != negative_film.exposure_kelvin:
-                pipeline.append((lambda x: colour.chromatic_adaptation(x, FilmSpectral.CCT_to_XYZ(exposure_kelvin), FilmSpectral.CCT_to_XYZ(negative_film.exposure_kelvin)), "chromatic adaptation"))
+                pipeline.append((lambda x: colour.chromatic_adaptation(x, FilmSpectral.CCT_to_XYZ(exposure_kelvin),
+                                                                       FilmSpectral.CCT_to_XYZ(
+                                                                           negative_film.exposure_kelvin)),
+                                 "chromatic adaptation"))
 
             exp_comp = 2 ** exp_comp
-            pipeline.append((lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)),
-                             "log exposure"))
+            pipeline.append((
+                lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)),
+                "log exposure"))
             pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
 
         density_scale = (negative_film.d_max.max() + d_buffer)
@@ -392,7 +405,8 @@ class FilmSpectral:
             pipeline.append((lambda x: np.dot(10 ** -np.dot(x, density_mat.T), output_mat), "output matrix"))
 
             if output_colourspace is not None:
-                pipeline.append((lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
+                pipeline.append(
+                    (lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
 
         def convert(x):
             start = time.time()
