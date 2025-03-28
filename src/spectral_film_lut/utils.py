@@ -110,8 +110,7 @@ class FileSelector(QWidget):
         self.show()
 
     def open_file_dialog(self):
-        filename, ok = QFileDialog.getOpenFileName(self, "Select a File", "D:\\icons\\avatar\\",
-                                                   self.filetype)
+        filename, ok = QFileDialog.getOpenFileName(self, "Select a File", "", self.filetype)
         if filename:
             path = Path(filename)
             self.filename_edit.setText(str(path))
