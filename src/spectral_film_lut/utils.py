@@ -105,7 +105,7 @@ class FileSelector(QWidget):
         layout.addWidget(file_browse)
 
         self.textChanged = self.filename_edit.textChanged
-        self.filetype = "Images (*.png *.JPG)"
+        self.filetype = "Images (*.png *.jpg *)"
 
         self.show()
 

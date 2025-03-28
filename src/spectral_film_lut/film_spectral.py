@@ -16,7 +16,6 @@ class FilmSpectral:
             self.spectral_shape = colour.SpectralShape(380, 780, 5)
         else:
             self.spectral_shape = spectral_shape
-        # TODO move these to dedicated class
         self.xyz_cmfs = colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].align(self.spectral_shape).values
 
         reference_sds = colour.characterisation.read_training_data_rawtoaces_v1().align(self.spectral_shape).values
