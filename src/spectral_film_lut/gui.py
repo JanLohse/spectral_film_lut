@@ -3,6 +3,10 @@ from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
+
+from spectral_film_lut.print_film.kodak_portra_endura import KodakPortraEndura
+from spectral_film_lut.print_film.kodak_supra_endura import KodakSupraEndura
+from spectral_film_lut.print_film.fuji_3513di import Fuji3513DI
 from spectral_film_lut.negative_film.kodak_5207 import Kodak5207
 from spectral_film_lut.negative_film.kodak_ektar_100 import KodakEktar100
 from spectral_film_lut.negative_film.kodak_portra_400 import KodakPortra400
@@ -256,8 +260,9 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    filmstocks = [Kodak5207, KodakPortra400, Kodachrome64, Kodak2383, Kodak2393, KodakEnduraPremier, FujiInstaxColor,
-                  KodakEktachrome100D, FujiCrystalArchiveDPII, KodakEktar100]
+    filmstocks = [KodakPortra400, KodakEktar100, Kodak5207, KodakEnduraPremier, Kodak2383, Kodak2393,
+                  FujiCrystalArchiveDPII, KodakPortraEndura, KodakSupraEndura, Fuji3513DI, KodakEktachrome100D,
+                  Kodachrome64, FujiInstaxColor]
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
 
