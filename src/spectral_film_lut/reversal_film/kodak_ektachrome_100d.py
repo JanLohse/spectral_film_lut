@@ -7,7 +7,7 @@ class KodakEktachrome100D(FilmSpectral):
 
         self.iso = 100
         self.density_measure = "status_a"
-        self.exposure_kelvin = 5500
+        self.exposure_kelvin = 6500
         self.projection_kelvin = 5500
 
         # spectral sensitivity
@@ -105,3 +105,5 @@ class KodakEktachrome100D(FilmSpectral):
         self.d_ref_sd = colour.SpectralDistribution(midscale_spectral_density)
 
         self.calibrate()
+
+        self.exposure_kelvin = 5500

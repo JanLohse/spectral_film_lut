@@ -120,6 +120,8 @@ class FileSelector(QWidget):
 
 
 class Slider(QWidget):
+    valueChanged = pyqtSignal(float)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         layout = QHBoxLayout()
@@ -139,7 +141,7 @@ class Slider(QWidget):
 
         self.slider.valueChanged.connect(self.sliderValueChanged)
 
-        self.valueChanged = self.slider.valueChanged
+        self.slider.valueChanged.connect(self.value_changed)
 
     def setMinMaxTicks(self, min, max, enumerator=1, denominator=1):
         self.slider.setMinimum(0)
@@ -166,6 +168,10 @@ class Slider(QWidget):
 
     def getPosition(self):
         return self.slider.value()
+
+    def value_changed(self):
+        self.valueChanged.emit(self.getValue())
+
 
 
 

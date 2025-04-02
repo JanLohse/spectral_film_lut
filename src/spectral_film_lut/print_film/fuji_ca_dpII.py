@@ -8,7 +8,7 @@ class FujiCrystalArchiveDPII(FilmSpectral):
         self.lad = [1, 1, 1]
         self.density_measure = 'status_a'
         self.exposure_kelvin = None
-        self.projection_kelvin = 5500
+        self.projection_kelvin = 6500
 
         # spectral sensitivity
         self.red_log_sensitivity = {590.1800: -0.5984, 608.9201: -0.4395, 623.6898: -0.2960, 634.6480: -0.2153,

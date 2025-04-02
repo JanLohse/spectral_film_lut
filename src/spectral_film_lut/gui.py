@@ -1,20 +1,18 @@
 import ffmpeg
-import numpy as np
 from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
-
-from spectral_film_lut.reversal_film.kodak_ektachrome_100d import KodakEktachrome100D
 from spectral_film_lut.negative_film.kodak_5207 import Kodak5207
 from spectral_film_lut.negative_film.kodak_ektar_100 import KodakEktar100
 from spectral_film_lut.negative_film.kodak_portra_400 import KodakPortra400
+from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
 from spectral_film_lut.print_film.kodak_endura_premier import KodakEnduraPremier
 from spectral_film_lut.reversal_film.fuji_instax_color import FujiInstaxColor
 from spectral_film_lut.reversal_film.kodachrome_64 import Kodachrome64
-from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
+from spectral_film_lut.reversal_film.kodak_ektachrome_100d import KodakEktachrome100D
 from spectral_film_lut.utils import *
 
 
@@ -160,8 +158,9 @@ class MainWindow(QMainWindow):
         input_colourspace = self.input_colourspace_selector.currentText()
         projector_kelvin = self.projector_kelvin.getValue()
         exp_comp = self.exp_comp.getValue()
-        printer_light_comp = np.array(
-            [self.red_light.getValue(), self.green_light.getValue(), self.blue_light.getValue()])
+        red_light = self.red_light.getValue()
+        green_light = self.green_light.getValue()
+        blue_light = self.blue_light.getValue()
         if input_colourspace == "CIE XYZ 1931": input_colourspace = None
         output_colourspace = self.output_colourspace_selector.currentText()
         if output_colourspace == "CIE XYZ 1931": output_colourspace = None
@@ -171,8 +170,9 @@ class MainWindow(QMainWindow):
         exp_wb = self.exp_wb.getValue()
         lut = create_lut(negative_film, print_film, name=name, matrix_method=False, lut_size=size,
                          input_colourspace=input_colourspace, output_colourspace=output_colourspace,
-                         projector_kelvin=projector_kelvin, exp_comp=exp_comp, printer_light_comp=printer_light_comp,
-                         white_point=white_point, exposure_kelvin=exp_wb, mode=mode)
+                         projector_kelvin=projector_kelvin, exp_comp=exp_comp, white_point=white_point,
+                         exposure_kelvin=exp_wb, mode=mode, red_light=red_light, green_light=green_light,
+                         blue_light=blue_light)
         return lut
 
     def lights_changed(self, value):
@@ -180,9 +180,10 @@ class MainWindow(QMainWindow):
             if value == self.red_light.getPosition() == self.green_light.getPosition() == self.blue_light.getPosition():
                 self.parameter_changed()
             else:
-                self.red_light.setPosition(value)
-                self.green_light.setPosition(value)
-                self.blue_light.setPosition(value)
+                self.red_light.setValue(value)
+                self.green_light.setValue(value)
+                self.blue_light.setValue(value)
+                self.parameter_changed()
         else:
             self.parameter_changed()
 
