@@ -133,7 +133,7 @@ class Slider(QWidget):
 
         self.text = QLabel()
         self.text.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.text.setFixedWidth(23)
+        self.text.setFixedWidth(27)
 
         layout.addWidget(self.slider)
         layout.addWidget(self.text)

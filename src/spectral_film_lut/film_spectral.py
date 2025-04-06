@@ -348,7 +348,7 @@ class FilmSpectral:
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=6500, d_buffer=0.5,
-                            gamma=1, halation_func=None, **kwargs):
+                            gamma=1, halation_func=None, pre_flash=-4, **kwargs):
         pipeline = []
         if mode == 'negative' or mode == 'full':
 
@@ -365,14 +365,13 @@ class FilmSpectral:
                                  "chromatic adaptation"))
 
             exp_comp = 2 ** exp_comp
+            pipeline.append((lambda x: np.dot(x * exp_comp, negative_film.XYZ_to_exp.T),"linear exposure"))
             if halation_func is not None:
-                pipeline.append((
-                    lambda x: np.log10(np.clip(halation_func(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T)), 0.0001, None)),
-                    "log exposure"))
-            else:
-                pipeline.append((
-                    lambda x: np.log10(np.clip(np.dot(x * exp_comp, negative_film.XYZ_to_exp.T), 0.0001, None)),
-                    "log exposure"))
+                pipeline.append((lambda x: halation_func(x), "halation"))
+            if pre_flash > -4:
+                pipeline.append((lambda x: x + negative_film.H_ref * 2 ** pre_flash,"pre-flash"))
+            pipeline.append((lambda x: np.log10(np.clip(x, 0.00001, None)),"log exposure"))
+
             pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
 
         density_scale = (negative_film.d_max.max() + d_buffer)
