@@ -1,19 +1,18 @@
+import math
 import os
+import subprocess
 import sys
 import time
 import traceback
 from pathlib import Path
-import subprocess
 
 import colour
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
+from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
-
-from ffmpeg.nodes import output_operator
 from ffmpeg._run import compile
-
+from ffmpeg.nodes import output_operator
 from spectral_film_lut.film_spectral import FilmSpectral
-
 
 
 def create_lut(negative_film, print_film=None, lut_size=33, name="test", verbose=False, **kwargs):
@@ -134,7 +133,7 @@ class Slider(QWidget):
 
         self.text = QLabel()
         self.text.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.text.setFixedWidth(30)
+        self.text.setFixedWidth(23)
 
         layout.addWidget(self.slider)
         layout.addWidget(self.text)
@@ -143,12 +142,20 @@ class Slider(QWidget):
 
         self.slider.valueChanged.connect(self.value_changed)
 
+        self.slider.wheelEvent = self.customWheelEvent
+
+        self.big_increment = 5
+        self.small_increment = 2
+
     def setMinMaxTicks(self, min, max, enumerator=1, denominator=1):
         self.slider.setMinimum(0)
-        self.slider.setMaximum(int(((max - min) * denominator) / enumerator))
+        number_of_steps = int(((max - min) * denominator) / enumerator)
+        self.slider.setMaximum(number_of_steps)
         self.min = min
         self.enumerator = enumerator
         self.denominator = denominator
+        self.big_increment = math.ceil(number_of_steps / 10)
+        self.small_increment = math.ceil(number_of_steps / 30)
 
     def sliderValueChanged(self):
         value = self.getValue()
@@ -172,7 +179,35 @@ class Slider(QWidget):
     def value_changed(self):
         self.valueChanged.emit(self.getValue())
 
+    def increase(self, value=1):
+        self.slider.setValue(self.slider.value() + value)
 
+    def decrease(self, value=1):
+        self.slider.setValue(self.slider.value() - value)
+
+    def customWheelEvent(self, event: QWheelEvent):
+        # Get the current value
+        value = self.slider.value()
+
+        # Determine the direction (positive = scroll up, negative = down)
+        steps = event.angleDelta().y() // 120  # 120 per wheel step
+
+        # Check if Shift or Ctrl is held
+        modifiers = event.modifiers()
+        if modifiers & Qt.KeyboardModifier.ShiftModifier:
+            increment = self.big_increment
+        elif modifiers & Qt.KeyboardModifier.ControlModifier:
+            increment = 1
+        else:
+            increment = self.small_increment
+
+        # Set the new value with bounds checking
+        new_value = value + steps * increment
+        new_value = max(self.slider.minimum(), min(self.slider.maximum(), new_value))
+        self.slider.setValue(new_value)
+
+        # Accept the event so the default handler doesn't interfere
+        event.accept()
 
 
 class Error(Exception):
