@@ -5,7 +5,7 @@ class KodakSupraEndura(FilmSpectral):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.lad = [1, 1, 1]
+        self.lad = [0.8, 0.8, 0.8]
         self.density_measure = 'status_a'
         self.exposure_kelvin = None
         self.projection_kelvin = 6500
