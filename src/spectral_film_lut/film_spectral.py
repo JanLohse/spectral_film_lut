@@ -4,6 +4,8 @@ import time
 import colour
 import numpy as np
 from colour import SpectralDistribution, MultiSpectralDistributions
+from matplotlib import pyplot as plt
+from raw2film.color_processing import gamut_compression
 from scipy.ndimage import gaussian_filter
 
 default_dtype = np.float32
@@ -216,13 +218,9 @@ class FilmSpectral:
         self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
 
         if self.exposure_kelvin is None:
-            self.exposure_kelvin = 6500
+            self.exposure_kelvin = 5500
 
-        gray = self.CCT_to_XYZ(self.exposure_kelvin, 0.18)
         self.XYZ_to_exp = self.sensitivity.T @ self.xyz_dual
-        ref_exp = self.XYZ_to_exp @ gray
-        correction_factors = self.H_ref / ref_exp
-        self.XYZ_to_exp = (self.XYZ_to_exp.T * correction_factors).T
 
         if all([hasattr(self, x) for x in
                 ['red_rms', 'green_rms', 'blue_rms', 'red_rms_density', 'green_rms_density', 'blue_rms_density']]):
@@ -347,7 +345,7 @@ class FilmSpectral:
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
-                            white_point=1., mode='full', exposure_kelvin=6500, d_buffer=0.5,
+                            white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5,
                             gamma=1, halation_func=None, pre_flash=-4, **kwargs):
         pipeline = []
         if mode == 'negative' or mode == 'full':
@@ -358,14 +356,13 @@ class FilmSpectral:
             if input_colourspace is not None:
                 pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
 
-            if exposure_kelvin != negative_film.exposure_kelvin:
-                pipeline.append((lambda x: colour.chromatic_adaptation(x, FilmSpectral.CCT_to_XYZ(exposure_kelvin),
-                                                                       FilmSpectral.CCT_to_XYZ(
-                                                                           negative_film.exposure_kelvin)),
-                                 "chromatic adaptation"))
+            gray = negative_film.CCT_to_XYZ(exposure_kelvin, 0.18)
+            ref_exp = negative_film.XYZ_to_exp @ gray
+            correction_factors = negative_film.H_ref / ref_exp
+            XYZ_to_exp = (negative_film.XYZ_to_exp.T * correction_factors).T
 
             exp_comp = 2 ** exp_comp
-            pipeline.append((lambda x: np.dot(x * exp_comp, negative_film.XYZ_to_exp.T),"linear exposure"))
+            pipeline.append((lambda x: np.dot(x * exp_comp, XYZ_to_exp.T),"linear exposure"))
             if halation_func is not None:
                 pipeline.append((lambda x: halation_func(x), "halation"))
             if pre_flash > -4:
@@ -430,3 +427,21 @@ class FilmSpectral:
         xyY = (xy[0], xy[1], Y)
         XYZ = colour.xyY_to_XYZ(xyY)
         return XYZ
+
+    @staticmethod
+    def reference_gamut_compression(rgb, l=1.2, t=0.8, p=1.2, **kwargs):
+        if l == 1 or t == 1 or p == 0:
+            return rgb
+        # compute achromaticity (max rgb value per pixel)
+        a = np.repeat(np.max(rgb, axis=3)[..., np.newaxis], 3, axis=3)
+
+        # compute distance to gamut
+        d_n = (a - rgb) / np.abs(a)
+
+        # smoothing parameter is a
+        s = (l - t) / ((((1 - t) / (l - t)) ** -p - 1) ** (1 / p))
+        d_p = ((d_n - t) / s) ** p
+        d_c = np.where(d_n < t, d_n, t + (d_n - t) / ((1 + d_p) ** (1 / p)))
+
+        rgb = a - d_c * np.abs(a)
+        return rgb
