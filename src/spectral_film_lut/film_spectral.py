@@ -346,7 +346,7 @@ class FilmSpectral:
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5,
-                            gamma=1, halation_func=None, pre_flash=-4, gamut_compression=True, **kwargs):
+                            gamma=1, halation_func=None, pre_flash=-4, gamut_compression=0, **kwargs):
         pipeline = []
         if mode == 'negative' or mode == 'full':
 
@@ -362,7 +362,12 @@ class FilmSpectral:
             XYZ_to_exp = (negative_film.XYZ_to_exp.T * correction_factors).T
 
             exp_comp = 2 ** exp_comp
+
             pipeline.append((lambda x: np.dot(x * exp_comp, XYZ_to_exp.T),"linear exposure"))
+
+            if gamut_compression:
+                pipeline.append((lambda x: FilmSpectral.linear_gamut_compression(x, gamut_compression), "gamut_compression"))
+
             if halation_func is not None:
                 pipeline.append((lambda x: halation_func(x), "halation"))
             if pre_flash > -4:
@@ -403,7 +408,7 @@ class FilmSpectral:
             pipeline.append((lambda x: np.dot(10 ** -np.dot(x, density_mat.T), output_mat), "output matrix"))
 
             if output_colourspace is not None:
-                if gamut_compression:
+                if gamut_compression and False:
                     pipeline.append(
                         (lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(FilmSpectral.reference_gamut_compression(colour.XYZ_to_RGB(x, output_colourspace), **kwargs)), "output"))
                 else:
@@ -433,20 +438,26 @@ class FilmSpectral:
         return XYZ
 
     @staticmethod
-    def reference_gamut_compression(rgb, l=1.2, t=0.8, p=1.2, **kwargs):
-        if l == 1 or t == 1 or p == 0:
-            return rgb
-        # compute achromaticity (max rgb value per pixel)
-        a = np.repeat(np.max(rgb, axis=3)[..., np.newaxis], 3, axis=3)
+    def simple_gamut_compression(rgb, **kwargs):
+        dim = len(rgb.shape) - 1
+        a = np.stack([np.max(rgb, axis=dim)] * 3, axis=dim)
 
-        # compute distance to gamut
-        d_n = (a - rgb) / np.abs(a)
-        print(d_n.max(axis=(0, 1, 2)))
+        d = (a - rgb) / a
 
-        # smoothing parameter is a
-        s = (l - t) / ((((1 - t) / (l - t)) ** -p - 1) ** (1 / p))
-        d_p = ((d_n - t) / s) ** p
-        d_c = np.where(d_n < t, d_n, t + (d_n - t) / ((1 + d_p) ** (1 / p)))
+        func = lambda x: 0.16 / (0.4 - x) + 1.2
+        mask = 0.8 < d
 
-        rgb = a - d_c * np.abs(a)
+        d[mask] = func(d[mask])
+
+        d = np.clip(d, 0, 1)
+
+        rgb = a - d * a
+
+        return rgb
+
+    @staticmethod
+    def linear_gamut_compression(rgb, gamut_compression=0):
+        A = np.identity(3) * (1 - gamut_compression) + gamut_compression / 3
+        A_inv = np.linalg.inv(A)
+        rgb = np.clip(rgb @ A_inv, 0, None) @ A
         return rgb
