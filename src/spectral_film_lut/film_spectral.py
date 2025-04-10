@@ -3,7 +3,7 @@ import time
 
 import colour
 import numpy as np
-from colour import SpectralDistribution, MultiSpectralDistributions
+from colour import SpectralDistribution, MultiSpectralDistributions, chromatic_adaptation
 from matplotlib import pyplot as plt
 from raw2film.color_processing import gamut_compression
 from scipy.ndimage import gaussian_filter
@@ -346,7 +346,7 @@ class FilmSpectral:
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5,
-                            gamma=1, halation_func=None, pre_flash=-4, **kwargs):
+                            gamma=1, halation_func=None, pre_flash=-4, gamut_compression=True, **kwargs):
         pipeline = []
         if mode == 'negative' or mode == 'full':
 
@@ -403,8 +403,12 @@ class FilmSpectral:
             pipeline.append((lambda x: np.dot(10 ** -np.dot(x, density_mat.T), output_mat), "output matrix"))
 
             if output_colourspace is not None:
-                pipeline.append(
-                    (lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
+                if gamut_compression:
+                    pipeline.append(
+                        (lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(FilmSpectral.reference_gamut_compression(colour.XYZ_to_RGB(x, output_colourspace), **kwargs)), "output"))
+                else:
+                    pipeline.append(
+                        (lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
 
         def convert(x):
             start = time.time()
@@ -437,6 +441,7 @@ class FilmSpectral:
 
         # compute distance to gamut
         d_n = (a - rgb) / np.abs(a)
+        print(d_n.max(axis=(0, 1, 2)))
 
         # smoothing parameter is a
         s = (l - t) / ((((1 - t) / (l - t)) ** -p - 1) ** (1 / p))
