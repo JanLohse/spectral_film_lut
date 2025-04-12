@@ -3,9 +3,7 @@ import time
 
 import colour
 import numpy as np
-from colour import SpectralDistribution, MultiSpectralDistributions, chromatic_adaptation
-from matplotlib import pyplot as plt
-from raw2film.color_processing import gamut_compression
+from colour import SpectralDistribution, MultiSpectralDistributions
 from scipy.ndimage import gaussian_filter
 
 default_dtype = np.float32
@@ -324,7 +322,7 @@ class FilmSpectral:
         return density_matrix, peak_exposure - density_base
 
     def compute_printer_light(self, print_film, red_light=0, green_light=0, blue_light=0, **kwargs):
-        compensation = 2 ** np.array([red_light, green_light, blue_light])
+        compensation = 2 ** np.array([red_light, green_light, blue_light], dtype=default_dtype)
         # transmitted printer lights by middle gray negative
         reduced_lights = (self.printer_lights.T * 10 ** -self.d_ref_sd).T
         # adjust printer lights to produce neutral exposure with middle gray negative
@@ -346,7 +344,7 @@ class FilmSpectral:
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5,
-                            gamma=1, halation_func=None, pre_flash=-4, gamut_compression=0, **kwargs):
+                            gamma=1, halation_func=None, pre_flash=-4, gamut_compression=0.2, **kwargs):
         pipeline = []
         if mode == 'negative' or mode == 'full':
 
@@ -356,17 +354,19 @@ class FilmSpectral:
             if input_colourspace is not None:
                 pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
 
+            exp_comp = 2 ** exp_comp
             gray = negative_film.CCT_to_XYZ(exposure_kelvin, 0.18)
             ref_exp = negative_film.XYZ_to_exp @ gray
             correction_factors = negative_film.H_ref / ref_exp
-            XYZ_to_exp = (negative_film.XYZ_to_exp.T * correction_factors).T
-
-            exp_comp = 2 ** exp_comp
-
-            pipeline.append((lambda x: np.dot(x * exp_comp, XYZ_to_exp.T),"linear exposure"))
+            XYZ_to_exp = (negative_film.XYZ_to_exp.T * correction_factors).T * exp_comp
 
             if gamut_compression:
-                pipeline.append((lambda x: FilmSpectral.linear_gamut_compression(x, gamut_compression), "gamut_compression"))
+                XYZ_to_exp, compression_inv = FilmSpectral.gamut_compression_matrices(XYZ_to_exp, gamut_compression)
+
+            pipeline.append((lambda x: x @ XYZ_to_exp.T,"linear exposure"))
+
+            if gamut_compression:
+                pipeline.append((lambda x: np.clip(x, 0, None) @ compression_inv, "gamut_compression_inv"))
 
             if halation_func is not None:
                 pipeline.append((lambda x: halation_func(x), "halation"))
@@ -386,13 +386,13 @@ class FilmSpectral:
             if print_film is not None:
                 if matrix_method:
                     density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film, **kwargs)
-                    pipeline.append((lambda x: peak_exposure - np.dot(x, density_matrix.T), "printing matrix"))
+                    pipeline.append((lambda x: peak_exposure - x @ density_matrix.T, "printing matrix"))
                 else:
                     printer_light = negative_film.compute_printer_light(print_film, **kwargs)
                     density_neg = negative_film.spectral_density.T
                     printing_mat = (print_film.sensitivity.T * printer_light * 10 ** -negative_film.d_min_sd).T
                     pipeline.append((lambda x: np.log10(
-                        np.clip(np.dot(10 ** -np.dot(x, density_neg), printing_mat), 0.0001, None)), "printing"))
+                        np.clip(10 ** -(x @ density_neg)@ printing_mat, 0.00001, None)), "printing"))
                 pipeline.append((print_film.log_exposure_to_density, "characteristic curve print"))
                 output_film = print_film
             else:
@@ -402,15 +402,15 @@ class FilmSpectral:
                                                                               white_point=white_point)
             d_min_sd = output_film.d_min_sd
 
-            # TODO: matrix output here
             density_mat = output_film.spectral_density
             output_mat = (xyz_cmfs.T * projection_light * 10 ** -d_min_sd).T
-            pipeline.append((lambda x: np.dot(10 ** -np.dot(x, density_mat.T), output_mat), "output matrix"))
+            pipeline.append((lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix"))
 
             if output_colourspace is not None:
                 if gamut_compression and False:
-                    pipeline.append(
-                        (lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(FilmSpectral.reference_gamut_compression(colour.XYZ_to_RGB(x, output_colourspace), **kwargs)), "output"))
+                    pipeline.append((lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(
+                        FilmSpectral.reference_gamut_compression(colour.XYZ_to_RGB(x, output_colourspace), **kwargs)),
+                                     "output"))
                 else:
                     pipeline.append(
                         (lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
@@ -421,7 +421,7 @@ class FilmSpectral:
                 x = transform(x)
                 if measure_time:
                     end = time.time()
-                    print(f"{title:25} {end - start:.2f}s {x.dtype} {x.shape}")
+                    print(f"{title:25} {end - start:.4f}s {x.dtype} {x.shape}")
                 start = time.time()
             return np.clip(x, 0, 1)
 
@@ -457,7 +457,13 @@ class FilmSpectral:
 
     @staticmethod
     def linear_gamut_compression(rgb, gamut_compression=0):
-        A = np.identity(3) * (1 - gamut_compression) + gamut_compression / 3
+        A = np.identity(3, dtype=default_dtype) * (1 - gamut_compression) + gamut_compression / 3
         A_inv = np.linalg.inv(A)
         rgb = np.clip(rgb @ A_inv, 0, None) @ A
         return rgb
+
+    @staticmethod
+    def gamut_compression_matrices(matrix, gamut_compression=0):
+        A = np.identity(3, dtype=default_dtype) * (1 - gamut_compression) + gamut_compression / 3
+        A_inv = np.linalg.inv(A)
+        return matrix @ A_inv, A
