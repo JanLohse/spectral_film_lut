@@ -7,17 +7,18 @@ import traceback
 from pathlib import Path
 
 import colour
+import numpy as np
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
 from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
 from ffmpeg._run import compile
 from ffmpeg.nodes import output_operator
-from spectral_film_lut.film_spectral import FilmSpectral
+from numba import njit
 
 
 def create_lut(negative_film, print_film=None, lut_size=33, name="test", verbose=False, **kwargs):
     lut = colour.LUT3D(size=lut_size, name="test")
-    transform, _ = FilmSpectral.generate_conversion(negative_film, print_film, **kwargs)
+    transform, _ = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
     lut.table = transform(lut.table)
     end = time.time()
@@ -277,3 +278,76 @@ def run(
         raise Error('ffmpeg', out, err)
     return out, err
 
+
+def multi_channel_interp(x, xps, fps, num_bins=64):
+    """
+    Resamples each (xp, fp) pair to a uniform grid for fast lookup.
+
+    Returns:
+    --------
+    xp_common: np.ndarray, shape (num_bins,)
+    fp_uniform: np.ndarray, shape (n_channels, num_bins)
+    """
+    n_channels = len(xps)
+    xp_min = min(x[0] for x in xps)
+    xp_max = max(x[-1] for x in xps)
+    xp_common = np.linspace(xp_min, xp_max, num_bins).astype(np.float32)
+
+    fp_uniform = np.empty((n_channels, num_bins), dtype=np.float32)
+    for ch in range(n_channels):
+        fp_uniform[ch] = np.interp(xp_common, xps[ch], fps[ch])
+    return uniform_multi_channel_interp(x, xp_common, fp_uniform)
+
+
+@njit
+def uniform_multi_channel_interp(x, xp_common, fp_uniform):
+    """
+    Interpolates values in an N-D array `x` over the last dimension (channels)
+    using a precomputed uniform grid (xp_common, fp_uniform).
+
+    Parameters:
+    -----------
+    x : np.ndarray, shape (..., channels)
+    xp_common : np.ndarray, shape (num_bins,)
+    fp_uniform : np.ndarray, shape (channels, num_bins)
+
+    Returns:
+    --------
+    result : np.ndarray, same shape as `x`
+    """
+    shape = x.shape
+    ndim = len(shape)
+    n_channels = shape[ndim - 1]
+
+    flat_size = 1
+    for i in range(ndim - 1):
+        flat_size *= shape[i]
+
+    num_bins = xp_common.shape[0]
+    xp_min = xp_common[0]
+    xp_max = xp_common[-1]
+    bin_width = (xp_max - xp_min) / (num_bins - 1)
+
+    # Make sure x is contiguous before reshaping
+    x_contig = np.ascontiguousarray(x)
+    result = np.empty_like(x_contig, dtype=np.float32)
+
+    x_flat = x_contig.reshape(flat_size, n_channels)
+    r_flat = result.reshape(flat_size, n_channels)
+
+    for idx in range(flat_size):
+        for ch in range(n_channels):
+            xi = x_flat[idx, ch]
+            if xi <= xp_min:
+                r_flat[idx, ch] = fp_uniform[ch, 0]
+            elif xi >= xp_max:
+                r_flat[idx, ch] = fp_uniform[ch, -1]
+            else:
+                pos = (xi - xp_min) / bin_width
+                i = int(pos)
+                f = pos - i
+                y0 = fp_uniform[ch, i]
+                y1 = fp_uniform[ch, i + 1]
+                r_flat[idx, ch] = y0 + f * (y1 - y0)
+
+    return result

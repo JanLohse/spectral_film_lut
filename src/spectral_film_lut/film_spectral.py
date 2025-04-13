@@ -5,6 +5,7 @@ import colour
 import numpy as np
 from colour import SpectralDistribution, MultiSpectralDistributions
 from scipy.ndimage import gaussian_filter
+from spectral_film_lut.utils import multi_channel_interp
 
 default_dtype = np.float32
 colour.utilities.set_default_float_dtype(default_dtype)
@@ -304,11 +305,11 @@ class FilmSpectral:
         return out
 
     def log_exposure_to_density(self, log_exposure):
-        red_density = np.interp(log_exposure[..., 0], self.red_log_exposure, self.red_density_curve)
-        green_density = np.interp(log_exposure[..., 1], self.green_log_exposure, self.green_density_curve)
-        blue_density = np.interp(log_exposure[..., 2], self.blue_log_exposure, self.blue_density_curve)
+        density = multi_channel_interp(log_exposure,
+                                       [self.red_log_exposure, self.green_log_exposure, self.blue_log_exposure],
+                                       [self.red_density_curve, self.green_density_curve, self.blue_density_curve])
 
-        return np.stack([red_density, green_density, blue_density], axis=-1, dtype=default_dtype)
+        return density
 
     def compute_print_matrix(self, print_film, **kwargs):
         printer_light = self.compute_printer_light(print_film, **kwargs)
@@ -407,13 +408,8 @@ class FilmSpectral:
             pipeline.append((lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix"))
 
             if output_colourspace is not None:
-                if gamut_compression and False:
-                    pipeline.append((lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(
-                        FilmSpectral.reference_gamut_compression(colour.XYZ_to_RGB(x, output_colourspace), **kwargs)),
-                                     "output"))
-                else:
-                    pipeline.append(
-                        (lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
+                pipeline.append(
+                    (lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
 
         def convert(x):
             start = time.time()
@@ -421,7 +417,7 @@ class FilmSpectral:
                 x = transform(x)
                 if measure_time:
                     end = time.time()
-                    print(f"{title:25} {end - start:.4f}s {x.dtype} {x.shape}")
+                    print(f"{title:28} {end - start:.4f}s {x.dtype} {x.shape}")
                 start = time.time()
             return np.clip(x, 0, 1)
 
