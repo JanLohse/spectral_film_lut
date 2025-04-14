@@ -5,6 +5,7 @@ import colour
 import numpy as np
 from colour import SpectralDistribution, MultiSpectralDistributions
 from scipy.ndimage import gaussian_filter
+
 from spectral_film_lut.utils import multi_channel_interp
 
 default_dtype = np.float32
@@ -373,6 +374,8 @@ class FilmSpectral:
         if mode == 'negative':
             pipeline.append((lambda x: (x + d_buffer / 2) / density_scale, 'scale density'))
         elif mode == 'print':
+            if negative_film.density_measure == 'bw':
+                pipeline.append((lambda x: x[..., 1][..., np.newaxis], "reduce dim"))
             pipeline.append((lambda x: x * density_scale - d_buffer / 2, 'scale density'))
 
         if mode == 'print' or mode == 'full':
