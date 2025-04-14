@@ -5,7 +5,6 @@ import colour
 import numpy as np
 from colour import SpectralDistribution, MultiSpectralDistributions
 from scipy.ndimage import gaussian_filter
-
 from spectral_film_lut.utils import multi_channel_interp
 
 default_dtype = np.float32
@@ -203,8 +202,6 @@ class FilmSpectral:
             self.d_min_sd = self.d_min_sd + self.spectral_density @ (
                     self.d_min - self.densiometry[self.density_measure].T @ self.d_min_sd)
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
-        print(self.__class__.__name__, self.spectral_density.shape, self.d_ref.shape, self.d_min_sd.shape,
-              self.d_ref_sd.shape)
 
         self.XYZ_to_exp = self.sensitivity.T @ self.xyz_dual
 
@@ -312,17 +309,14 @@ class FilmSpectral:
     def compute_printer_light(self, print_film, red_light=0, green_light=0, blue_light=0, **kwargs):
         compensation = 2 ** np.array([red_light, green_light, blue_light], dtype=default_dtype)
         # transmitted printer lights by middle gray negative
-        print(self.printer_lights.shape, self.d_ref_sd.shape)
         reduced_lights = (self.printer_lights.T * 10 ** -self.d_ref_sd).T
         # adjust printer lights to produce neutral exposure with middle gray negative
-        print((print_film.sensitivity.T @ reduced_lights).shape)
         if print_film.density_measure == 'bw':
             light_factors = ((print_film.sensitivity.T @ reduced_lights) ** -1 * np.multiply(print_film.H_ref,
                                                                                              compensation)).min()
         else:
             light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ np.multiply(print_film.H_ref,
                                                                                                    compensation)
-        print(light_factors, light_factors.shape)
         printer_light = np.sum(self.printer_lights * light_factors, axis=1)
         return printer_light
 
@@ -336,7 +330,7 @@ class FilmSpectral:
         return projector_light, xyz_cmfs
 
     @staticmethod
-    def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=True,
+    def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash=-4, gamut_compression=0.2, **kwargs):
@@ -349,11 +343,14 @@ class FilmSpectral:
             if input_colourspace is not None:
                 pipeline.append((lambda x: colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True), "input"))
 
-            # TODO: adjust matrix for bw film
             exp_comp = 2 ** exp_comp
+
             gray = negative_film.CCT_to_XYZ(exposure_kelvin, 0.18)
             ref_exp = negative_film.XYZ_to_exp @ gray
             correction_factors = negative_film.H_ref / ref_exp
+            if negative_film.density_measure == 'bw':
+                wb_factors = (negative_film.CCT_to_XYZ(negative_film.exposure_kelvin, 0.18) / gray)
+                correction_factors = ref_exp / (negative_film.XYZ_to_exp @ wb_factors) / .18 * correction_factors * wb_factors.reshape(-1, 1)
             XYZ_to_exp = (negative_film.XYZ_to_exp.T * correction_factors).T * exp_comp
 
             if gamut_compression and negative_film.density_measure != 'bw':
@@ -404,8 +401,7 @@ class FilmSpectral:
                 output_film = negative_film
 
             if output_film.density_measure == 'bw':
-                pipeline.append(
-                    (lambda x: white_point / 10 ** -output_film.d_min * 10 ** -x, "projection"))
+                pipeline.append((lambda x: white_point / 10 ** -output_film.d_min * 10 ** -x, "projection"))
                 if not 6500 <= projector_kelvin <= 6505:
                     wb = negative_film.CCT_to_XYZ(projector_kelvin)
                     pipeline.append((lambda x: x * wb, "projection color"))
@@ -434,7 +430,7 @@ class FilmSpectral:
                 x = transform(x)
                 if measure_time:
                     end = time.time()
-                    print(f"{title:28} {end - start:.4f}s {x.dtype} {x.shape} {x.min()} {x.max()}")
+                    print(f"{title:28} {end - start:.4f}s {x.dtype} {x.shape}")
                 start = time.time()
             return np.clip(x, 0, 1)
 
