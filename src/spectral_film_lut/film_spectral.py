@@ -203,7 +203,8 @@ class FilmSpectral:
             self.d_min_sd = self.d_min_sd + self.spectral_density @ (
                     self.d_min - self.densiometry[self.density_measure].T @ self.d_min_sd)
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
-        print(self.__class__.__name__, self.spectral_density.shape, self.d_ref.shape, self.d_min_sd.shape, self.d_ref_sd.shape)
+        print(self.__class__.__name__, self.spectral_density.shape, self.d_ref.shape, self.d_min_sd.shape,
+              self.d_ref_sd.shape)
 
         self.XYZ_to_exp = self.sensitivity.T @ self.xyz_dual
 
@@ -312,11 +313,16 @@ class FilmSpectral:
         compensation = 2 ** np.array([red_light, green_light, blue_light], dtype=default_dtype)
         # transmitted printer lights by middle gray negative
         print(self.printer_lights.shape, self.d_ref_sd.shape)
-        # TODO fix for bw print film
         reduced_lights = (self.printer_lights.T * 10 ** -self.d_ref_sd).T
         # adjust printer lights to produce neutral exposure with middle gray negative
-        light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ np.multiply(print_film.H_ref,
-                                                                                               compensation)
+        print((print_film.sensitivity.T @ reduced_lights).shape)
+        if print_film.density_measure == 'bw':
+            light_factors = ((print_film.sensitivity.T @ reduced_lights) ** -1 * np.multiply(print_film.H_ref,
+                                                                                             compensation)).min()
+        else:
+            light_factors = np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ np.multiply(print_film.H_ref,
+                                                                                                   compensation)
+        print(light_factors, light_factors.shape)
         printer_light = np.sum(self.printer_lights * light_factors, axis=1)
         return printer_light
 
@@ -379,7 +385,12 @@ class FilmSpectral:
                     pipeline.append((lambda x: peak_exposure - x @ density_matrix.T, "printing matrix"))
                 else:
                     if negative_film.density_measure == 'bw' and print_film.density_measure == 'bw':
-                        pipeline.append((lambda x: -x + (print_film.log_H_ref + negative_film.d_ref), "printing"))
+                        if 'green_light' in kwargs:
+                            printer_light = kwargs['green_light']
+                        else:
+                            printer_light = 0
+                        pipeline.append(
+                            (lambda x: -x + (print_film.log_H_ref + negative_film.d_ref + printer_light), "printing"))
                     else:
                         printer_light = negative_film.compute_printer_light(print_film, **kwargs)
                         density_neg = negative_film.spectral_density.T
@@ -392,9 +403,16 @@ class FilmSpectral:
             else:
                 output_film = negative_film
 
-            if print_film.density_measure == 'bw':
-                pipeline.append((lambda x: white_point / 10 ** -print_film.d_min * 10 ** -x, "projection"))  # TODO: kelvin,
-                if output_colourspace is not None:
+            if output_film.density_measure == 'bw':
+                pipeline.append(
+                    (lambda x: white_point / 10 ** -output_film.d_min * 10 ** -x, "projection"))
+                if not 6500 <= projector_kelvin <= 6505:
+                    wb = negative_film.CCT_to_XYZ(projector_kelvin)
+                    pipeline.append((lambda x: x * wb, "projection color"))
+                    if output_colourspace is not None:
+                        pipeline.append(
+                            (lambda x: colour.XYZ_to_RGB(x, output_colourspace, apply_cctf_encoding=True), "output"))
+                elif output_colourspace is not None:
                     pipeline.append((lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(
                         x.repeat(3, axis=-1)), "output"))
             else:

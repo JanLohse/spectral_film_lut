@@ -265,10 +265,10 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    # TODO: revert filmstocks = [KodakPortra400, KodakEktar100, Kodak5207, KodakEnduraPremier, Kodak2383, Kodak2393,
-    #               FujiCrystalArchiveDPII, KodakPortraEndura, KodakSupraEndura, Fuji3513DI, KodakEktachrome100D,
-    #               Kodachrome64, FujiInstaxColor, FujiEterna500, FujiEterna500Vivid, FujiCrystalArchiveSuperTypeC]
-    filmstocks = [Kodak5207, Kodak2383, Kodak2303, Kodak5222]
+    filmstocks = [KodakPortra400, KodakEktar100, Kodak5207, KodakEnduraPremier, Kodak2383, Kodak2393, Kodak2303,
+                  Kodak5222, FujiCrystalArchiveDPII, KodakPortraEndura, KodakSupraEndura, Fuji3513DI,
+                  KodakEktachrome100D, Kodachrome64, FujiInstaxColor, FujiEterna500, FujiEterna500Vivid,
+                  FujiCrystalArchiveSuperTypeC]
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
 
