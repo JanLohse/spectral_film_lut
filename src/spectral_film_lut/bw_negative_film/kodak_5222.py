@@ -6,7 +6,6 @@ class Kodak5222(FilmSpectral):
         super().__init__(*args, **kwargs)
 
         self.iso = 250
-        # self.log_H_ref = 1.44
         self.density_measure = 'bw'
         self.exposure_kelvin = 5500
         self.projection_kelvin = None

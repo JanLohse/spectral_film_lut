@@ -6,7 +6,6 @@ class KodakPortra400(FilmSpectral):
         super().__init__(*args, **kwargs)
 
         self.iso = 400
-        # self.log_H_ref = 1.44
         self.density_measure = 'status_m'
         self.exposure_kelvin = 5500
         self.projection_kelvin = None
