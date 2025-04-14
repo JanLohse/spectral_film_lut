@@ -279,7 +279,7 @@ def run(
     return out, err
 
 
-def multi_channel_interp(x, xps, fps, num_bins=64):
+def multi_channel_interp(x, xps, fps, num_bins=64, left_extrapolate=False, right_extrapolate=False):
     """
     Resamples each (xp, fp) pair to a uniform grid for fast lookup.
 
@@ -296,20 +296,25 @@ def multi_channel_interp(x, xps, fps, num_bins=64):
     fp_uniform = np.empty((n_channels, num_bins), dtype=np.float32)
     for ch in range(n_channels):
         fp_uniform[ch] = np.interp(xp_common, xps[ch], fps[ch])
-    return uniform_multi_channel_interp(x, xp_common, fp_uniform)
+    return uniform_multi_channel_interp(x, xp_common, fp_uniform, left_extrapolate, right_extrapolate)
 
 
 @njit
-def uniform_multi_channel_interp(x, xp_common, fp_uniform):
+def uniform_multi_channel_interp(x, xp_common, fp_uniform, left_extrapolate=False, right_extrapolate=False):
     """
     Interpolates values in an N-D array `x` over the last dimension (channels)
-    using a precomputed uniform grid (xp_common, fp_uniform).
+    using a precomputed uniform grid (xp_common, fp_uniform), with optional
+    linear extrapolation on both ends.
 
     Parameters:
     -----------
     x : np.ndarray, shape (..., channels)
     xp_common : np.ndarray, shape (num_bins,)
     fp_uniform : np.ndarray, shape (channels, num_bins)
+    left_extrapolate : bool
+        Whether to linearly extrapolate for values < xp_common[0]
+    right_extrapolate : bool
+        Whether to linearly extrapolate for values > xp_common[-1]
 
     Returns:
     --------
@@ -328,7 +333,6 @@ def uniform_multi_channel_interp(x, xp_common, fp_uniform):
     xp_max = xp_common[-1]
     bin_width = (xp_max - xp_min) / (num_bins - 1)
 
-    # Make sure x is contiguous before reshaping
     x_contig = np.ascontiguousarray(x)
     result = np.empty_like(x_contig, dtype=np.float32)
 
@@ -339,9 +343,25 @@ def uniform_multi_channel_interp(x, xp_common, fp_uniform):
         for ch in range(n_channels):
             xi = x_flat[idx, ch]
             if xi <= xp_min:
-                r_flat[idx, ch] = fp_uniform[ch, 0]
+                if left_extrapolate:
+                    x0 = xp_common[0]
+                    x1 = xp_common[1]
+                    y0 = fp_uniform[ch, 0]
+                    y1 = fp_uniform[ch, 1]
+                    slope = (y1 - y0) / (x1 - x0)
+                    r_flat[idx, ch] = y0 + slope * (xi - x0)
+                else:
+                    r_flat[idx, ch] = fp_uniform[ch, 0]
             elif xi >= xp_max:
-                r_flat[idx, ch] = fp_uniform[ch, -1]
+                if right_extrapolate:
+                    x0 = xp_common[-2]
+                    x1 = xp_common[-1]
+                    y0 = fp_uniform[ch, -2]
+                    y1 = fp_uniform[ch, -1]
+                    slope = (y1 - y0) / (x1 - x0)
+                    r_flat[idx, ch] = y1 + slope * (xi - x1)
+                else:
+                    r_flat[idx, ch] = fp_uniform[ch, -1]
             else:
                 pos = (xi - xp_min) / bin_width
                 i = int(pos)
