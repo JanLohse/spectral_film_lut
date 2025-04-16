@@ -22,8 +22,8 @@ class Kodak5222(FilmSpectral):
         curve = {-2.9989: 0.2222, -2.8640: 0.2353, -2.7578: 0.2597, -2.6528: 0.2933, -2.5552: 0.3322, -2.4471: 0.3816,
                  -2.3548: 0.4278, -2.1344: 0.5602, -1.7240: 0.8113, -1.4071: 1.0214, -1.0744: 1.2452, -0.8015: 1.4259,
                  -0.5832: 1.5520, -0.4006: 1.6592}
-        self.log_exposure = [np.array(list(curve.keys())), ]
-        self.density_curve = [np.array(list(curve.values())), ]
+        self.log_exposure = [xp.array(list(curve.keys()), dtype=default_dtype)]
+        self.density_curve = [xp.array(list(curve.values()), dtype=default_dtype)]
 
         self.exposure_base = 10
 

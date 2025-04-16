@@ -22,8 +22,8 @@ class Kodak2303(FilmSpectral):
                  0.7988: 0.8432, 0.8785: 1.0056, 0.9723: 1.2229, 1.0742: 1.4733, 1.1644: 1.7182, 1.2675: 1.9851,
                  1.3531: 2.2135, 1.4738: 2.5217, 1.5874: 2.7528, 1.6894: 3.0005, 1.7901: 3.2261, 1.8897: 3.4077,
                  1.9811: 3.5577, 2.0538: 3.6678}
-        self.log_exposure = [np.array(list(curve.keys())), ]
-        self.density_curve = [np.array(list(curve.values())), ]
+        self.log_exposure = [xp.array(list(curve.keys()), dtype=default_dtype)]
+        self.density_curve = [xp.array(list(curve.values()), dtype=default_dtype)]
 
         self.exposure_base = 10
 

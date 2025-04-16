@@ -36,18 +36,18 @@ class KodakPortra400(FilmSpectral):
         self.log_sensitivity = [red_log_sensitivity, green_log_sensitivity, blue_log_sensitivity]
 
         # sensiometry - characteristic curve
-        red_log_exposure = np.array(
-            [-3.4479, -3.0878, -2.8889, -2.7791, -2.6626, -2.5048, -1.9835, -0.9616, -0.1043, 0.5645])
-        red_density_curve = np.array(
-            [0.2225, 0.2335, 0.2418, 0.2555, 0.2775, 0.3379, 0.6016, 1.1484, 1.6319, 2.0192])
-        green_log_exposure = np.array(
-            [-3.4376, -3.1907, -2.9060, -2.7723, -2.6317, -2.3642, -1.7641, -0.8073, 0.0604, 0.5610])
-        green_density_curve = np.array(
-            [0.6538, 0.6538, 0.6676, 0.6841, 0.7253, 0.8489, 1.1868, 1.7170, 2.1951, 2.4643])
-        blue_log_exposure = np.array(
-            [-3.4273, -3.1735, -3.0226, -2.8992, -2.7620, -2.5151, -1.8258, -1.0233, -0.3443, 0.5610])
-        blue_density_curve = np.array(
-            [0.8709, 0.8791, 0.8874, 0.9148, 0.9588, 1.0907, 1.5220, 2.0302, 2.4670, 3.0549, ])
+        red_log_exposure = xp.array(
+            [-3.4479, -3.0878, -2.8889, -2.7791, -2.6626, -2.5048, -1.9835, -0.9616, -0.1043, 0.5645], dtype=default_dtype)
+        red_density_curve = xp.array(
+            [0.2225, 0.2335, 0.2418, 0.2555, 0.2775, 0.3379, 0.6016, 1.1484, 1.6319, 2.0192], dtype=default_dtype)
+        green_log_exposure = xp.array(
+            [-3.4376, -3.1907, -2.9060, -2.7723, -2.6317, -2.3642, -1.7641, -0.8073, 0.0604, 0.5610], dtype=default_dtype)
+        green_density_curve = xp.array(
+            [0.6538, 0.6538, 0.6676, 0.6841, 0.7253, 0.8489, 1.1868, 1.7170, 2.1951, 2.4643], dtype=default_dtype)
+        blue_log_exposure = xp.array(
+            [-3.4273, -3.1735, -3.0226, -2.8992, -2.7620, -2.5151, -1.8258, -1.0233, -0.3443, 0.5610], dtype=default_dtype)
+        blue_density_curve = xp.array(
+            [0.8709, 0.8791, 0.8874, 0.9148, 0.9588, 1.0907, 1.5220, 2.0302, 2.4670, 3.0549, ], dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
 

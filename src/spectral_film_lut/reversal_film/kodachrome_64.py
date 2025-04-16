@@ -32,24 +32,24 @@ class Kodachrome64(FilmSpectral):
         self.log_sensitivity = [red_log_sensitivity, green_log_sensitivity, blue_log_sensitivity]
 
         # sensiometry
-        red_log_exposure = np.array(
+        red_log_exposure = xp.array(
             [-2.3944, -2.2583, -2.1231, -2.0260, -1.9119, -1.8058, -1.6997, -1.5636, -1.3924, -1.1732, -0.9409, -0.7377,
-             -0.5526, -0.3684, -0.2392, -0.0661, 0.0631, 0.2262, 0.3834])
-        red_density_curve = np.array(
+             -0.5526, -0.3684, -0.2392, -0.0661, 0.0631, 0.2262, 0.3834], dtype=default_dtype)
+        red_density_curve = xp.array(
             [3.6807, 3.6577, 3.6036, 3.5415, 3.4434, 3.3233, 3.1782, 2.9379, 2.5626, 2.0270, 1.5365, 1.1662, 0.8659,
-             0.6156, 0.4905, 0.3594, 0.2773, 0.2072, 0.1832])
-        green_log_exposure = np.array(
+             0.6156, 0.4905, 0.3594, 0.2773, 0.2072, 0.1832], dtype=default_dtype)
+        green_log_exposure = xp.array(
             [-2.3891, -2.1927, -2.0218, -1.8873, -1.7364, -1.6036, -1.3709, -1.1582, -0.9473, -0.7600, -0.6018, -0.4545,
-             -0.2764, -0.0218, 0.2000, 0.3945])
-        green_density_curve = np.array(
+             -0.2764, -0.0218, 0.2000, 0.3945], dtype=default_dtype)
+        green_density_curve = xp.array(
             [3.4486, 3.4067, 3.3194, 3.1956, 2.9918, 2.7552, 2.2420, 1.7616, 1.3576, 1.0227, 0.7953, 0.6151, 0.4531,
-             0.2930, 0.2202, 0.1965])
-        blue_log_exposure = np.array(
+             0.2930, 0.2202, 0.1965], dtype=default_dtype)
+        blue_log_exposure = xp.array(
             [-2.3904, -2.1281, -1.9730, -1.8569, -1.7447, -1.5966, -1.3924, -1.2332, -0.9990, -0.8569, -0.6246, -0.3794,
-             -0.0561, 0.1291, 0.2593, 0.3904])
-        blue_density_curve = np.array(
+             -0.0561, 0.1291, 0.2593, 0.3904], dtype=default_dtype)
+        blue_density_curve = xp.array(
             [3.3263, 3.2012, 3.0831, 2.9630, 2.8028, 2.5375, 2.1021, 1.7718, 1.3213, 1.0911, 0.7758, 0.5305, 0.3143,
-             0.2442, 0.2142, 0.2012])
+             0.2442, 0.2142, 0.2012], dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
 

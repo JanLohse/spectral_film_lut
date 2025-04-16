@@ -37,22 +37,22 @@ class Kodak2393(FilmSpectral):
         self.log_sensitivity = [red_log_sensitivity, green_log_sensitivity, blue_log_sensitivity]
 
         # sensiometry
-        red_log_exposure = np.array(sorted(
+        red_log_exposure = xp.array(sorted(
             [2.2808, 2.0761, 1.8568, 1.7151, 1.5926, 1.4172, 1.2536, 1.1129, 1.0242, 0.9146, 0.8140, 0.6495, 0.7373,
              0.5527, 0.3909, 0.1798, -0.0715, -0.4645, -0.6975]))
-        red_density_curve = np.array(sorted(
+        red_density_curve = xp.array(sorted(
             [5.2592, 5.1963, 5.0689, 4.9087, 4.6855, 4.1283, 3.3437, 2.6317, 2.1552, 1.6212, 1.2008, 0.6969, 0.9366,
              0.4984, 0.2807, 0.1424, 0.0876, 0.0657, 0.0548]))
-        green_log_exposure = np.array(sorted(
+        green_log_exposure = xp.array(sorted(
             [2.2808, 2.0130, 1.8111, 1.6676, 1.5369, 1.4044, 1.2554, 1.0964, 0.9557, 0.7647, 0.5380, 0.6596, 0.3781,
              0.1953, -0.0761, -0.4736, -0.7076]))
-        green_density_curve = np.array(sorted(
+        green_density_curve = xp.array(sorted(
             [5.5235, 5.4290, 5.2538, 4.9950, 4.6061, 4.0721, 3.3670, 2.5728, 1.9429, 1.2309, 0.6353, 0.9119, 0.3656,
              0.1780, 0.0917, 0.0644, 0.0575]))
-        blue_log_exposure = np.array(sorted(
+        blue_log_exposure = xp.array(sorted(
             [2.2808, 2.0806, 1.8385, 1.6676, 1.5725, 1.4812, 1.3943, 1.3276, 1.2618, 1.1924, 1.1211, 1.0498, 0.8954,
              0.7948, 0.5910, 0.7016, 0.2474, 0.4403, -0.1748, 0.0464, -0.6957]))
-        blue_density_curve = np.array(sorted(
+        blue_density_curve = xp.array(sorted(
             [5.3866, 5.3811, 5.2990, 5.1360, 4.9594, 4.6883, 4.3391, 4.0379, 3.7230, 3.3464, 2.9630, 2.5591, 1.7855,
              1.3473, 0.7421, 1.0310, 0.2738, 0.4669, 0.0917, 0.1506, 0.0630]))
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]

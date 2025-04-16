@@ -47,12 +47,12 @@ class KodakEktar100(FilmSpectral):
                       -2.1909: 0.9249, -1.9683: 1.0384, -1.7845: 1.1552, -1.5558: 1.2989, -1.4721: 1.3650,
                       -1.3853: 1.4238, -1.0851: 1.6182, -0.5449: 1.9726, -0.0997: 2.2756, 0.3332: 2.5394,
                       0.7733: 2.7991, 1.1583: 3.0670}
-        red_log_exposure = np.array(list(red_curve.keys()))
-        red_density_curve = np.array(list(red_curve.values()))
-        green_log_exposure = np.array(list(green_curve.keys()))
-        green_density_curve = np.array(list(green_curve.values()))
-        blue_log_exposure = np.array(list(blue_curve.keys()))
-        blue_density_curve = np.array(list(blue_curve.values()))
+        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
+        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
+        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
+        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
+        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
+        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
 

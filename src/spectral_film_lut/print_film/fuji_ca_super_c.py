@@ -46,12 +46,12 @@ class FujiCrystalArchiveSuperTypeC(FilmSpectral):
                       1.1561: 1.4358, 1.2165: 1.6639, 1.2699: 1.8359, 1.3309: 1.9889, 1.3906: 2.0977, 1.4637: 2.2016,
                       1.5683: 2.3104, 1.6568: 2.3785, 1.7803: 2.4417, 1.9004: 2.4859, 2.0219: 2.5161, 2.1714: 2.5364,
                       2.3224: 2.5442}
-        red_log_exposure = np.array(list(red_curve.keys()))
-        red_density_curve = np.array(list(red_curve.values()))
-        green_log_exposure = np.array(list(green_curve.keys()))
-        green_density_curve = np.array(list(green_curve.values()))
-        blue_log_exposure = np.array(list(blue_curve.keys()))
-        blue_density_curve = np.array(list(blue_curve.values()))
+        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
+        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
+        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
+        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
+        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
+        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
 

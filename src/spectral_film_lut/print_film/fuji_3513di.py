@@ -52,12 +52,12 @@ class Fuji3513DI(FilmSpectral):
                       0.9879: 0.5631, 1.1301: 0.8118, 1.2682: 1.1176, 1.3812: 1.4887, 1.5127: 2.0056, 1.6129: 2.4749,
                       1.7166: 3.0081, 1.8080: 3.4372, 1.8662: 3.6227, 1.9183: 3.7429, 1.9766: 3.8348, 2.0428: 3.8989,
                       2.0984: 3.9302, 2.1633: 3.9400}
-        red_log_exposure = np.array(list(red_curve.keys()))
-        red_density_curve = np.array(list(red_curve.values()))
-        green_log_exposure = np.array(list(green_curve.keys()))
-        green_density_curve = np.array(list(green_curve.values()))
-        blue_log_exposure = np.array(list(blue_curve.keys()))
-        blue_density_curve = np.array(list(blue_curve.values()))
+        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
+        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
+        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
+        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
+        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
+        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
 

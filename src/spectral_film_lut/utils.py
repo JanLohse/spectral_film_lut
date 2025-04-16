@@ -7,7 +7,6 @@ import traceback
 from pathlib import Path
 
 import colour
-import numpy as np
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
 from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
@@ -15,12 +14,31 @@ from ffmpeg._run import compile
 from ffmpeg.nodes import output_operator
 from numba import njit
 
+try:
+    import cupy as xp
+    from cupyx.scipy import ndimage as xdimage
+
+    cuda_available = True
+except ImportError:
+    import numpy as xp
+    from scipy import ndimage as xdimage
+
+    cuda_available = False
+import numpy as np
+
+
+def to_numpy(x):
+    if cuda_available:
+        return xp.asnumpy(x)
+    else:
+        return x
+
 
 def create_lut(negative_film, print_film=None, lut_size=33, name="test", verbose=False, **kwargs):
     lut = colour.LUT3D(size=lut_size, name="test")
     transform, _ = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
-    lut.table = transform(lut.table)
+    lut.table = to_numpy(transform(lut.table))
     if lut.table.shape[-1] == 1:
         lut.table = lut.table.repeat(3, -1)
     end = time.time()
@@ -290,14 +308,18 @@ def multi_channel_interp(x, xps, fps, num_bins=1024, interpolate=False, left_ext
     xp_common: np.ndarray, shape (num_bins,)
     fp_uniform: np.ndarray, shape (n_channels, num_bins)
     """
+    if cuda_available:
+        return xp.stack(
+            [xp.interp(xp.ascontiguousarray(x[..., i]), xp.ascontiguousarray(x_p), xp.ascontiguousarray(f_p)) for
+             i, (x_p, f_p) in enumerate(zip(xps, fps))], dtype=np.float32, axis=-1)
     n_channels = len(xps)
     xp_min = min(x[0] for x in xps)
     xp_max = max(x[-1] for x in xps)
-    xp_common = np.linspace(xp_min, xp_max, num_bins).astype(np.float32)
+    xp_common = xp.linspace(xp_min, xp_max, num_bins).astype(xp.float32)
 
-    fp_uniform = np.empty((n_channels, num_bins), dtype=np.float32)
+    fp_uniform = xp.empty((n_channels, num_bins), dtype=xp.float32)
     for ch in range(n_channels):
-        fp_uniform[ch] = np.interp(xp_common, xps[ch], fps[ch])
+        fp_uniform[ch] = xp.interp(xp_common, xps[ch], fps[ch])
     return uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate, left_extrapolate, right_extrapolate)
 
 

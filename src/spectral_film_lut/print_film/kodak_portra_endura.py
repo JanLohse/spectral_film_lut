@@ -58,12 +58,12 @@ class KodakPortraEndura(FilmSpectral):
                       -1.3702: 1.4588, -1.2532: 1.8203, -1.2163: 1.9188, -1.1635: 2.0446, -1.1042: 2.1560,
                       -1.0385: 2.2464, -0.9647: 2.3045, -0.9167: 2.3303, -0.8622: 2.3513, -0.7644: 2.3739,
                       -0.6058: 2.3932, -0.4423: 2.4077, -0.3077: 2.4142, -0.1635: 2.4223}
-        red_log_exposure = np.array(list(red_curve.keys()))
-        red_density_curve = np.array(list(red_curve.values()))
-        green_log_exposure = np.array(list(green_curve.keys()))
-        green_density_curve = np.array(list(green_curve.values()))
-        blue_log_exposure = np.array(list(blue_curve.keys()))
-        blue_density_curve = np.array(list(blue_curve.values()))
+        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
+        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
+        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
+        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
+        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
+        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
 

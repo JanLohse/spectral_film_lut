@@ -36,12 +36,12 @@ class FujiEterna500(FilmSpectral):
         blue_curve = {-6.2435: 0.6629, -5.2619: 0.6799, -4.4096: 0.7015, -3.7172: 0.7469, -2.9981: 0.8195,
                       -2.3247: 0.9126, -1.1224: 1.1010, -0.2854: 1.2463, 1.1604: 1.4938, 2.3247: 1.6935, 3.2492: 1.8490,
                       4.3145: 2.0261, 5.1820: 2.1487, 5.8402: 2.2384, 6.3158: 2.2940}
-        red_log_exposure = np.array(list(red_curve.keys()))
-        red_density_curve = np.array(list(red_curve.values()))
-        green_log_exposure = np.array(list(green_curve.keys()))
-        green_density_curve = np.array(list(green_curve.values()))
-        blue_log_exposure = np.array(list(blue_curve.keys()))
-        blue_density_curve = np.array(list(blue_curve.values()))
+        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
+        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
+        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
+        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
+        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
+        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
 
