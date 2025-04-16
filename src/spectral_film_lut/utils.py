@@ -281,7 +281,7 @@ def run(
     return out, err
 
 
-def multi_channel_interp(x, xps, fps, num_bins=64, left_extrapolate=False, right_extrapolate=False):
+def multi_channel_interp(x, xps, fps, num_bins=1024, interpolate=False, left_extrapolate=False, right_extrapolate=False):
     """
     Resamples each (xp, fp) pair to a uniform grid for fast lookup.
 
@@ -298,11 +298,11 @@ def multi_channel_interp(x, xps, fps, num_bins=64, left_extrapolate=False, right
     fp_uniform = np.empty((n_channels, num_bins), dtype=np.float32)
     for ch in range(n_channels):
         fp_uniform[ch] = np.interp(xp_common, xps[ch], fps[ch])
-    return uniform_multi_channel_interp(x, xp_common, fp_uniform, left_extrapolate, right_extrapolate)
+    return uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate, left_extrapolate, right_extrapolate)
 
 
 @njit
-def uniform_multi_channel_interp(x, xp_common, fp_uniform, left_extrapolate=False, right_extrapolate=False):
+def uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate=True, left_extrapolate=False, right_extrapolate=False):
     """
     Interpolates values in an N-D array `x` over the last dimension (channels)
     using a precomputed uniform grid (xp_common, fp_uniform), with optional
@@ -313,6 +313,8 @@ def uniform_multi_channel_interp(x, xp_common, fp_uniform, left_extrapolate=Fals
     x : np.ndarray, shape (..., channels)
     xp_common : np.ndarray, shape (num_bins,)
     fp_uniform : np.ndarray, shape (channels, num_bins)
+    interpolate : bool
+        Whether to linearly interpolate or just pick the nearest neighbor.
     left_extrapolate : bool
         Whether to linearly extrapolate for values < xp_common[0]
     right_extrapolate : bool
@@ -367,9 +369,12 @@ def uniform_multi_channel_interp(x, xp_common, fp_uniform, left_extrapolate=Fals
             else:
                 pos = (xi - xp_min) / bin_width
                 i = int(pos)
-                f = pos - i
-                y0 = fp_uniform[ch, i]
-                y1 = fp_uniform[ch, i + 1]
-                r_flat[idx, ch] = y0 + f * (y1 - y0)
+                if interpolate:
+                    f = pos - i
+                    y0 = fp_uniform[ch, i]
+                    y1 = fp_uniform[ch, i + 1]
+                    r_flat[idx, ch] = y0 + f * (y1 - y0)
+                else:
+                    r_flat[idx, ch] = fp_uniform[ch, i]
 
     return result
