@@ -344,6 +344,9 @@ class FilmSpectral:
             if input_colourspace is not None:
                 pipeline.append(
                     (lambda x: xp.asarray(colour.RGB_to_XYZ(x, input_colourspace, apply_cctf_decoding=True)), "input"))
+            elif cuda_available:
+                pipeline.append((lambda x: xp.asarray(x), "cast to cuda"))
+
 
             exp_comp = 2 ** exp_comp
 

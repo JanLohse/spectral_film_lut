@@ -15,13 +15,17 @@ from ffmpeg.nodes import output_operator
 from numba import njit
 
 try:
+    # raise ImportError
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
+    from cupyx.scipy import signal
 
     cuda_available = True
 except ImportError:
     import numpy as xp
     from scipy import ndimage as xdimage
+    from scipy import signal
+    import scipy
 
     cuda_available = False
 import numpy as np
