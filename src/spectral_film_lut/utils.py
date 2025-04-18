@@ -14,8 +14,10 @@ from ffmpeg._run import compile
 from ffmpeg.nodes import output_operator
 from numba import njit
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 try:
-    # raise ImportError
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
@@ -313,6 +315,16 @@ def multi_channel_interp(x, xps, fps, num_bins=1024, interpolate=False, left_ext
     fp_uniform: np.ndarray, shape (n_channels, num_bins)
     """
     if cuda_available:
+        extrapolation_distance = 100
+        if right_extrapolate:
+            slopes = [(f_p[-1] - f_p[-2]) / (x_p[-1] - x_p[-2]) for x_p, f_p in zip(xps, fps)]
+            xps = [xp.concatenate((x_p, xp.array([x_p[-1] + extrapolation_distance]))) for x_p in xps]
+            fps = [xp.concatenate((f_p, xp.array([f_p[-1] + extrapolation_distance * slope]))) for f_p, slope in zip(fps, slopes)]
+        if left_extrapolate:
+            slopes = [(f_p[0] - f_p[1]) / (x_p[0] - x_p[1]) for x_p, f_p in zip(xps, fps)]
+            xps = [xp.concatenate((xp.array([x_p[0] - extrapolation_distance]), x_p)) for x_p in xps]
+            fps = [xp.concatenate((xp.array([f_p[0] - extrapolation_distance * slope])), f_p) for f_p, slope in
+                   zip(fps, slopes)]
         return xp.stack(
             [xp.interp(xp.ascontiguousarray(x[..., i]), xp.ascontiguousarray(x_p), xp.ascontiguousarray(f_p)) for
              i, (x_p, f_p) in enumerate(zip(xps, fps))], dtype=np.float32, axis=-1)

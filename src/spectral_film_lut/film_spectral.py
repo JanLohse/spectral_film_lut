@@ -1,3 +1,4 @@
+import colour
 from colour import SpectralDistribution, MultiSpectralDistributions
 
 from spectral_film_lut.utils import *
@@ -334,7 +335,7 @@ class FilmSpectral:
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
-                            halation_func=None, pre_flash=-4, gamut_compression=0.2, **kwargs):
+                            halation_func=None, pre_flash=-4, gamut_compression=0.2, output_transform=None, **kwargs):
         pipeline = []
         if mode == 'negative' or mode == 'full':
 
@@ -373,36 +374,35 @@ class FilmSpectral:
 
             pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
 
-        density_scale = (negative_film.d_max.max() + d_buffer)
+        density_scale = (negative_film.d_max.max() + d_buffer) + 2
         if mode == 'negative':
             pipeline.append((lambda x: (x + d_buffer / 2) / density_scale, 'scale density'))
         elif mode == 'print':
             if cuda_available:
                 pipeline.append((lambda x: xp.asarray(x), "cast to cuda"))
             if negative_film.density_measure == 'bw':
-                pipeline.append((lambda x: x[..., 1][..., xp.newaxis], "reduce dim"))
+                pipeline.append((lambda x: x[..., 0][..., xp.newaxis], "reduce dim"))
             pipeline.append((lambda x: x * density_scale - d_buffer / 2, 'scale density'))
 
         if mode == 'print' or mode == 'full':
             if print_film is not None:
-                if matrix_method:
+                if negative_film.density_measure == 'bw' and print_film.density_measure == 'bw':
+                    if 'green_light' in kwargs:
+                        printer_light = kwargs['green_light']
+                    else:
+                        printer_light = 0
+                    pipeline.append(
+                        (lambda x: -x + (print_film.log_H_ref + negative_film.d_ref + printer_light), "printing"))
+                elif matrix_method:
                     density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film, **kwargs)
                     pipeline.append((lambda x: peak_exposure - x @ density_matrix.T, "printing matrix"))
                 else:
-                    if negative_film.density_measure == 'bw' and print_film.density_measure == 'bw':
-                        if 'green_light' in kwargs:
-                            printer_light = kwargs['green_light']
-                        else:
-                            printer_light = 0
-                        pipeline.append(
-                            (lambda x: -x + (print_film.log_H_ref + negative_film.d_ref + printer_light), "printing"))
-                    else:
-                        printer_light = negative_film.compute_printer_light(print_film, **kwargs)
-                        density_neg = negative_film.spectral_density.T
-                        printing_mat = (print_film.sensitivity.T * printer_light * 10 ** -negative_film.d_min_sd).T
-                        pipeline.append((
-                            lambda x: xp.log10(xp.clip(10 ** -(x @ density_neg) @ printing_mat, 0.00001, None)),
-                            "printing"))
+                    printer_light = negative_film.compute_printer_light(print_film, **kwargs)
+                    density_neg = negative_film.spectral_density.T
+                    printing_mat = (print_film.sensitivity.T * printer_light * 10 ** -negative_film.d_min_sd).T
+                    pipeline.append((
+                        lambda x: xp.log10(xp.clip(10 ** -(x @ density_neg) @ printing_mat, 0.00001, None)),
+                        "printing"))
                 pipeline.append((print_film.log_exposure_to_density, "characteristic curve print"))
                 output_film = print_film
             else:
@@ -411,14 +411,16 @@ class FilmSpectral:
             if output_film.density_measure == 'bw':
                 pipeline.append((lambda x: white_point / 10 ** -output_film.d_min * 10 ** -x, "projection"))
                 if not 6500 <= projector_kelvin <= 6505:
-                    wb = negative_film.CCT_to_XYZ(projector_kelvin)
+                    wb = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin))
                     pipeline.append((lambda x: x * wb, "projection color"))
                     if output_colourspace is not None:
                         pipeline.append(
                             (lambda x: colour.XYZ_to_RGB(to_numpy(x), output_colourspace, apply_cctf_encoding=True), "output"))
-                elif output_colourspace is not None:
+                elif output_colourspace is not None and output_transform is None:
                     pipeline.append((lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(
                         to_numpy(x).repeat(3, axis=-1)), "output"))
+                elif output_transform is not None:
+                    pipeline.append((lambda x: output_transform(x, apply_matrix=False).repeat(3, axis=-1), "output"))
             else:
                 projection_light, xyz_cmfs = output_film.compute_projection_light(projector_kelvin=projector_kelvin,
                                                                                   white_point=white_point)
@@ -426,12 +428,19 @@ class FilmSpectral:
 
                 density_mat = output_film.spectral_density
                 output_mat = (xyz_cmfs.T * projection_light * 10 ** -d_min_sd).T
+                if matrix_method:
+                    density_mat = density_mat.reshape(9, 9, 3).mean(axis=1)
+                    output_mat = output_mat.reshape(9, 9, 3).sum(axis=1)
                 pipeline.append((lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix"))
 
-                if output_colourspace is not None:
+                if output_colourspace is not None and output_transform is None:
                     pipeline.append(
                         (lambda x: colour.XYZ_to_RGB(to_numpy(x), output_colourspace, apply_cctf_encoding=True),
                          "output"))
+                elif output_transform is not None:
+                    pipeline.append((output_transform, "output"))
+            if output_transform is None:
+                pipeline.append((lambda x: xp.clip(x, 0, 1), "clipping"))
 
         def convert(x):
             start = time.time()
@@ -441,7 +450,7 @@ class FilmSpectral:
                     end = time.time()
                     print(f"{title:28} {end - start:.4f}s {x.dtype} {x.shape} {type(x)}")
                 start = time.time()
-            return xp.clip(x, 0, 1)
+            return x
 
         if mode == 'print' or mode == 'negative':
             return convert, density_scale
