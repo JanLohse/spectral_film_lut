@@ -1,4 +1,3 @@
-import colour
 from colour import SpectralDistribution, MultiSpectralDistributions
 
 from spectral_film_lut.utils import *
@@ -290,8 +289,14 @@ class FilmSpectral:
         out = (factors * xp.asarray(ref_density.values)).T
         return out
 
-    def log_exposure_to_density(self, log_exposure):
-        density = multi_channel_interp(log_exposure, self.log_exposure, self.density_curve, right_extrapolate=True)
+    def log_exposure_to_density(self, log_exposure, pre_flash=-4):
+        if pre_flash > -4:
+            log_exposure_curve = [
+                xp.log10(xp.clip((10 ** x - y * 2 ** pre_flash) / (1 - 1 * 2 ** pre_flash), 10 ** -16, None)) for x, y
+                in zip(self.log_exposure, self.H_ref)]
+        else:
+            log_exposure_curve = self.log_exposure
+        density = multi_channel_interp(log_exposure, log_exposure_curve, self.density_curve, right_extrapolate=True)
 
         return density
 
@@ -335,7 +340,8 @@ class FilmSpectral:
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
-                            halation_func=None, pre_flash=-4, gamut_compression=0.2, output_transform=None, **kwargs):
+                            halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
+                            output_transform=None, **kwargs):
         pipeline = []
         if mode == 'negative' or mode == 'full':
 
@@ -368,9 +374,10 @@ class FilmSpectral:
 
             if halation_func is not None:
                 pipeline.append((lambda x: halation_func(x), "halation"))
-            if pre_flash > -4:
-                pipeline.append((lambda x: x + negative_film.H_ref * 2 ** pre_flash, "pre-flash"))
-            pipeline.append((lambda x: xp.log10(xp.clip(x, 0.00001, None)), "log exposure"))
+            if pre_flash_neg > -4:
+                pipeline.append(
+                    (lambda x: (x + negative_film.H_ref * 2 ** pre_flash_neg) * (1 - 2 ** pre_flash_neg), "pre-flash"))
+            pipeline.append((lambda x: xp.log10(xp.clip(x, 10 ** -16, None)), "log exposure"))
 
             pipeline.append((negative_film.log_exposure_to_density, "characteristic curve"))
 
@@ -403,7 +410,8 @@ class FilmSpectral:
                     pipeline.append((
                         lambda x: xp.log10(xp.clip(10 ** -(x @ density_neg) @ printing_mat, 0.00001, None)),
                         "printing"))
-                pipeline.append((print_film.log_exposure_to_density, "characteristic curve print"))
+                pipeline.append(
+                    (lambda x: print_film.log_exposure_to_density(x, pre_flash_print), "characteristic curve print"))
                 output_film = print_film
             else:
                 output_film = negative_film
