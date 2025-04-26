@@ -421,9 +421,11 @@ class FilmSpectral:
                 if not 6500 <= projector_kelvin <= 6505:
                     wb = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin))
                     pipeline.append((lambda x: x * wb, "projection color"))
-                    if output_colourspace is not None:
+                    if output_colourspace is not None and output_transform is None:
                         pipeline.append(
                             (lambda x: colour.XYZ_to_RGB(to_numpy(x), output_colourspace, apply_cctf_encoding=True), "output"))
+                    elif output_transform is not None:
+                        pipeline.append((output_transform, "output"))
                 elif output_colourspace is not None and output_transform is None:
                     pipeline.append((lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(
                         to_numpy(x).repeat(3, axis=-1)), "output"))
