@@ -14,6 +14,7 @@ from spectral_film_lut.negative_film.kodak_ektar_100 import KodakEktar100
 from spectral_film_lut.negative_film.kodak_portra_400 import KodakPortra400
 from spectral_film_lut.print_film.fuji_3513di import Fuji3513DI
 from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
+from spectral_film_lut.print_film.fuji_ca_maxima import FujiCrystalArchiveMaxima
 from spectral_film_lut.print_film.fuji_ca_super_c import FujiCrystalArchiveSuperTypeC
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
@@ -272,7 +273,8 @@ def main():
                   KodakSupraEndura, Fuji3513DI, KodakEktachrome100D, Kodachrome64, FujiInstaxColor, FujiEterna500,
                   FujiEterna500Vivid, FujiCrystalArchiveSuperTypeC, KodakTriX400Dev6, KodakTriX400Dev7,
                   KodakTriX400Dev9, KodakTriX400Dev11, KodakPolymax, KodakPolymaxGradeNeg1, KodakPolymaxGrade0,
-                  KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5]
+                  KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5,
+                  FujiCrystalArchiveMaxima]
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
 

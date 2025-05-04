@@ -10,6 +10,7 @@ from spectral_film_lut.negative_film.kodak_ektar_100 import KodakEktar100
 from spectral_film_lut.negative_film.kodak_portra_400 import KodakPortra400
 from spectral_film_lut.print_film.fuji_3513di import Fuji3513DI
 from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
+from spectral_film_lut.print_film.fuji_ca_maxima import FujiCrystalArchiveMaxima
 from spectral_film_lut.print_film.fuji_ca_super_c import FujiCrystalArchiveSuperTypeC
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
@@ -24,9 +25,9 @@ NEGATIVE_FILM = [KodakPortra400, KodakEktar100, Kodak5207, FujiEterna500, FujiEt
                  Kodak5222Dev5, Kodak5222Dev6, Kodak5222Dev9, Kodak5222Dev12, KodakTriX400Dev6, KodakTriX400Dev7,
                  KodakTriX400Dev9, KodakTriX400Dev11]
 PRINT_FILM = [KodakEnduraPremier, KodakPortraEndura, KodakSupraEndura, Kodak2383, Kodak2393, FujiCrystalArchiveDPII,
-              FujiCrystalArchiveSuperTypeC, Fuji3513DI, Kodak2303Dev2, Kodak2303Dev3, Kodak2303Dev5, Kodak2303Dev7,
-              Kodak2303Dev9, KodakPolymax, KodakPolymaxGradeNeg1, KodakPolymaxGrade0, KodakPolymaxGrade1,
-              KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5]
+              FujiCrystalArchiveMaxima, FujiCrystalArchiveSuperTypeC, Fuji3513DI, Kodak2303Dev2, Kodak2303Dev3,
+              Kodak2303Dev5, Kodak2303Dev7, Kodak2303Dev9, KodakPolymax, KodakPolymaxGradeNeg1, KodakPolymaxGrade0,
+              KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5]
 REVERSAL_FILM = [KodakEktachrome100D, Kodachrome64, FujiInstaxColor]
 FILMSTOCKS = NEGATIVE_FILM + PRINT_FILM + REVERSAL_FILM
 NEGATIVE_FILM = {film.__name__: film for film in NEGATIVE_FILM}
