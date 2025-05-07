@@ -3,6 +3,11 @@ from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
+
+from spectral_film_lut.negative_film.fuji_pro_400h import FujiPro400H
+from spectral_film_lut.reversal_film.fuji_provia_100f import FujiProvia100F
+from spectral_film_lut.reversal_film.kodak_ektachrome_e100 import KodakEktachromeE100
+from spectral_film_lut.reversal_film.fuji_velvia_50 import FujiVelvia50
 from spectral_film_lut.bw_negative_film.kodak_5222 import *
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
@@ -272,7 +277,8 @@ def main():
                   KodakSupraEndura, Fuji3513DI, KodakEktachrome100D, Kodachrome64, FujiInstaxColor, FujiEterna500,
                   FujiEterna500Vivid, FujiCrystalArchiveSuperTypeC, KodakTriX400Dev6, KodakTriX400Dev7,
                   KodakTriX400Dev9, KodakTriX400Dev11, KodakPolymax, KodakPolymaxGradeNeg1, KodakPolymaxGrade0,
-                  KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5]
+                  KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5,
+                  FujiPro400H, FujiProvia100F, FujiVelvia50, KodakEktachromeE100]
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
 
