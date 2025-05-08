@@ -4,6 +4,11 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
 from spectral_film_lut.print_film.fujiflex_old import FujiflexOld
+
+from spectral_film_lut.negative_film.fuji_pro_400h import FujiPro400H
+from spectral_film_lut.reversal_film.fuji_provia_100f import FujiProvia100F
+from spectral_film_lut.reversal_film.kodak_ektachrome_e100 import KodakEktachromeE100
+from spectral_film_lut.reversal_film.fuji_velvia_50 import FujiVelvia50
 from spectral_film_lut.bw_negative_film.kodak_5222 import *
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
@@ -21,7 +26,6 @@ from spectral_film_lut.print_film.fujiflex_new import FujiflexNew
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
 from spectral_film_lut.print_film.kodak_duraflex_plus import KodakDuraflexPlus
-from spectral_film_lut.print_film.kodak_dye_transfer_negative import KodakDyeTransferNegative
 from spectral_film_lut.print_film.kodak_endura_premier import KodakEnduraPremier
 from spectral_film_lut.print_film.kodak_portra_endura import KodakPortraEndura
 from spectral_film_lut.print_film.kodak_supra_endura import KodakSupraEndura
@@ -271,14 +275,19 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    filmstocks = [KodakPortra400, KodakEktar100, Kodak5207, KodakEnduraPremier, Kodak2383, Kodak2393, Kodak2303Dev2,
-                  Kodak2303Dev3, Kodak2303Dev5, Kodak2303Dev7, Kodak2303Dev9, Kodak5222Dev4, Kodak5222Dev5,
-                  Kodak5222Dev6, Kodak5222Dev9, Kodak5222Dev12, FujiCrystalArchiveDPII, KodakPortraEndura,
-                  KodakSupraEndura, Fuji3513DI, KodakEktachrome100D, Kodachrome64, FujiInstaxColor, FujiEterna500,
-                  FujiEterna500Vivid, FujiCrystalArchiveSuperTypeC, KodakTriX400Dev6, KodakTriX400Dev7,
-                  KodakTriX400Dev9, KodakTriX400Dev11, KodakPolymax, KodakPolymaxGradeNeg1, KodakPolymaxGrade0,
-                  KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5,
-                  FujiCrystalArchiveMaxima, KodakDuraflexPlus, FujiflexNew, FujiflexOld]
+    NEGATIVE_FILM = [KodakPortra400, KodakEktar100, Kodak5207, FujiPro400H, FujiEterna500, FujiEterna500Vivid,
+                     Kodak5222Dev4,
+                     Kodak5222Dev5, Kodak5222Dev6, Kodak5222Dev9, Kodak5222Dev12, KodakTriX400Dev6, KodakTriX400Dev7,
+                     KodakTriX400Dev9, KodakTriX400Dev11]
+    PRINT_FILM = [KodakEnduraPremier, KodakDuraflexPlus, KodakPortraEndura, KodakSupraEndura, Kodak2383, Kodak2393,
+                  FujiCrystalArchiveDPII, FujiCrystalArchiveMaxima, FujiCrystalArchiveSuperTypeC, FujiflexNew,
+                  FujiflexOld,
+                  Fuji3513DI, Kodak2303Dev2, Kodak2303Dev3, Kodak2303Dev5, Kodak2303Dev7, Kodak2303Dev9, KodakPolymax,
+                  KodakPolymaxGradeNeg1, KodakPolymaxGrade0, KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3,
+                  KodakPolymaxGrade4, KodakPolymaxGrade5]
+    REVERSAL_FILM = [KodakEktachromeE100, KodakEktachrome100D, Kodachrome64, FujiVelvia50, FujiProvia100F,
+                     FujiInstaxColor]
+    filmstocks = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
 
