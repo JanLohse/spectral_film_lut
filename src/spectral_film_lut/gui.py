@@ -3,6 +3,7 @@ from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
+from spectral_film_lut.print_film.fujiflex_old import FujiflexOld
 from spectral_film_lut.bw_negative_film.kodak_5222 import *
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
@@ -16,8 +17,11 @@ from spectral_film_lut.print_film.fuji_3513di import Fuji3513DI
 from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
 from spectral_film_lut.print_film.fuji_ca_maxima import FujiCrystalArchiveMaxima
 from spectral_film_lut.print_film.fuji_ca_super_c import FujiCrystalArchiveSuperTypeC
+from spectral_film_lut.print_film.fujiflex_new import FujiflexNew
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
+from spectral_film_lut.print_film.kodak_duraflex_plus import KodakDuraflexPlus
+from spectral_film_lut.print_film.kodak_dye_transfer_negative import KodakDyeTransferNegative
 from spectral_film_lut.print_film.kodak_endura_premier import KodakEnduraPremier
 from spectral_film_lut.print_film.kodak_portra_endura import KodakPortraEndura
 from spectral_film_lut.print_film.kodak_supra_endura import KodakSupraEndura
@@ -274,7 +278,7 @@ def main():
                   FujiEterna500Vivid, FujiCrystalArchiveSuperTypeC, KodakTriX400Dev6, KodakTriX400Dev7,
                   KodakTriX400Dev9, KodakTriX400Dev11, KodakPolymax, KodakPolymaxGradeNeg1, KodakPolymaxGrade0,
                   KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5,
-                  FujiCrystalArchiveMaxima]
+                  FujiCrystalArchiveMaxima, KodakDuraflexPlus, FujiflexNew, FujiflexOld]
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
 

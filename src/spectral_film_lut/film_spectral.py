@@ -1,4 +1,7 @@
 from colour import SpectralDistribution, MultiSpectralDistributions
+from colour.plotting import plot_multi_cmfs
+
+from matplotlib import pyplot as plt
 
 from spectral_film_lut.utils import *
 
@@ -196,9 +199,10 @@ class FilmSpectral:
             else:
                 self.spectral_density = self.construct_spectral_density(self.d_ref_sd - to_numpy(self.d_min_sd))
 
-            self.spectral_density @= xp.linalg.inv(self.densiometry[self.density_measure].T @ self.spectral_density)
-            self.d_min_sd = self.d_min_sd + self.spectral_density @ (
-                    self.d_min - self.densiometry[self.density_measure].T @ self.d_min_sd)
+            if self.density_measure != 'absolute':
+                self.spectral_density @= xp.linalg.inv(self.densiometry[self.density_measure].T @ self.spectral_density)
+                self.d_min_sd = self.d_min_sd + self.spectral_density @ (
+                        self.d_min - self.densiometry[self.density_measure].T @ self.d_min_sd)
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
 
         self.XYZ_to_exp = self.sensitivity.T @ self.xyz_dual
@@ -319,6 +323,8 @@ class FilmSpectral:
         if print_film.density_measure == 'bw':
             light_factors = ((print_film.sensitivity.T @ reduced_lights) ** -1 * xp.multiply(print_film.H_ref,
                                                                                              compensation)).min()
+        if print_film.density_measure == 'absolute':
+            return xp.asarray(colour.sd_blackbody(3200, self.spectral_shape).values)
         else:
             light_factors = xp.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ xp.multiply(print_film.H_ref,
                                                                                                    compensation)
@@ -342,6 +348,9 @@ class FilmSpectral:
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
                             output_transform=None, **kwargs):
+        if print_film is not None and None:
+            print(print_film.sensitivity.shape)
+            colour.plotting.plot_single_cmfs(MultiSpectralDistributions(to_numpy(print_film.sensitivity), print_film.spectral_shape))
         pipeline = []
         if mode == 'negative' or mode == 'full':
 
