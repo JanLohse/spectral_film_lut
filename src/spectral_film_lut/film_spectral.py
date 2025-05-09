@@ -1,7 +1,4 @@
 from colour import SpectralDistribution, MultiSpectralDistributions
-from colour.plotting import plot_multi_cmfs
-
-from matplotlib import pyplot as plt
 
 from spectral_film_lut.utils import *
 
@@ -451,6 +448,31 @@ class FilmSpectral:
                     density_mat = density_mat.reshape(9, 9, 3).mean(axis=1)
                     output_mat = output_mat.reshape(9, 9, 3).sum(axis=1)
                 pipeline.append((lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix"))
+
+                if print_film is None and negative_film.density_measure == "status_m":
+                    def invert(x):
+                        XYZ_to_AP1 = xp.asarray(colour.RGB_COLOURSPACES["ACEScg"].matrix_XYZ_to_RGB)
+                        AP1_to_XYZ = xp.linalg.inv(XYZ_to_AP1)
+                        white = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin)) @ XYZ_to_AP1.T
+
+                        black = 10 ** -(xp.zeros(3) @ density_mat.T) @ output_mat
+                        gray = 10 ** -(negative_film.d_ref @ density_mat.T) @ output_mat
+                        d_bright = negative_film.log_exposure_to_density(negative_film.log_H_ref + 0.5)
+                        light_gray = 10 ** -(d_bright @ density_mat.T) @ output_mat
+
+                        adjustment = 1 / black
+                        gray = (gray * adjustment) @ XYZ_to_AP1.T
+                        light_gray = (light_gray * adjustment) @ XYZ_to_AP1.T
+                        reference_gamma = gray[..., 1] / light_gray[..., 1]
+                        gamma_adjustment = light_gray / gray * reference_gamma
+                        target_gray = 0.18 * white
+                        output_gamma = 4
+                        gray = target_gray * gray ** gamma_adjustment
+                        x = (gray / ((x * adjustment) @ XYZ_to_AP1.T) ** gamma_adjustment) ** output_gamma * target_gray ** (
+                                    1 - output_gamma)
+                        return (x / (x +1)) @ AP1_to_XYZ.T
+
+                    pipeline.append((invert, "invert"))
 
                 if output_colourspace is not None and output_transform is None:
                     pipeline.append(
