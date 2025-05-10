@@ -3,26 +3,28 @@ from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
-from spectral_film_lut.print_film.fujiflex_old import FujiflexOld
 
-from spectral_film_lut.negative_film.fuji_pro_400h import FujiPro400H
-from spectral_film_lut.reversal_film.fuji_provia_100f import FujiProvia100F
-from spectral_film_lut.reversal_film.kodak_ektachrome_e100 import KodakEktachromeE100
-from spectral_film_lut.reversal_film.fuji_velvia_50 import FujiVelvia50
+from spectral_film_lut.utils import *
 from spectral_film_lut.bw_negative_film.kodak_5222 import *
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
 from spectral_film_lut.bw_print_film.kodak_polymax_fine_art import *
 from spectral_film_lut.negative_film.fuji_eterna_500 import FujiEterna500
 from spectral_film_lut.negative_film.fuji_eterna_500_vivid import FujiEterna500Vivid
+from spectral_film_lut.negative_film.fuji_pro_160c import FujiPro160C
+from spectral_film_lut.negative_film.fuji_pro_160s import FujiPro160S
+from spectral_film_lut.negative_film.fuji_pro_400h import FujiPro400H
 from spectral_film_lut.negative_film.kodak_5207 import Kodak5207
 from spectral_film_lut.negative_film.kodak_ektar_100 import KodakEktar100
+from spectral_film_lut.negative_film.kodak_portra_160 import KodakPortra160
 from spectral_film_lut.negative_film.kodak_portra_400 import KodakPortra400
+from spectral_film_lut.negative_film.kodak_portra_800 import *
 from spectral_film_lut.print_film.fuji_3513di import Fuji3513DI
 from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
 from spectral_film_lut.print_film.fuji_ca_maxima import FujiCrystalArchiveMaxima
 from spectral_film_lut.print_film.fuji_ca_super_c import FujiCrystalArchiveSuperTypeC
 from spectral_film_lut.print_film.fujiflex_new import FujiflexNew
+from spectral_film_lut.print_film.fujiflex_old import FujiflexOld
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
 from spectral_film_lut.print_film.kodak_duraflex_plus import KodakDuraflexPlus
@@ -30,9 +32,11 @@ from spectral_film_lut.print_film.kodak_endura_premier import KodakEnduraPremier
 from spectral_film_lut.print_film.kodak_portra_endura import KodakPortraEndura
 from spectral_film_lut.print_film.kodak_supra_endura import KodakSupraEndura
 from spectral_film_lut.reversal_film.fuji_instax_color import FujiInstaxColor
+from spectral_film_lut.reversal_film.fuji_provia_100f import FujiProvia100F
+from spectral_film_lut.reversal_film.fuji_velvia_50 import FujiVelvia50
 from spectral_film_lut.reversal_film.kodachrome_64 import Kodachrome64
 from spectral_film_lut.reversal_film.kodak_ektachrome_100d import KodakEktachrome100D
-from spectral_film_lut.utils import *
+from spectral_film_lut.reversal_film.kodak_ektachrome_e100 import KodakEktachromeE100
 
 
 class MainWindow(QMainWindow):
@@ -275,10 +279,10 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    NEGATIVE_FILM = [KodakPortra400, KodakEktar100, Kodak5207, FujiPro400H, FujiEterna500, FujiEterna500Vivid,
-                     Kodak5222Dev4,
-                     Kodak5222Dev5, Kodak5222Dev6, Kodak5222Dev9, Kodak5222Dev12, KodakTriX400Dev6, KodakTriX400Dev7,
-                     KodakTriX400Dev9, KodakTriX400Dev11]
+    NEGATIVE_FILM = [KodakEktar100, KodakPortra160, KodakPortra400, KodakPortra800, KodakPortra800At1600,
+                     KodakPortra800At3200, Kodak5207, FujiPro160S, FujiPro160C, FujiPro400H, FujiEterna500,
+                     FujiEterna500Vivid, Kodak5222Dev4, Kodak5222Dev5, Kodak5222Dev6, Kodak5222Dev9, Kodak5222Dev12,
+                     KodakTriX400Dev6, KodakTriX400Dev7, KodakTriX400Dev9, KodakTriX400Dev11]
     PRINT_FILM = [KodakEnduraPremier, KodakDuraflexPlus, KodakPortraEndura, KodakSupraEndura, Kodak2383, Kodak2393,
                   FujiCrystalArchiveDPII, FujiCrystalArchiveMaxima, FujiCrystalArchiveSuperTypeC, FujiflexNew,
                   FujiflexOld,

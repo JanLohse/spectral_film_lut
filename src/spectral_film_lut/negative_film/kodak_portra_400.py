@@ -117,7 +117,7 @@ class KodakPortra400(FilmSpectral):
         self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
 
         # guessed value:
-        self.rms = 6
+        self.rms = 5
 
 
         self.calibrate()
