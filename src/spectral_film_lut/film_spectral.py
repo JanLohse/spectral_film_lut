@@ -1,4 +1,5 @@
 from colour import SpectralDistribution, MultiSpectralDistributions
+from colour.plotting import plot_single_cmfs, plot_multi_cmfs
 
 from spectral_film_lut.utils import *
 
@@ -344,7 +345,7 @@ class FilmSpectral:
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
-                            output_transform=None, **kwargs):
+                            output_transform=None, reduce_amount=0, **kwargs):
         if print_film is not None and None:
             print(print_film.sensitivity.shape)
             colour.plotting.plot_single_cmfs(MultiSpectralDistributions(to_numpy(print_film.sensitivity), print_film.spectral_shape))
@@ -416,6 +417,18 @@ class FilmSpectral:
                     pipeline.append((
                         lambda x: xp.log10(xp.clip(10 ** -(x @ density_neg) @ printing_mat, 0.00001, None)),
                         "printing"))
+                if reduce_amount and False:
+                    # TODO: make fast on cpu
+                    def reduce_highlights(x):
+                        sigma = max(x.shape) // 30
+                        sigma_list = [0 for _ in range(len(x.shape))]
+                        sigma_list[0] = sigma
+                        sigma_list[1] = sigma
+                        return x + xdimage.gaussian_filter(
+                            (x[:, :, 1] < print_film.log_H_ref[1] - 0.3)[..., None] * 1., sigma_list) * reduce_amount
+
+                    pipeline.append((reduce_highlights, "reduce_highlights"))
+
                 pipeline.append(
                     (lambda x: print_film.log_exposure_to_density(x, pre_flash_print), "characteristic curve print"))
                 output_film = print_film
@@ -424,6 +437,13 @@ class FilmSpectral:
 
             if output_film.density_measure == 'bw':
                 pipeline.append((lambda x: white_point / 10 ** -output_film.d_min * 10 ** -x, "projection"))
+                if print_film is None:
+                    adjustment = 1 / pipeline[-1][0](0)
+                    target_gray = 0.18
+                    gray = pipeline[-1][0](negative_film.d_ref) * adjustment * target_gray
+                    output_gamma = 2
+                    pipeline.append((lambda x: (gray / (x * adjustment)) ** output_gamma * target_gray ** (1 - output_gamma), "invert"))
+                    pipeline.append((lambda x: x / (x + 1), "roll-off"))
                 if not 6500 <= projector_kelvin <= 6505:
                     wb = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin))
                     pipeline.append((lambda x: x * wb, "projection color"))
@@ -450,29 +470,28 @@ class FilmSpectral:
                 pipeline.append((lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix"))
 
                 if print_film is None and negative_film.density_measure == "status_m":
-                    def invert(x):
-                        XYZ_to_AP1 = xp.asarray(colour.RGB_COLOURSPACES["ACEScg"].matrix_XYZ_to_RGB)
-                        AP1_to_XYZ = xp.linalg.inv(XYZ_to_AP1)
-                        white = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin)) @ XYZ_to_AP1.T
+                    XYZ_to_AP1 = xp.asarray(colour.RGB_COLOURSPACES["ACEScg"].matrix_XYZ_to_RGB)
+                    AP1_to_XYZ = xp.linalg.inv(XYZ_to_AP1)
+                    white = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin)) @ XYZ_to_AP1.T
 
-                        black = 10 ** -(xp.zeros(3) @ density_mat.T) @ output_mat
-                        gray = 10 ** -(negative_film.d_ref @ density_mat.T) @ output_mat
-                        d_bright = negative_film.log_exposure_to_density(negative_film.log_H_ref + 0.5)
-                        light_gray = 10 ** -(d_bright @ density_mat.T) @ output_mat
+                    black = pipeline[-1][0](xp.zeros(3))
+                    gray = pipeline[-1][0](negative_film.d_ref)
+                    d_bright = negative_film.log_exposure_to_density(negative_film.log_H_ref + 0.5)
+                    light_gray = pipeline[-1][0](d_bright)
 
-                        adjustment = 1 / black
-                        gray = (gray * adjustment) @ XYZ_to_AP1.T
-                        light_gray = (light_gray * adjustment) @ XYZ_to_AP1.T
-                        reference_gamma = gray[..., 1] / light_gray[..., 1]
-                        gamma_adjustment = light_gray / gray * reference_gamma
-                        target_gray = 0.18 * white
-                        output_gamma = 4
-                        gray = target_gray * gray ** gamma_adjustment
-                        x = (gray / ((x * adjustment) @ XYZ_to_AP1.T) ** gamma_adjustment) ** output_gamma * target_gray ** (
-                                    1 - output_gamma)
-                        return (x / (x +1)) @ AP1_to_XYZ.T
+                    adjustment = 1 / black
+                    gray = (gray * adjustment) @ XYZ_to_AP1.T
+                    light_gray = (light_gray * adjustment) @ XYZ_to_AP1.T
+                    reference_gamma = gray[..., 1] / light_gray[..., 1]
+                    gamma_adjustment = light_gray / gray * reference_gamma
+                    gamma_adjustment = 1
+                    target_gray = 0.18 * white
+                    output_gamma = 4
+                    gray = target_gray * gray ** gamma_adjustment
+                    pipeline.append((lambda x: (gray / ((x * adjustment) @ XYZ_to_AP1.T) ** gamma_adjustment) ** output_gamma * target_gray ** (
+                                    1 - output_gamma), "invert"))
+                    pipeline.append((lambda x: (x / (x +1)) @ AP1_to_XYZ.T, "rolloff"))
 
-                    pipeline.append((invert, "invert"))
 
                 if output_colourspace is not None and output_transform is None:
                     pipeline.append(
