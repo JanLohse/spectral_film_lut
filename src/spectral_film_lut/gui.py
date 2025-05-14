@@ -122,6 +122,10 @@ class MainWindow(QMainWindow):
         self.white_point.setMinMaxTicks(.5, 2., 1, 20)
         add_option(self.white_point, "White point:", 1., self.white_point.setValue)
 
+        self.black_offset = Slider()
+        self.black_offset.setMinMaxTicks(-0.02, 0.02, 1, 1000)
+        add_option(self.black_offset, "Black offset", 0., self.black_offset.setValue)
+
         self.output_colourspace_selector = QComboBox()
         self.output_colourspace_selector.addItems(colourspaces)
         add_option(self.output_colourspace_selector, "Output colourspace:", "sRGB",
@@ -151,6 +155,7 @@ class MainWindow(QMainWindow):
         self.green_light.valueChanged.connect(self.lights_changed)
         self.blue_light.valueChanged.connect(self.lights_changed)
         self.lut_size.valueChanged.connect(self.parameter_changed)
+        self.black_offset.valueChanged.connect(self.parameter_changed)
         self.white_point.valueChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
 
@@ -189,13 +194,14 @@ class MainWindow(QMainWindow):
         if output_colourspace == "CIE XYZ 1931": output_colourspace = None
         size = int(self.lut_size.getValue())
         white_point = self.white_point.getValue()
+        black_offset = self.black_offset.getValue()
         mode = self.mode.currentText()
         exp_wb = self.exp_wb.getValue()
         lut = create_lut(negative_film, print_film, name=name, matrix_method=False, lut_size=size,
                          input_colourspace=input_colourspace, output_colourspace=output_colourspace,
                          projector_kelvin=projector_kelvin, exp_comp=exp_comp, white_point=white_point,
                          exposure_kelvin=exp_wb, mode=mode, red_light=red_light, green_light=green_light,
-                         blue_light=blue_light)
+                         blue_light=blue_light, black_offset=black_offset)
         return lut
 
     def lights_changed(self, value):

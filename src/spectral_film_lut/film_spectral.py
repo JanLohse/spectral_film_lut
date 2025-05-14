@@ -1,5 +1,4 @@
 from colour import SpectralDistribution, MultiSpectralDistributions
-from colour.plotting import plot_single_cmfs, plot_multi_cmfs
 
 from spectral_film_lut.utils import *
 
@@ -342,10 +341,10 @@ class FilmSpectral:
 
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
-                            output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
+                            output_colourspace="sRGB", projector_kelvin=6500, matrix_method=True, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
-                            output_transform=None, reduce_amount=0, **kwargs):
+                            output_transform=None, black_offset=0, black_pivot=0.18, **kwargs):
         if print_film is not None and None:
             print(print_film.sensitivity.shape)
             colour.plotting.plot_single_cmfs(MultiSpectralDistributions(to_numpy(print_film.sensitivity), print_film.spectral_shape))
@@ -417,17 +416,6 @@ class FilmSpectral:
                     pipeline.append((
                         lambda x: xp.log10(xp.clip(10 ** -(x @ density_neg) @ printing_mat, 0.00001, None)),
                         "printing"))
-                if reduce_amount and False:
-                    # TODO: make fast on cpu
-                    def reduce_highlights(x):
-                        sigma = max(x.shape) // 30
-                        sigma_list = [0 for _ in range(len(x.shape))]
-                        sigma_list[0] = sigma
-                        sigma_list[1] = sigma
-                        return x + xdimage.gaussian_filter(
-                            (x[:, :, 1] < print_film.log_H_ref[1] - 0.3)[..., None] * 1., sigma_list) * reduce_amount
-
-                    pipeline.append((reduce_highlights, "reduce_highlights"))
 
                 pipeline.append(
                     (lambda x: print_film.log_exposure_to_density(x, pre_flash_print), "characteristic curve print"))
@@ -444,6 +432,11 @@ class FilmSpectral:
                     output_gamma = 2
                     pipeline.append((lambda x: (gray / (x * adjustment)) ** output_gamma * target_gray ** (1 - output_gamma), "invert"))
                     pipeline.append((lambda x: x / (x + 1), "roll-off"))
+                if black_offset:
+                    pipeline.append((lambda x: np.clip(np.where(x >= black_pivot, x, black_pivot * (
+                            (x - black_offset) / (black_pivot - black_offset)) ** ((
+                                                                                           black_pivot - black_offset) / black_pivot)),
+                                                       0, None), "black_offset"))
                 if not 6500 <= projector_kelvin <= 6505:
                     wb = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin))
                     pipeline.append((lambda x: x * wb, "projection color"))
@@ -457,7 +450,7 @@ class FilmSpectral:
                         to_numpy(x).repeat(3, axis=-1)), "output"))
                 elif output_transform is not None:
                     pipeline.append((lambda x: output_transform(x, apply_matrix=False).repeat(3, axis=-1), "output"))
-            else:
+            elif print_film is not None or negative_film.density_measure == "status_a":
                 projection_light, xyz_cmfs = output_film.compute_projection_light(projector_kelvin=projector_kelvin,
                                                                                   white_point=white_point)
                 d_min_sd = output_film.d_min_sd
@@ -492,7 +485,33 @@ class FilmSpectral:
                                     1 - output_gamma), "invert"))
                     pipeline.append((lambda x: (x / (x +1)) @ AP1_to_XYZ.T, "rolloff"))
 
+                if black_offset:
+                    pipeline.append((lambda x: np.clip(np.where(x >= black_pivot, x, black_pivot * (
+                            (x - black_offset) / (black_pivot - black_offset)) ** ((
+                                                                                           black_pivot - black_offset) / black_pivot)),
+                                                       0, None), "black_offset"))
 
+                if output_colourspace is not None and output_transform is None:
+                    pipeline.append(
+                        (lambda x: colour.XYZ_to_RGB(to_numpy(x), output_colourspace, apply_cctf_encoding=True),
+                         "output"))
+                elif output_transform is not None:
+                    pipeline.append((output_transform, "output"))
+            else:
+                status_m_to_apd = negative_film.densiometry["apd"].T @ negative_film.spectral_density
+                gray = 10 ** -negative_film.d_ref @ status_m_to_apd.T
+                target_gray = 0.18
+                output_gamma = 4
+                sRGB_to_XYZ = xp.linalg.inv(xp.asarray(colour.RGB_COLOURSPACES["sRGB"].matrix_XYZ_to_RGB))
+                pipeline.append((lambda x: 10 ** -x, "project"))
+                pipeline.append((lambda x: (gray * target_gray / (
+                            x @ status_m_to_apd.T)) ** output_gamma * target_gray ** (1 - output_gamma), "invert"))
+                pipeline.append((lambda x: (x / (x + 1)) @ sRGB_to_XYZ.T, "rolloff"))
+                if black_offset:
+                    pipeline.append((lambda x: np.clip(np.where(x >= black_pivot, x, black_pivot * (
+                            (x - black_offset) / (black_pivot - black_offset)) ** ((
+                                                                                           black_pivot - black_offset) / black_pivot)),
+                                                       0, None), "black_offset"))
                 if output_colourspace is not None and output_transform is None:
                     pipeline.append(
                         (lambda x: colour.XYZ_to_RGB(to_numpy(x), output_colourspace, apply_cctf_encoding=True),
