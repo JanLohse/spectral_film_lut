@@ -21,6 +21,7 @@ try:
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
+    import torch
 
     cuda_available = True
 except ImportError:

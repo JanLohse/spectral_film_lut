@@ -123,7 +123,7 @@ class MainWindow(QMainWindow):
         add_option(self.white_point, "White point:", 1., self.white_point.setValue)
 
         self.black_offset = Slider()
-        self.black_offset.setMinMaxTicks(-0.02, 0.02, 1, 1000)
+        self.black_offset.setMinMaxTicks(-2, 2, 1, 10)
         add_option(self.black_offset, "Black offset", 0., self.black_offset.setValue)
 
         self.output_colourspace_selector = QComboBox()

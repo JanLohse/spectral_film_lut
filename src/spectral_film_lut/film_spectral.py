@@ -1,6 +1,7 @@
 from colour import SpectralDistribution, MultiSpectralDistributions
 
 from spectral_film_lut.utils import *
+import cv2 as cv
 
 default_dtype = np.float32
 colour.utilities.set_default_float_dtype(default_dtype)
@@ -297,7 +298,8 @@ class FilmSpectral:
                 in zip(self.log_exposure, self.H_ref)]
         else:
             log_exposure_curve = self.log_exposure
-        density = multi_channel_interp(log_exposure, log_exposure_curve, self.density_curve, right_extrapolate=True)
+        extrapolate = self.densiometry != "status_a"
+        density = multi_channel_interp(log_exposure, log_exposure_curve, self.density_curve, right_extrapolate=extrapolate)
 
         return density
 
@@ -344,7 +346,8 @@ class FilmSpectral:
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=True, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
-                            output_transform=None, black_offset=0, black_pivot=0.18, **kwargs):
+                            output_transform=None, black_offset=0, black_pivot=0.18, highlight_burn=0.5,
+                            burn_scale=50, **kwargs):
         pipeline = []
 
         def add(func, name):
@@ -356,10 +359,14 @@ class FilmSpectral:
             elif output_transform is not None:
                 add(output_transform, "output")
 
-        def add_black_offset():
+        def add_black_offset(compute_factor=False):
+            if compute_factor:
+                offset = black_offset * max(pipeline[-1][0](output_film.d_max).min(), 0.0005)
+            else:
+                offset = black_offset * 0.0005
             func = lambda x: np.clip(
-                np.where(x >= black_pivot, x, black_pivot * ((x - black_offset) / (black_pivot - black_offset)) ** (
-                                                      (black_pivot - black_offset) / black_pivot))
+                np.where(x >= black_pivot, x, black_pivot * ((x - offset) / (black_pivot - offset)) ** (
+                                                      (black_pivot - offset) / black_pivot))
                 , 0, None)
             add(func,"black_offset")
 
@@ -395,7 +402,11 @@ class FilmSpectral:
                 add(lambda x: (x + negative_film.H_ref * 2 ** pre_flash_neg) * (1 - 2 ** pre_flash_neg), "pre-flash")
 
             add(lambda x: xp.log10(xp.clip(x, 10 ** -16, None)), "log exposure")
+
             add(negative_film.log_exposure_to_density, "characteristic curve")
+            if highlight_burn:
+                func = lambda x: np.clip(x - negative_film.d_ref[1 if len(negative_film.d_ref) > 1 else 0], 0, None)
+                add(lambda x: x - highlight_burn * FilmSpectral.down_up_blur(x[..., 1:2], burn_scale, func), "blur")
 
         density_scale = (negative_film.d_max.max() + d_buffer) + 2
         if mode == 'negative':
@@ -436,7 +447,7 @@ class FilmSpectral:
                     add(lambda x: (gray / (x * adjustment)) ** output_gamma * target_gray ** (1 - output_gamma),
                         "invert")
                     add(lambda x: x / (x + 1), "roll-off")
-                add_black_offset()
+                add_black_offset(print_film is not None)
                 if not 6500 <= projector_kelvin <= 6505:
                     wb = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin))
                     add(lambda x: x * wb, "projection color")
@@ -457,31 +468,7 @@ class FilmSpectral:
                     output_mat = output_mat.reshape(9, 9, 3).sum(axis=1)
                 add(lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix")
 
-                if print_film is None and negative_film.density_measure == "status_m":
-                    XYZ_to_AP1 = xp.asarray(colour.RGB_COLOURSPACES["ACEScg"].matrix_XYZ_to_RGB)
-                    AP1_to_XYZ = xp.linalg.inv(XYZ_to_AP1)
-                    white = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin)) @ XYZ_to_AP1.T
-
-                    black = pipeline[-1][0](xp.zeros(3))
-                    gray = pipeline[-1][0](negative_film.d_ref)
-                    d_bright = negative_film.log_exposure_to_density(negative_film.log_H_ref + 0.5)
-                    light_gray = pipeline[-1][0](d_bright)
-
-                    adjustment = 1 / black
-                    gray = (gray * adjustment) @ XYZ_to_AP1.T
-                    light_gray = (light_gray * adjustment) @ XYZ_to_AP1.T
-                    reference_gamma = gray[..., 1] / light_gray[..., 1]
-                    gamma_adjustment = light_gray / gray * reference_gamma
-                    gamma_adjustment = 1
-                    target_gray = 0.18 * white
-                    output_gamma = 4
-                    gray = target_gray * gray ** gamma_adjustment
-                    add(lambda x: (gray / (
-                            (x * adjustment) @ XYZ_to_AP1.T) ** gamma_adjustment) ** output_gamma * target_gray ** (
-                                          1 - output_gamma), "invert")
-                    add(lambda x: (x / (x + 1)) @ AP1_to_XYZ.T, "rolloff")
-
-                add_black_offset()
+                add_black_offset(True)
                 add_output_transform()
             else:
                 status_m_to_apd = negative_film.densiometry["apd"].T @ negative_film.spectral_density
@@ -498,6 +485,7 @@ class FilmSpectral:
 
             if output_transform is None:
                 add(lambda x: xp.clip(x, 0, 1), "clipping")
+
 
         def convert(x):
             start = time.time()
@@ -533,3 +521,63 @@ class FilmSpectral:
         A = xp.identity(3, dtype=default_dtype) * (1 - gamut_compression) + gamut_compression / 3
         A_inv = xp.linalg.inv(A)
         return matrix @ A_inv, A
+
+    @staticmethod
+    def add_photographic_inversion(add, negative_film, projector_kelvin, pipeline):
+        XYZ_to_AP1 = xp.asarray(colour.RGB_COLOURSPACES["ACEScg"].matrix_XYZ_to_RGB)
+        AP1_to_XYZ = xp.linalg.inv(XYZ_to_AP1)
+        white = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin)) @ XYZ_to_AP1.T
+
+        black = pipeline[-1][0](xp.zeros(3))
+        gray = pipeline[-1][0](negative_film.d_ref)
+        d_bright = negative_film.log_exposure_to_density(negative_film.log_H_ref + 0.5)
+        light_gray = pipeline[-1][0](d_bright)
+
+        adjustment = 1 / black
+        gray = (gray * adjustment) @ XYZ_to_AP1.T
+        light_gray = (light_gray * adjustment) @ XYZ_to_AP1.T
+        reference_gamma = gray[..., 1] / light_gray[..., 1]
+        gamma_adjustment = light_gray / gray * reference_gamma
+        gamma_adjustment = 1
+        target_gray = 0.18 * white
+        output_gamma = 4
+        gray = target_gray * gray ** gamma_adjustment
+        add(lambda x: (gray / (
+                (x * adjustment) @ XYZ_to_AP1.T) ** gamma_adjustment) ** output_gamma * target_gray ** (
+                              1 - output_gamma), "invert")
+        add(lambda x: (x / (x + 1)) @ AP1_to_XYZ.T, "rolloff")
+
+    @staticmethod
+    def down_up_blur(img, scale=50, func=None):
+        scale = math.ceil(min(img.shape[:2]) / scale)
+        # Downsample
+        blurred_channels = []
+        for c in range(img.shape[-1]):
+            # Downsample
+            if cuda_available:
+                down = FilmSpectral.cupy_area_downsample(img[:, :, c], scale)
+            else:
+                down = cv.resize(img[:, :, c], (img.shape[0] // scale, img.shape[1] // scale), interpolation=cv.INTER_AREA)
+            # Downsample channel
+            blurred = xdimage.gaussian_filter(down, sigma=3)
+            if func is not None:
+                blurred = func(blurred)
+
+            # Upsample back
+            up = xdimage.zoom(blurred, scale, order=1)
+            # Crop or pad to match original shape
+            up_resized = xp.pad(up, [(0, max(x-y, 0)) for x, y in zip(img.shape, up.shape)], mode='edge')[:img.shape[0], :img.shape[1]]
+            blurred_channels.append(up_resized)
+
+        # Stack back into (H, W, 3)
+        return xp.stack(blurred_channels, axis=-1)
+
+    @staticmethod
+    def cupy_area_downsample(img_cp, factor):
+        img_torch = torch.utils.dlpack.from_dlpack(xp.asarray(img_cp)[None, None, ...].toDlpack())
+
+        # Apply mean pooling
+        downsampled = torch.nn.functional.avg_pool2d(img_torch, kernel_size=factor, stride=factor)
+
+        # Convert back to CuPy (remove batch and channel dimensions)
+        return xp.fromDlpack(torch.utils.dlpack.to_dlpack(downsampled))[0, 0]
