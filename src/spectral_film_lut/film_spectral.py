@@ -346,8 +346,7 @@ class FilmSpectral:
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=True, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
-                            output_transform=None, black_offset=0, black_pivot=0.18, highlight_burn=0.5,
-                            burn_scale=50, **kwargs):
+                            output_transform=None, black_offset=0, black_pivot=0.18, **kwargs):
         pipeline = []
 
         def add(func, name):
@@ -404,9 +403,6 @@ class FilmSpectral:
             add(lambda x: xp.log10(xp.clip(x, 10 ** -16, None)), "log exposure")
 
             add(negative_film.log_exposure_to_density, "characteristic curve")
-            if highlight_burn:
-                func = lambda x: np.clip(x - negative_film.d_ref[1 if len(negative_film.d_ref) > 1 else 0], 0, None)
-                add(lambda x: x - highlight_burn * FilmSpectral.down_up_blur(x[..., 1:2], burn_scale, func), "blur")
 
         density_scale = (negative_film.d_max.max() + d_buffer) + 2
         if mode == 'negative':
@@ -546,38 +542,3 @@ class FilmSpectral:
                 (x * adjustment) @ XYZ_to_AP1.T) ** gamma_adjustment) ** output_gamma * target_gray ** (
                               1 - output_gamma), "invert")
         add(lambda x: (x / (x + 1)) @ AP1_to_XYZ.T, "rolloff")
-
-    @staticmethod
-    def down_up_blur(img, scale=50, func=None):
-        scale = math.ceil(min(img.shape[:2]) / scale)
-        # Downsample
-        blurred_channels = []
-        for c in range(img.shape[-1]):
-            # Downsample
-            if cuda_available:
-                down = FilmSpectral.cupy_area_downsample(img[:, :, c], scale)
-            else:
-                down = cv.resize(img[:, :, c], (img.shape[0] // scale, img.shape[1] // scale), interpolation=cv.INTER_AREA)
-            # Downsample channel
-            blurred = xdimage.gaussian_filter(down, sigma=3)
-            if func is not None:
-                blurred = func(blurred)
-
-            # Upsample back
-            up = xdimage.zoom(blurred, scale, order=1)
-            # Crop or pad to match original shape
-            up_resized = xp.pad(up, [(0, max(x-y, 0)) for x, y in zip(img.shape, up.shape)], mode='edge')[:img.shape[0], :img.shape[1]]
-            blurred_channels.append(up_resized)
-
-        # Stack back into (H, W, 3)
-        return xp.stack(blurred_channels, axis=-1)
-
-    @staticmethod
-    def cupy_area_downsample(img_cp, factor):
-        img_torch = torch.utils.dlpack.from_dlpack(xp.asarray(img_cp)[None, None, ...].toDlpack())
-
-        # Apply mean pooling
-        downsampled = torch.nn.functional.avg_pool2d(img_torch, kernel_size=factor, stride=factor)
-
-        # Convert back to CuPy (remove batch and channel dimensions)
-        return xp.fromDlpack(torch.utils.dlpack.to_dlpack(downsampled))[0, 0]
