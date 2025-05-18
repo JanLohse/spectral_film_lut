@@ -137,5 +137,6 @@ class Kodak5207(FilmSpectral):
                             4.5840: 2.9190, 4.8732: 2.9929}
         self.rms_curve = [red_rms, green_rms, blue_rms]
         self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
+        # computed rms of 3.74
 
         self.calibrate()

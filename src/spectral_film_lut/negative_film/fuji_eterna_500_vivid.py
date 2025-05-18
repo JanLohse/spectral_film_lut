@@ -8,7 +8,7 @@ class FujiEterna500Vivid(FilmSpectral):
         self.iso = 500
         self.density_measure = 'status_m'
         self.exposure_kelvin = 3200
-        self.projection_kelvin = None
+        self.projection_kelvin = 5500
 
         # spectral sensitivity
         red_log_sensitivity = {584.6949: 0.6932, 589.0259: 0.8656, 595.4765: 1.0114, 600.9873: 1.0802, 604.7466: 1.1067,

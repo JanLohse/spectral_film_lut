@@ -211,13 +211,15 @@ class FilmSpectral:
             self.rms_density = [x[1] for x in rms_temp]
             if hasattr(self, 'rms'):
                 if len(self.rms_density) == 3:
-                    ref_rms = xp.interp(xp.asarray(1), self.rms_density[1], self.rms_curve[1])
+                    ref_rms = xp.sqrt(
+                        xp.sum(multi_channel_interp(xp.ones(3), self.rms_density, self.rms_curve) ** 2)) / 4.23
                 else:
                     ref_rms = xp.interp(xp.asarray(1), self.rms_density[0], self.rms_curve[0])
                 if self.rms > 1:
                     self.rms /= 1000
                 factor = self.rms / ref_rms
                 self.rms_curve = [x * factor for x in self.rms_curve]
+
 
         for key, value in self.__dict__.items():
             if type(value) is xp.ndarray and value.dtype is not default_dtype:
@@ -346,7 +348,7 @@ class FilmSpectral:
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=True, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
-                            output_transform=None, black_offset=0, black_pivot=0.18, **kwargs):
+                            output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=True, **kwargs):
         pipeline = []
 
         def add(func, name):
@@ -453,7 +455,10 @@ class FilmSpectral:
                         to_numpy(x).repeat(3, axis=-1)), "output")
                 elif output_transform is not None:
                     add(lambda x: output_transform(x, apply_matrix=False).repeat(3, axis=-1), "output")
-            elif print_film is not None or negative_film.density_measure == "status_a":
+            elif print_film is not None or negative_film.density_measure == "status_a" or photo_inversion:
+                if print_film is None and negative_film.density_measure == "status_m":
+                    output_kelvin = projector_kelvin
+                    projector_kelvin = negative_film.projection_kelvin if negative_film.projection_kelvin is not None else 8500
                 projection_light, xyz_cmfs = output_film.compute_projection_light(projector_kelvin=projector_kelvin,
                                                                                   white_point=white_point)
                 d_min_sd = output_film.d_min_sd
@@ -464,20 +469,13 @@ class FilmSpectral:
                     output_mat = output_mat.reshape(9, 9, 3).sum(axis=1)
                 add(lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix")
 
+                if print_film is None and negative_film.density_measure == "status_m":
+                    FilmSpectral.add_photographic_inversion(add, negative_film, output_kelvin, pipeline)
+
                 add_black_offset(True)
                 add_output_transform()
             else:
-                status_m_to_apd = negative_film.densiometry["apd"].T @ negative_film.spectral_density
-                gray = 10 ** -negative_film.d_ref @ status_m_to_apd.T
-                target_gray = 0.18
-                output_gamma = 4
-                sRGB_to_XYZ = xp.linalg.inv(xp.asarray(colour.RGB_COLOURSPACES["sRGB"].matrix_XYZ_to_RGB))
-                add(lambda x: 10 ** -x, "project")
-                add(lambda x: (gray * target_gray / (x @ status_m_to_apd.T)) ** output_gamma * target_gray ** (
-                        1 - output_gamma), "invert")
-                add(lambda x: (x / (x + 1)) @ sRGB_to_XYZ.T, "rolloff")
-                add_black_offset()
-                add_output_transform()
+                FilmSpectral.add_status_inversion(add, negative_film, add_black_offset, add_output_transform)
 
             if output_transform is None:
                 add(lambda x: xp.clip(x, 0, 1), "clipping")
@@ -534,7 +532,6 @@ class FilmSpectral:
         light_gray = (light_gray * adjustment) @ XYZ_to_AP1.T
         reference_gamma = gray[..., 1] / light_gray[..., 1]
         gamma_adjustment = light_gray / gray * reference_gamma
-        gamma_adjustment = 1
         target_gray = 0.18 * white
         output_gamma = 4
         gray = target_gray * gray ** gamma_adjustment
@@ -542,3 +539,17 @@ class FilmSpectral:
                 (x * adjustment) @ XYZ_to_AP1.T) ** gamma_adjustment) ** output_gamma * target_gray ** (
                               1 - output_gamma), "invert")
         add(lambda x: (x / (x + 1)) @ AP1_to_XYZ.T, "rolloff")
+
+    @staticmethod
+    def add_status_inversion(add, negative_film, add_black_offset, add_output_transform):
+        status_m_to_apd = negative_film.densiometry["apd"].T @ negative_film.spectral_density
+        gray = 10 ** -negative_film.d_ref @ status_m_to_apd.T
+        target_gray = 0.18
+        output_gamma = 4
+        sRGB_to_XYZ = xp.linalg.inv(xp.asarray(colour.RGB_COLOURSPACES["sRGB"].matrix_XYZ_to_RGB))
+        add(lambda x: 10 ** -x, "project")
+        add(lambda x: (gray * target_gray / (x @ status_m_to_apd.T)) ** output_gamma * target_gray ** (
+                1 - output_gamma), "invert")
+        add(lambda x: (x / (x + 1)) @ sRGB_to_XYZ.T, "rolloff")
+        add_black_offset()
+        add_output_transform()
