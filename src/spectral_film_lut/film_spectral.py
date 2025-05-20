@@ -211,15 +211,16 @@ class FilmSpectral:
             self.rms_density = [x[1] for x in rms_temp]
             if hasattr(self, 'rms'):
                 if len(self.rms_density) == 3:
-                    ref_rms = xp.sqrt(
-                        xp.sum(multi_channel_interp(xp.ones(3), self.rms_density, self.rms_curve) ** 2)) / 4.23
+                    rms_color_factors = xp.array([0.26, 0.57, 0.17], dtype=xp.float32)
+                    scaling = 1.2375
+                    rms_color_factors /= rms_color_factors.sum()
+                    ref_rms = xp.sqrt(xp.sum((multi_channel_interp(xp.ones(3), self.rms_density, self.rms_curve) ** 2 * rms_color_factors ** 2))) / scaling
                 else:
                     ref_rms = xp.interp(xp.asarray(1), self.rms_density[0], self.rms_curve[0])
                 if self.rms > 1:
                     self.rms /= 1000
                 factor = self.rms / ref_rms
                 self.rms_curve = [x * factor for x in self.rms_curve]
-
 
         for key, value in self.__dict__.items():
             if type(value) is xp.ndarray and value.dtype is not default_dtype:
