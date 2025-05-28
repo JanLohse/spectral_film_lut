@@ -1,4 +1,5 @@
 from colour import SpectralDistribution, MultiSpectralDistributions
+from matplotlib import pyplot as plt
 
 from spectral_film_lut.utils import *
 import cv2 as cv
@@ -351,6 +352,12 @@ class FilmSpectral:
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
                             output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=True, **kwargs):
         pipeline = []
+
+        # colour.plotting.plot_single_cmfs(MultiSpectralDistributions(to_numpy(negative_film.sensitivity), negative_film.spectral_shape))
+
+        # for x, y in zip(negative_film.log_exposure, negative_film.density_curve):
+        #     plt.plot(to_numpy(x), to_numpy(y))
+        # plt.show()
 
         def add(func, name):
             pipeline.append((func, name))
