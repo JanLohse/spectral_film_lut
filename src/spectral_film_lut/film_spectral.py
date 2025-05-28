@@ -353,9 +353,9 @@ class FilmSpectral:
                             output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=True, **kwargs):
         pipeline = []
 
-        # colour.plotting.plot_single_cmfs(MultiSpectralDistributions(to_numpy(negative_film.sensitivity), negative_film.spectral_shape))
+        # colour.plotting.plot_single_cmfs(MultiSpectralDistributions(to_numpy(print_film.sensitivity), print_film.spectral_shape))
 
-        # for x, y in zip(negative_film.log_exposure, negative_film.density_curve):
+        # for x, y in zip(print_film.log_exposure, print_film.density_curve):
         #     plt.plot(to_numpy(x), to_numpy(y))
         # plt.show()
 
