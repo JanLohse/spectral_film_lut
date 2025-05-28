@@ -12,8 +12,9 @@ from spectral_film_lut.negative_film.kodak_5203 import Kodak5203
 from spectral_film_lut.negative_film.kodak_5207 import Kodak5207
 from spectral_film_lut.negative_film.kodak_5213 import Kodak5213
 from spectral_film_lut.negative_film.kodak_5219 import Kodak5219
-from spectral_film_lut.negative_film.kodak_ektar_100 import KodakEktar100
 from spectral_film_lut.negative_film.kodak_exr_5248 import KodakEXR5248
+from spectral_film_lut.negative_film.kodak_5247 import Kodak5247
+from spectral_film_lut.negative_film.kodak_ektar_100 import KodakEktar100
 from spectral_film_lut.negative_film.kodak_portra_160 import KodakPortra160
 from spectral_film_lut.negative_film.kodak_portra_400 import KodakPortra400
 from spectral_film_lut.negative_film.kodak_portra_800 import *
@@ -38,7 +39,7 @@ from spectral_film_lut.reversal_film.kodak_ektachrome_100d import KodakEktachrom
 from spectral_film_lut.reversal_film.kodak_ektachrome_e100 import KodakEktachromeE100
 
 NEGATIVE_FILM = [KodakEktar100, KodakPortra160, KodakPortra400, KodakPortra800, KodakPortra800At1600,
-                 KodakPortra800At3200, Kodak5203, Kodak5213, Kodak5207, Kodak5219, KodakEXR5248, FujiPro160S,
+                 KodakPortra800At3200, Kodak5203, Kodak5213, Kodak5207, Kodak5219, KodakEXR5248, Kodak5247, FujiPro160S,
                  FujiPro160C, FujiPro400H, FujiEterna500, FujiEterna500Vivid, Kodak5222Dev4, Kodak5222Dev5,
                  Kodak5222Dev6, Kodak5222Dev9, Kodak5222Dev12, KodakTriX400Dev6, KodakTriX400Dev7, KodakTriX400Dev9,
                  KodakTriX400Dev11]
