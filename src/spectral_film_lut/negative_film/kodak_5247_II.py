@@ -1,7 +1,7 @@
 from spectral_film_lut.film_spectral import *
 
 
-class Kodak5247(FilmSpectral):
+class Kodak5247II(FilmSpectral):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
