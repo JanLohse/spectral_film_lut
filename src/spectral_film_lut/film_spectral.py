@@ -1,24 +1,18 @@
 from colour import SpectralDistribution, MultiSpectralDistributions
-from matplotlib import pyplot as plt
 
 from spectral_film_lut.utils import *
-import cv2 as cv
 
 default_dtype = np.float32
 colour.utilities.set_default_float_dtype(default_dtype)
 
 
 class FilmSpectral:
-    def __init__(self, spectral_shape=None):
-        if spectral_shape is None:
-            self.spectral_shape = colour.SpectralShape(380, 780, 5)
-        else:
-            self.spectral_shape = spectral_shape
+    def __init__(self):
         self.xyz_cmfs = xp.asarray(
-            colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].align(self.spectral_shape).values)
+            colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].align(spectral_shape).values)
 
         reference_sds = xp.asarray(
-            colour.characterisation.read_training_data_rawtoaces_v1().align(self.spectral_shape).values)
+            colour.characterisation.read_training_data_rawtoaces_v1().align(spectral_shape).values)
         reference_xyz = xp.asarray(reference_sds.T @ self.xyz_cmfs)
         self.xyz_dual = xp.linalg.lstsq(reference_xyz, reference_sds.T, rcond=None)[0].T
 
@@ -106,10 +100,10 @@ class FilmSpectral:
         def interpolate_status_density(status):
             result = []
             for i, density in enumerate(status):
-                density = SpectralDistribution(density).extrapolate(self.spectral_shape,
+                density = SpectralDistribution(density).extrapolate(spectral_shape,
                                                                     extrapolator_kwargs={'method': 'linear'})
                 density.values = 10 ** density.values
-                density.interpolate(self.spectral_shape)
+                density.interpolate(spectral_shape)
                 density /= sum(density.values)
                 result.append(density)
             result = MultiSpectralDistributions(result)
@@ -117,7 +111,7 @@ class FilmSpectral:
 
         self.status_a = xp.asarray(interpolate_status_density(status_a))
         self.status_m = xp.asarray(interpolate_status_density(status_m))
-        self.apd = xp.asarray(MultiSpectralDistributions(apd).align(self.spectral_shape).values)
+        self.apd = xp.asarray(MultiSpectralDistributions(apd).align(spectral_shape).values)
         self.apd /= xp.sum(self.apd, axis=0)
 
         self.densiometry = {'status_a': self.status_a, 'status_m': self.status_m, 'apd': self.apd}
@@ -147,7 +141,7 @@ class FilmSpectral:
              696: 1.3926, 698: 1.3880, 700: 1.3813, 702: 1.3714, 704: 1.3590, 706: 1.3450, 708: 1.3305, 710: 1.3163,
              712: 1.3030, 714: 1.2904, 716: 1.2781, 718: 1.2656, 720: 1.2526, 722: 1.2387, 724: 1.2242, 726: 1.2091,
              728: 1.1937, 730: 1.1782})
-        printer_light.align(self.spectral_shape, extrapolator_kwargs={'method': 'linear'})
+        printer_light.align(spectral_shape, extrapolator_kwargs={'method': 'linear'})
 
         self.printer_lights = self.construct_spectral_density(printer_light, sigma=5)
 
@@ -163,8 +157,8 @@ class FilmSpectral:
 
         # extrapolate log_sensitivity to linear sensitivity
         self.log_sensitivity = xp.stack(
-            [xp.asarray(colour.SpectralDistribution(x).align(self.spectral_shape, extrapolator_kwargs={
-                'method': 'linear'}).align(self.spectral_shape).values) for x in self.log_sensitivity]).T
+            [xp.asarray(colour.SpectralDistribution(x).align(spectral_shape, extrapolator_kwargs={
+                'method': 'linear'}).align(spectral_shape).values) for x in self.log_sensitivity]).T
         self.sensitivity = 10 ** self.log_sensitivity
 
         # convert relative camera exposure to absolute exposure in log lux-seconds for characteristic curve
@@ -179,8 +173,8 @@ class FilmSpectral:
 
         # align spectral densities
         if self.density_measure == 'bw':
-            self.spectral_density = xp.asarray(colour.colorimetry.sd_constant(1, self.spectral_shape).values)
-            self.d_min_sd = xp.asarray(colour.colorimetry.sd_constant(to_numpy(self.d_min), self.spectral_shape).values)
+            self.spectral_density = xp.asarray(colour.colorimetry.sd_constant(1, spectral_shape).values)
+            self.d_min_sd = xp.asarray(colour.colorimetry.sd_constant(to_numpy(self.d_min), spectral_shape).values)
             self.d_ref_sd = self.spectral_density * self.d_ref + self.d_min
             self.spectral_density = self.spectral_density.reshape(-1, 1)
         else:
@@ -188,7 +182,7 @@ class FilmSpectral:
                 self.d_min_sd = self.gaussian_extrapolation(self.d_min_sd)
                 self.d_min_sd = xp.asarray(self.d_min_sd.values)
             else:
-                self.d_min_sd = xp.asarray(colour.sd_zeros(self.spectral_shape).values)
+                self.d_min_sd = xp.asarray(colour.sd_zeros(spectral_shape).values)
 
             if hasattr(self, 'd_ref_sd'):
                 self.gaussian_extrapolation(self.d_ref_sd)
@@ -249,16 +243,16 @@ class FilmSpectral:
             extrapolator = lambda x: a * np.exp(- (x - b) ** 2 / c ** 2)
             return extrapolator(wavelengths)
 
-        sd.interpolate(self.spectral_shape)
+        sd.interpolate(spectral_shape)
 
-        def_wv = self.spectral_shape.wavelengths
+        def_wv = spectral_shape.wavelengths
         wv_left = def_wv[def_wv < sd.wavelengths[0]]
         wv_right = def_wv[def_wv > sd.wavelengths[-1]]
         values_left = extrapolate(sd.wavelengths[0], sd.values[0], sd.wavelengths[1], sd.values[1], wv_left)
         values_right = extrapolate(sd.wavelengths[-1], sd.values[-1], sd.wavelengths[-2], sd.values[-2], wv_right)
         sd.values, sd.wavelengths = np.concatenate((values_left, sd.values, values_right)), np.concatenate(
             (wv_left, sd.wavelengths, wv_right))
-        sd.interpolate(self.spectral_shape)
+        sd.interpolate(spectral_shape)
 
         return sd
 
@@ -279,9 +273,9 @@ class FilmSpectral:
         return peak
 
     def construct_spectral_density(self, ref_density, sigma=25):
-        red_peak = FilmSpectral.wavelength_argmax(ref_density, 600, min(750, self.spectral_shape.end))
+        red_peak = FilmSpectral.wavelength_argmax(ref_density, 600, min(750, spectral_shape.end))
         green_peak = FilmSpectral.wavelength_argmax(ref_density, 500, 600)
-        blue_peak = FilmSpectral.wavelength_argmax(ref_density, max(400, self.spectral_shape.start), 500)
+        blue_peak = FilmSpectral.wavelength_argmax(ref_density, max(400, spectral_shape.start), 500)
         bg_cutoff = FilmSpectral.wavelength_argmin(ref_density, blue_peak, green_peak)
         gr_cutoff = FilmSpectral.wavelength_argmin(ref_density, green_peak, red_peak)
 
@@ -289,7 +283,7 @@ class FilmSpectral:
         factors = xp.stack((xp.where(gr_cutoff <= wavelengths, 1., 0.),
                             xp.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1., 0.),
                             xp.where(wavelengths <= bg_cutoff, 1., 0.)))
-        factors = xdimage.gaussian_filter(factors, sigma=(0, sigma / self.spectral_shape.interval)).astype(
+        factors = xdimage.gaussian_filter(factors, sigma=(0, sigma / spectral_shape.interval)).astype(
             default_dtype)
 
         out = (factors * xp.asarray(ref_density.values)).T
@@ -327,7 +321,7 @@ class FilmSpectral:
             light_factors = ((print_film.sensitivity.T @ reduced_lights) ** -1 * xp.multiply(print_film.H_ref,
                                                                                              compensation)).min()
         if print_film.density_measure == 'absolute':
-            return xp.asarray(colour.sd_blackbody(3200, self.spectral_shape).values)
+            return xp.asarray(colour.sd_blackbody(3200, spectral_shape).values)
         else:
             light_factors = xp.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ xp.multiply(print_film.H_ref,
                                                                                                    compensation)
@@ -336,9 +330,9 @@ class FilmSpectral:
 
     def compute_projection_light(self, projector_kelvin=5500, reference_kelvin=6504, white_point=1.):
         reference_light = xp.asarray(
-            colour.sd_blackbody(reference_kelvin).align(self.spectral_shape).normalise().values)
+            colour.sd_blackbody(reference_kelvin).align(spectral_shape).normalise().values)
         projector_light = xp.asarray(
-            colour.sd_blackbody(projector_kelvin).align(self.spectral_shape).normalise().values)
+            colour.sd_blackbody(projector_kelvin).align(spectral_shape).normalise().values)
         reference_white = xp.asarray(colour.xyY_to_XYZ([*colour.CCT_to_xy(reference_kelvin), 1.]))
         xyz_cmfs = self.xyz_cmfs * (reference_white / (self.xyz_cmfs.T @ reference_light))
         peak_xyz = colour.XYZ_to_RGB(to_numpy(xyz_cmfs.T @ (projector_light * 10 ** -self.d_min_sd)), "sRGB")

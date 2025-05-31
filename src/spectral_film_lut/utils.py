@@ -14,6 +14,8 @@ from ffmpeg._run import compile
 from ffmpeg.nodes import output_operator
 from numba import njit
 
+spectral_shape = colour.SpectralShape(380, 780, 5)
+
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
