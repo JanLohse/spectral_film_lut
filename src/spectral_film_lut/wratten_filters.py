@@ -1,6 +1,7 @@
+import colour
 from spectral_film_lut.utils import *
 
-WRATTEN_FILTERS = {
+WRATTEN = {
     "2A": {396.5743: 2.9962, 397.9577: 2.8976, 399.0037: 2.7676, 399.6549: 2.6724, 400.1585: 2.5809, 400.8271: 2.4805,
            401.3741: 2.3839, 401.3741: 2.2861, 401.7793: 2.1796, 402.4681: 2.0738, 402.6707: 1.9739, 403.3017: 1.8707,
            404.1352: 1.7722, 404.8993: 1.5867, 405.0816: 1.5014, 405.6692: 1.3782, 406.1605: 1.2723, 406.6011: 1.1649,
@@ -668,9 +669,11 @@ def cleanup(curve):
     spectral_distribution = colour.SpectralDistribution(filtered_curve)
     spectral_distribution.align(spectral_shape, extrapolator_kwargs={'method': 'linear'}).align(spectral_shape)
 
-    density_values = xp.asarray(spectral_distribution.values)
+    # convert to array and then to transmission factor
+    density = xp.asarray(spectral_distribution.values)
+    transmission = xp.clip(10 ** -density, 0, 1)
 
-    return density_values
+    return transmission
 
 
-WRATTEN_FILTERS = {x: cleanup(y) for x, y in WRATTEN_FILTERS.items()}
+WRATTEN = {x: cleanup(y) for x, y in WRATTEN.items()}

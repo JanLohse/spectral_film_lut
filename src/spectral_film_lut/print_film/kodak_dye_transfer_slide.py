@@ -1,8 +1,10 @@
 from spectral_film_lut.bw_negative_film.kodak_5222 import *
 from spectral_film_lut.wratten_filters import WRATTEN
 
+from matplotlib import pyplot as plt
 
-class KodakDyeTransferNegative(FilmSpectral):
+
+class KodakDyeTransferSlide(FilmSpectral):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -11,22 +13,29 @@ class KodakDyeTransferNegative(FilmSpectral):
         self.exposure_kelvin = None
         self.projection_kelvin = 6500
 
-        sensitivity = Kodak5222().sensitivity
-        filters = xp.stack([WRATTEN["29"], WRATTEN["99"], WRATTEN["98"]])
+        separation_neg = Kodak5222()
+        sensitivity = separation_neg.sensitivity
+        filters = xp.stack([WRATTEN["29"], WRATTEN["61"], WRATTEN["47"]])  # Try 98 instead of 47 (no 47B available)
         self.sensitivity = sensitivity * filters.T
 
         # sensiometry curve from kodak matrix film 4150
-        curve = {-0.8901: 0.0337, -0.8083: 0.0450, -0.7327: 0.0582, -0.6203: 0.0795, -0.5184: 0.1129, -0.4309: 0.1500,
-                 -0.3650: 0.1855, -0.2970: 0.2272, -0.2282: 0.2761, -0.1474: 0.3376, -0.0246: 0.4576, 0.0716: 0.5770,
-                 0.1933: 0.7584, 0.3935: 1.1285, 0.5697: 1.4631, 0.6975: 1.7012, 0.8412: 1.9662, 0.9197: 2.0985,
-                 1.0265: 2.2539, 1.1249: 2.3620, 1.2107: 2.4380, 1.2977: 2.4977, 1.3779: 2.5387, 1.4553: 2.5663,
-                 1.5962: 2.6006, 1.7229: 2.6213, 1.8457: 2.6357, 1.9573: 2.6437}
-        log_exposure = xp.array(list(curve.keys()), dtype=default_dtype)
-        density_curve = xp.array(list(curve.values()), dtype=default_dtype)
-        factor = density_curve.max()
-        density_curve = (density_curve / factor) ** 2 * factor
-        self.log_exposure = [log_exposure] * 3
+        curve = {-0.8901: 0.0337, -0.8083: 0.0450, -0.7327: 0.0582, -0.6203: 0.0795, -0.5184: 0.1129,
+                 -0.4309: 0.1500, -0.3650: 0.1855, -0.2970: 0.2272, -0.2282: 0.2761, -0.1474: 0.3376,
+                 -0.0246: 0.4576, 0.0716: 0.5770, 0.1933: 0.7584, 0.3935: 1.1285, 0.5697: 1.4631, 0.6975: 1.7012,
+                 0.8412: 1.9662, 0.9197: 2.0985, 1.0265: 2.2539, 1.1249: 2.3620, 1.2107: 2.4380, 1.2977: 2.4977,
+                 1.3779: 2.5387, 1.4553: 2.5663, 1.5962: 2.6006, 1.7229: 2.6213, 1.8457: 2.6357, 1.9573: 2.6437}
+        log_exposure_matrix = xp.array(list(curve.keys()), dtype=default_dtype)
+        density_curve_matrix = xp.array(list(curve.values()), dtype=default_dtype)
+        log_H_ref_mat = xp.interp(xp.asarray(self.lad[0]), density_curve_matrix, log_exposure_matrix)
+        # TODO right extrapolate
+        density_curve = xp.interp(log_H_ref_mat - separation_neg.density_curve[0] + separation_neg.d_ref,
+                                  log_exposure_matrix, density_curve_matrix)
+
+        self.log_exposure = separation_neg.log_exposure * 3
         self.density_curve = [density_curve] * 3
+
+        plt.plot(to_numpy(self.log_exposure[0]), to_numpy(self.density_curve[0]))
+        plt.show()
 
         self.exposure_base = 10
 

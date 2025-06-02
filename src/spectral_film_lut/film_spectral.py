@@ -156,10 +156,11 @@ class FilmSpectral:
         self.H_ref = 10 ** self.log_H_ref
 
         # extrapolate log_sensitivity to linear sensitivity
-        self.log_sensitivity = xp.stack(
-            [xp.asarray(colour.SpectralDistribution(x).align(spectral_shape, extrapolator_kwargs={
-                'method': 'linear'}).align(spectral_shape).values) for x in self.log_sensitivity]).T
-        self.sensitivity = 10 ** self.log_sensitivity
+        if hasattr(self, "log_sensitivity"):
+            self.log_sensitivity = xp.stack(
+                [xp.asarray(colour.SpectralDistribution(x).align(spectral_shape, extrapolator_kwargs={
+                    'method': 'linear'}).align(spectral_shape).values) for x in self.log_sensitivity]).T
+            self.sensitivity = 10 ** self.log_sensitivity
 
         # convert relative camera exposure to absolute exposure in log lux-seconds for characteristic curve
         if self.exposure_base != 10:
@@ -347,7 +348,7 @@ class FilmSpectral:
                             output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=True, **kwargs):
         pipeline = []
 
-        # colour.plotting.plot_single_cmfs(MultiSpectralDistributions(to_numpy(print_film.sensitivity), print_film.spectral_shape))
+        # colour.plotting.plot_single_cmfs(MultiSpectralDistributions(to_numpy(print_film.spectral_density), spectral_shape))
 
         # for x, y in zip(print_film.log_exposure, print_film.density_curve):
         #     plt.plot(to_numpy(x), to_numpy(y))
@@ -424,6 +425,7 @@ class FilmSpectral:
                     printer_light = kwargs.get('green_light', 0)
                     add(lambda x: -x + (print_film.log_H_ref + negative_film.d_ref + printer_light), "printing")
                 elif matrix_method:
+                    # TODO: proper separation negative
                     density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film, **kwargs)
                     add(lambda x: peak_exposure - x @ density_matrix.T, "printing matrix")
                 else:

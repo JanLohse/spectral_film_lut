@@ -51,11 +51,11 @@ class Kodak5384(FilmSpectral):
                       1.8755: 2.1475, 1.9741: 2.4711, 2.0422: 2.7503, 2.1678: 3.2115, 2.2478: 3.4561, 2.3253: 3.6034,
                       2.4028: 3.7466, 2.5044: 3.8673, 2.5958: 3.9577, 2.7053: 4.0418, 2.8228: 4.1034, 2.9320: 4.1388,
                       3.0291: 4.1602}
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)  # - 0.4
+        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
         red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)  # - 0.3
+        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
         green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)  # - 0.1
+        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
