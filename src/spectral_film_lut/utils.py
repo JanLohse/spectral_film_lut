@@ -418,3 +418,35 @@ def uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate=True, lef
                     r_flat[idx, ch] = fp_uniform[ch, i]
 
     return result
+
+
+def construct_spectral_density(ref_density, sigma=25):
+    red_peak = wavelength_argmax(ref_density, 600, min(750, spectral_shape.end))
+    green_peak = wavelength_argmax(ref_density, 500, 600)
+    blue_peak = wavelength_argmax(ref_density, max(400, spectral_shape.start), 500)
+    bg_cutoff = wavelength_argmin(ref_density, blue_peak, green_peak)
+    gr_cutoff = wavelength_argmin(ref_density, green_peak, red_peak)
+
+    wavelengths = xp.asarray(ref_density.wavelengths)
+    factors = xp.stack((xp.where(gr_cutoff <= wavelengths, 1., 0.),
+                        xp.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1., 0.),
+                        xp.where(wavelengths <= bg_cutoff, 1., 0.)))
+    factors = xdimage.gaussian_filter(factors, sigma=(0, sigma / spectral_shape.interval)).astype(
+        xp.float32)
+
+    out = (factors * xp.asarray(ref_density.values)).T
+    return out
+
+def wavelength_argmax(distribution, low=None, high=None):
+    range = distribution.copy()
+    if low is not None and high is not None:
+        range.trim(colour.SpectralShape(low, high, 1))
+    peak = range.wavelengths[range.values.argmax()]
+    return peak
+
+def wavelength_argmin(distribution, low=None, high=None):
+    range = distribution.copy()
+    if low is not None and high is not None:
+        range.trim(colour.SpectralShape(low, high, 1))
+    peak = range.wavelengths[range.values.argmin()]
+    return peak

@@ -62,7 +62,7 @@ class KodakDyeTransferSlide(FilmSpectral):
         self.spectral_density = [colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)]
         self.spectral_density = xp.stack(
             [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
-        self.spectral_density *= 1. / (self.status_a[:, 0].T @ self.spectral_density[:, 0])
-        self.lad = xp.linalg.inv(self.status_a.T @ self.spectral_density) @ xp.array(self.lad)
+        self.spectral_density *= 1. / (densiometry.status_a[:, 0].T @ self.spectral_density[:, 0])
+        self.lad = xp.linalg.inv(densiometry.status_a.T @ self.spectral_density) @ xp.array(self.lad)
 
         self.calibrate()
