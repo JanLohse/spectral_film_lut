@@ -6,8 +6,8 @@ class KodakDyeTransferNegative(FilmSpectral):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.lad = [1.] * 3
-        self.density_measure = 'status_a'
+        self.lad = [.9] * 3
+        self.density_measure = 'absolute'
         self.exposure_kelvin = None
         self.projection_kelvin = 6500
 
@@ -24,7 +24,7 @@ class KodakDyeTransferNegative(FilmSpectral):
         log_exposure = xp.array(list(curve.keys()), dtype=default_dtype)
         density_curve = xp.array(list(curve.values()), dtype=default_dtype)
         factor = density_curve.max()
-        density_curve = (density_curve / factor) ** 2 * factor
+        density_curve = (density_curve / factor) ** 3 * factor
         self.log_exposure = [log_exposure] * 3
         self.density_curve = [density_curve] * 3
 
@@ -47,5 +47,9 @@ class KodakDyeTransferNegative(FilmSpectral):
                    548.3367: 0.0752, 563.3097: 0.0757, 595.9091: 0.0700, 630.7830: 0.0545, 655.2326: 0.0466,
                    679.1136: 0.0340, 693.7075: 0.0318, 699.7726: 0.0306}
         self.spectral_density = [colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)]
+        self.spectral_density = xp.stack(
+            [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
+        self.spectral_density *= 1. / (self.status_a[:, 0].T @ self.spectral_density[:, 0])
+        self.lad = xp.linalg.inv(self.status_a.T @ self.spectral_density) @ xp.array(self.lad)
 
         self.calibrate()

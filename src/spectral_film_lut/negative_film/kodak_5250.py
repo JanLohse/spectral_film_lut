@@ -10,7 +10,7 @@ class Kodak5250(FilmSpectral):
         self.exposure_kelvin = 3200
         self.projection_kelvin = None
 
-        # spectral sensitivity TODO: check y-scale
+        # spectral sensitivity
         red_log_sensitivity = {588.5090: 0.4953, 596.9532: 0.8364, 606.4160: 1.1730, 616.8921: 1.4539, 631.5685: 1.7936,
                                637.9748: 1.9645, 642.3208: 2.0652, 645.6587: 2.1518, 650.3708: 2.2037, 653.9239: 2.2088,
                                657.3580: 2.1846, 660.7541: 2.1073, 663.8581: 2.0076, 665.8864: 1.8333, 666.9994: 1.5400,
@@ -27,7 +27,7 @@ class Kodak5250(FilmSpectral):
                                 494.5763: 1.3182, 497.4332: 1.0555, 502.3873: 0.6766, 507.9507: 0.4189}
         self.log_sensitivity = [red_log_sensitivity, green_log_sensitivity, blue_log_sensitivity]
 
-        # sensiometry - characteristic curve TODO check x and y scale
+        # sensiometry - characteristic curve
         red_curve = {0.1424: 0.2255, 0.3176: 0.2277, 0.4839: 0.2415, 0.6590: 0.2726, 0.8143: 0.3199, 1.0438: 0.4318,
                      1.2317: 0.5581, 1.4567: 0.7097, 1.6751: 0.8575, 1.9285: 1.0283, 2.2126: 1.2107, 2.4551: 1.3698,
                      2.7129: 1.5233, 2.8243: 1.5897, 2.8733: 1.6182, 2.9249: 1.6403, 2.9905: 1.6586}

@@ -9,11 +9,11 @@ class KodakDyeTransferSlide(FilmSpectral):
         super().__init__(*args, **kwargs)
 
         self.lad = [1.] * 3
-        self.density_measure = 'status_a'
+        self.density_measure = 'absolute'
         self.exposure_kelvin = None
         self.projection_kelvin = 6500
 
-        separation_neg = Kodak5222()
+        separation_neg = Kodak5222Dev4()
         sensitivity = separation_neg.sensitivity
         filters = xp.stack([WRATTEN["29"], WRATTEN["61"], WRATTEN["47"]])  # Try 98 instead of 47 (no 47B available)
         self.sensitivity = sensitivity * filters.T
@@ -27,15 +27,19 @@ class KodakDyeTransferSlide(FilmSpectral):
         log_exposure_matrix = xp.array(list(curve.keys()), dtype=default_dtype)
         density_curve_matrix = xp.array(list(curve.values()), dtype=default_dtype)
         log_H_ref_mat = xp.interp(xp.asarray(self.lad[0]), density_curve_matrix, log_exposure_matrix)
-        # TODO right extrapolate
-        density_curve = xp.interp(log_H_ref_mat - separation_neg.density_curve[0] + separation_neg.d_ref,
+        separation_curve = separation_neg.density_curve[0]
+        separation_exposure = separation_neg.log_exposure[0]
+        slope = (separation_curve[-1] - separation_curve[-2]) / (separation_exposure[-1] - separation_exposure[-2])
+        separation_curve = xp.append(separation_curve, separation_curve[-1] + slope * 1)
+        separation_exposure = xp.append(separation_exposure, separation_exposure[-1] + 1)
+        density_curve = xp.interp(log_H_ref_mat - separation_curve + separation_neg.d_ref,
                                   log_exposure_matrix, density_curve_matrix)
 
-        self.log_exposure = separation_neg.log_exposure * 3
+        self.log_exposure = [separation_exposure] * 3
         self.density_curve = [density_curve] * 3
 
-        plt.plot(to_numpy(self.log_exposure[0]), to_numpy(self.density_curve[0]))
-        plt.show()
+        # plt.plot(to_numpy(self.log_exposure[0]), to_numpy(self.density_curve[0]))
+        # plt.show()
 
         self.exposure_base = 10
 
@@ -56,5 +60,9 @@ class KodakDyeTransferSlide(FilmSpectral):
                    548.3367: 0.0752, 563.3097: 0.0757, 595.9091: 0.0700, 630.7830: 0.0545, 655.2326: 0.0466,
                    679.1136: 0.0340, 693.7075: 0.0318, 699.7726: 0.0306}
         self.spectral_density = [colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)]
+        self.spectral_density = xp.stack(
+            [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
+        self.spectral_density *= 1. / (self.status_a[:, 0].T @ self.spectral_density[:, 0])
+        self.lad = xp.linalg.inv(self.status_a.T @ self.spectral_density) @ xp.array(self.lad)
 
         self.calibrate()

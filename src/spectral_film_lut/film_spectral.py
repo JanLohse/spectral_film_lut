@@ -187,10 +187,10 @@ class FilmSpectral:
 
             if hasattr(self, 'd_ref_sd'):
                 self.gaussian_extrapolation(self.d_ref_sd)
-            if hasattr(self, 'spectral_density'):
+            if hasattr(self, 'spectral_density') and self.density_measure != 'absolute':
                 self.spectral_density = xp.stack(
                     [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
-            else:
+            elif self.density_measure != 'absolute':
                 self.spectral_density = self.construct_spectral_density(self.d_ref_sd - to_numpy(self.d_min_sd))
 
             if self.density_measure != 'absolute':
@@ -304,10 +304,14 @@ class FilmSpectral:
 
     def compute_print_matrix(self, print_film, **kwargs):
         printer_light = self.compute_printer_light(print_film, **kwargs)
-        # compute max exposure produced by unfiltered printer light
-        peak_exposure = xp.log10(print_film.sensitivity.T @ printer_light)
-        # compute density matrix from print film sensitivity under adjusted printer light
-        print_sensitivity = (print_film.sensitivity.T * printer_light).T
+        if print_film.density_measure == 'absolute':
+            print_sensitivity = print_film.sensitivity * printer_light
+            peak_exposure = xp.log10(xp.sum(print_sensitivity, axis=0))
+        else:
+            # compute max exposure produced by unfiltered printer light
+            peak_exposure = xp.log10(print_film.sensitivity.T @ printer_light)
+            # compute density matrix from print film sensitivity under adjusted printer light
+            print_sensitivity = (print_film.sensitivity.T * printer_light).T
         print_sensitivity /= xp.sum(print_sensitivity, axis=0)
         density_matrix = print_sensitivity.T @ self.spectral_density
         density_base = print_sensitivity.T @ self.d_min_sd
@@ -317,15 +321,18 @@ class FilmSpectral:
         compensation = 2 ** xp.array([red_light, green_light, blue_light], dtype=default_dtype)
         # transmitted printer lights by middle gray negative
         reduced_lights = (self.printer_lights.T * 10 ** -self.d_ref_sd).T
+
+        target_exp = xp.multiply(print_film.H_ref, compensation)
         # adjust printer lights to produce neutral exposure with middle gray negative
         if print_film.density_measure == 'bw':
-            light_factors = ((print_film.sensitivity.T @ reduced_lights) ** -1 * xp.multiply(print_film.H_ref,
-                                                                                             compensation)).min()
-        if print_film.density_measure == 'absolute':
-            return xp.asarray(colour.sd_blackbody(3200, spectral_shape).values)
+            light_factors = ((print_film.sensitivity.T @ reduced_lights) ** -1 * target_exp).min()
+        elif print_film.density_measure == 'absolute':
+            black_body = xp.asarray(colour.sd_blackbody(3200, spectral_shape).values)
+            lights = black_body[:, xp.newaxis] * (
+                        target_exp / (print_film.sensitivity.T @ (black_body * 10 ** -self.d_ref_sd)))
+            return lights
         else:
-            light_factors = xp.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ xp.multiply(print_film.H_ref,
-                                                                                                   compensation)
+            light_factors = xp.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ target_exp
         printer_light = xp.sum(self.printer_lights * light_factors, axis=1)
         return printer_light
 
@@ -425,13 +432,17 @@ class FilmSpectral:
                     printer_light = kwargs.get('green_light', 0)
                     add(lambda x: -x + (print_film.log_H_ref + negative_film.d_ref + printer_light), "printing")
                 elif matrix_method:
-                    # TODO: proper separation negative
                     density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film, **kwargs)
                     add(lambda x: peak_exposure - x @ density_matrix.T, "printing matrix")
                 else:
-                    printer_light = negative_film.compute_printer_light(print_film, **kwargs)
                     density_neg = negative_film.spectral_density.T
-                    printing_mat = (print_film.sensitivity.T * printer_light * 10 ** -negative_film.d_min_sd).T
+
+                    printer_light = negative_film.compute_printer_light(print_film, **kwargs)
+                    if print_film.density_measure == 'absolute':
+                        printing_mat = print_film.sensitivity * printer_light * 10 ** -negative_film.d_min_sd[:,
+                                                                                       xp.newaxis]
+                    else:
+                        printing_mat = (print_film.sensitivity.T * printer_light * 10 ** -negative_film.d_min_sd).T
                     add(lambda x: xp.log10(xp.clip(10 ** -(x @ density_neg) @ printing_mat, 0.00001, None)), "printing")
 
                 add(lambda x: print_film.log_exposure_to_density(x, pre_flash_print), "characteristic curve print")

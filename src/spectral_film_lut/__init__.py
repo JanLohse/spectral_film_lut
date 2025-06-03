@@ -42,7 +42,6 @@ from spectral_film_lut.reversal_film.fuji_instax_color import FujiInstaxColor
 from spectral_film_lut.reversal_film.fuji_provia_100f import FujiProvia100F
 from spectral_film_lut.reversal_film.fuji_velvia_50 import FujiVelvia50
 from spectral_film_lut.reversal_film.kodachrome_64 import Kodachrome64
-from spectral_film_lut.reversal_film.kodak_ektachrome_100d import KodakEktachrome100D
 from spectral_film_lut.reversal_film.kodak_ektachrome_e100 import KodakEktachromeE100
 
 NEGATIVE_FILM = [KodakEktar100, KodakPortra160, KodakPortra400, KodakPortra800, KodakPortra800At1600,
@@ -56,7 +55,7 @@ PRINT_FILM = [KodakEnduraPremier, KodakDuraflexPlus, KodakPortraEndura, KodakSup
               Kodak2303Dev5, Kodak2303Dev7, Kodak2303Dev9, KodakPolymax, KodakPolymaxGradeNeg1, KodakPolymaxGrade0,
               KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5,
               KodakDyeTransferNegative, KodakDyeTransferSlide]
-REVERSAL_FILM = [KodakEktachromeE100, KodakEktachrome100D, Kodachrome64, FujiVelvia50, FujiProvia100F, FujiInstaxColor]
+REVERSAL_FILM = [KodakEktachromeE100, Kodachrome64, FujiVelvia50, FujiProvia100F, FujiInstaxColor]
 FILMSTOCKS = NEGATIVE_FILM + PRINT_FILM + REVERSAL_FILM
 NEGATIVE_FILM = {film.__name__: film for film in NEGATIVE_FILM}
 PRINT_FILM = {film.__name__: film for film in PRINT_FILM}
