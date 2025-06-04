@@ -39,6 +39,8 @@ class FilmSpectral:
         if self.iso is not None:
             self.log_H_ref = xp.ones(len(self.log_exposure)) * math.log10(12.5 / self.iso)
         elif self.lad is not None:
+            if self.density_measure == 'absolute':
+                self.lad = xp.linalg.inv(densiometry.status_a.T @ self.spectral_density) @ xp.array(self.lad)
             self.log_H_ref = xp.array([
                 xp.interp(xp.asarray(a), xp.asarray(sorted_b), xp.asarray(sorted_c))
                 for a, b, c in zip(self.lad, self.density_curve, self.log_exposure)
@@ -84,7 +86,8 @@ class FilmSpectral:
             elif self.density_measure != 'absolute':
                 self.spectral_density = construct_spectral_density(self.d_ref_sd - to_numpy(self.d_min_sd))
 
-            self.spectral_density @= xp.linalg.inv(DENSIOMETRY[self.density_measure].T @ self.spectral_density)
+            if self.density_measure != 'absolute':
+                self.spectral_density @= xp.linalg.inv(DENSIOMETRY[self.density_measure].T @ self.spectral_density)
             self.d_min_sd = self.d_min_sd + self.spectral_density @ (
                     self.d_min - DENSIOMETRY[self.density_measure].T @ self.d_min_sd)
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
@@ -185,7 +188,7 @@ class FilmSpectral:
         if print_film.density_measure == 'bw':
             light_factors = ((print_film.sensitivity.T @ reduced_lights) ** -1 * target_exp).min()
         elif print_film.density_measure == 'absolute':
-            black_body = xp.asarray(colour.sd_blackbody(3200, spectral_shape).values)
+            black_body = xp.asarray(colour.sd_blackbody(10000, spectral_shape).values)
             lights = black_body[:, xp.newaxis] * (
                         target_exp / (print_film.sensitivity.T @ (black_body * 10 ** -self.d_ref_sd)))
             return lights

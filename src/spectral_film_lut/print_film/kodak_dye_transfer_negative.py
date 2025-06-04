@@ -6,7 +6,7 @@ class KodakDyeTransferNegative(FilmSpectral):
     def __init__(self):
         super().__init__()
 
-        self.lad = [1.] * 3
+        self.lad = [1., 1.05, 1.1]
         self.density_measure = 'absolute'
 
         sensitivity = Kodak5222().sensitivity
@@ -47,7 +47,7 @@ class KodakDyeTransferNegative(FilmSpectral):
         density_curve_max = density_curve.max()
 
         # boost contrast
-        density_curve = (1 - (1 - density_curve / density_curve_max) ** 10) * density_curve_max
+        density_curve = (1 - (1 - density_curve / density_curve_max) ** 20) * density_curve_max
 
         self.log_exposure = [log_exposure] * 3
         self.density_curve = [density_curve * scale for scale in density_measurements]
