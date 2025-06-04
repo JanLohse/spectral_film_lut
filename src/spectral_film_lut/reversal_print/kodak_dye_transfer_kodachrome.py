@@ -4,16 +4,16 @@ from spectral_film_lut.wratten_filters import WRATTEN
 from matplotlib import pyplot as plt
 
 
-class KodakDyeTransferSlide(FilmSpectral):
+class KodakDyeTransferKodachrome(FilmSpectral):
     def __init__(self):
         super().__init__()
 
         self.lad = [0.95] * 3
         self.density_measure = 'absolute'
 
-        separation_neg = Kodak5222Dev6()
+        separation_neg = Kodak5222()
         sensitivity = separation_neg.sensitivity
-        filters = xp.stack([WRATTEN["29"], WRATTEN["61"], WRATTEN["47"]])
+        filters = xp.stack([WRATTEN["24"], WRATTEN["61"], WRATTEN["47"]])
         self.sensitivity = sensitivity * filters.T
 
         # spectral dye density

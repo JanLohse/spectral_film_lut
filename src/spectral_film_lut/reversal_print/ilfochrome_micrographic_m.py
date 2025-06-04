@@ -5,7 +5,7 @@ class IlfochromeMicrographicM(FilmSpectral):
     def __init__(self):
         super().__init__()
 
-        self.lad = [1.] * 3
+        self.lad = [0.91030324, 1.0133907, 0.9813101]
         self.density_measure = 'status_a'
 
         # spectral sensitivity

@@ -84,10 +84,9 @@ class FilmSpectral:
             elif self.density_measure != 'absolute':
                 self.spectral_density = construct_spectral_density(self.d_ref_sd - to_numpy(self.d_min_sd))
 
-            if self.density_measure != 'absolute':
-                self.spectral_density @= xp.linalg.inv(DENSIOMETRY[self.density_measure].T @ self.spectral_density)
-                self.d_min_sd = self.d_min_sd + self.spectral_density @ (
-                        self.d_min - DENSIOMETRY[self.density_measure].T @ self.d_min_sd)
+            self.spectral_density @= xp.linalg.inv(DENSIOMETRY[self.density_measure].T @ self.spectral_density)
+            self.d_min_sd = self.d_min_sd + self.spectral_density @ (
+                    self.d_min - DENSIOMETRY[self.density_measure].T @ self.d_min_sd)
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
 
         self.XYZ_to_exp = self.sensitivity.T @ densiometry.xyz_dual

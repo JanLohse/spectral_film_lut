@@ -109,7 +109,7 @@ status_m = xp.asarray(interpolate_status_density(status_m))
 apd = xp.asarray(colour.MultiSpectralDistributions(apd).align(spectral_shape).values)
 apd /= xp.sum(apd, axis=0)
 
-DENSIOMETRY = {'status_a': status_a, 'status_m': status_m, 'apd': apd}
+DENSIOMETRY = {'status_a': status_a, 'status_m': status_m, 'apd': apd, 'absolute': status_a}
 
 
 def compute_printer_lights():

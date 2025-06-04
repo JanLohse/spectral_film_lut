@@ -6,25 +6,12 @@ class KodakDyeTransferNegative(FilmSpectral):
     def __init__(self):
         super().__init__()
 
-        self.lad = [.8] * 3
+        self.lad = [1.] * 3
         self.density_measure = 'absolute'
 
         sensitivity = Kodak5222().sensitivity
         filters = xp.stack([WRATTEN["29"], WRATTEN["99"], WRATTEN["98"]])
         self.sensitivity = sensitivity * filters.T
-
-        # sensiometry curve from kodak matrix film 4150
-        curve = {-0.8901: 0.0337, -0.8083: 0.0450, -0.7327: 0.0582, -0.6203: 0.0795, -0.5184: 0.1129, -0.4309: 0.1500,
-                 -0.3650: 0.1855, -0.2970: 0.2272, -0.2282: 0.2761, -0.1474: 0.3376, -0.0246: 0.4576, 0.0716: 0.5770,
-                 0.1933: 0.7584, 0.3935: 1.1285, 0.5697: 1.4631, 0.6975: 1.7012, 0.8412: 1.9662, 0.9197: 2.0985,
-                 1.0265: 2.2539, 1.1249: 2.3620, 1.2107: 2.4380, 1.2977: 2.4977, 1.3779: 2.5387, 1.4553: 2.5663,
-                 1.5962: 2.6006, 1.7229: 2.6213, 1.8457: 2.6357, 1.9573: 2.6437}
-        log_exposure = xp.array(list(curve.keys()), dtype=default_dtype)
-        density_curve = xp.array(list(curve.values()), dtype=default_dtype)
-        factor = density_curve.max()
-        density_curve = (density_curve / factor) ** 1 * factor
-        self.log_exposure = [log_exposure] * 3
-        self.density_curve = [density_curve] * 3
 
         # spectral dye density
         red_sd = {399.9333: 0.1744, 416.2330: 0.1563, 437.2710: 0.1569, 456.4138: 0.1708, 477.4518: 0.1968,
@@ -45,7 +32,24 @@ class KodakDyeTransferNegative(FilmSpectral):
         self.spectral_density = [colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)]
         self.spectral_density = xp.stack(
             [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
-        self.spectral_density *= 1. / (densiometry.status_a[:, 0].T @ self.spectral_density[:, 0])
-        self.lad = xp.linalg.inv(densiometry.status_a.T @ self.spectral_density) @ xp.array(self.lad)
+        density_measurements = xp.sum(densiometry.status_a * self.spectral_density, axis=0)
+        density_measurements /= density_measurements[0]
+
+        # sensiometry curve from kodak matrix film 4150
+        curve = {-0.8901: 0.0337, -0.8083: 0.0450, -0.7327: 0.0582, -0.6203: 0.0795, -0.5184: 0.1129, -0.4309: 0.1500,
+                 -0.3650: 0.1855, -0.2970: 0.2272, -0.2282: 0.2761, -0.1474: 0.3376, -0.0246: 0.4576, 0.0716: 0.5770,
+                 0.1933: 0.7584, 0.3935: 1.1285, 0.5697: 1.4631, 0.6975: 1.7012, 0.8412: 1.9662, 0.9197: 2.0985,
+                 1.0265: 2.2539, 1.1249: 2.3620, 1.2107: 2.4380, 1.2977: 2.4977, 1.3779: 2.5387, 1.4553: 2.5663,
+                 1.5962: 2.6006, 1.7229: 2.6213, 1.8457: 2.6357, 1.9573: 2.6437}
+        log_exposure = xp.array(list(curve.keys()), dtype=default_dtype)
+        density_curve = xp.array(list(curve.values()), dtype=default_dtype)
+
+        density_curve_max = density_curve.max()
+
+        # boost contrast
+        density_curve = (1 - (1 - density_curve / density_curve_max) ** 10) * density_curve_max
+
+        self.log_exposure = [log_exposure] * 3
+        self.density_curve = [density_curve * scale for scale in density_measurements]
 
         self.calibrate()
