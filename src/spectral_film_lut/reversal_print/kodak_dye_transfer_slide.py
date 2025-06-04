@@ -5,15 +5,13 @@ from matplotlib import pyplot as plt
 
 
 class KodakDyeTransferSlide(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
-        self.lad = [1.] * 3
+        self.lad = [0.8] * 3
         self.density_measure = 'absolute'
-        self.exposure_kelvin = None
-        self.projection_kelvin = 6500
 
-        separation_neg = Kodak5222Dev4()
+        separation_neg = Kodak5222()
         sensitivity = separation_neg.sensitivity
         filters = xp.stack([WRATTEN["29"], WRATTEN["61"], WRATTEN["47"]])  # Try 98 instead of 47 (no 47B available)
         self.sensitivity = sensitivity * filters.T
@@ -37,11 +35,6 @@ class KodakDyeTransferSlide(FilmSpectral):
 
         self.log_exposure = [separation_exposure] * 3
         self.density_curve = [density_curve] * 3
-
-        # plt.plot(to_numpy(self.log_exposure[0]), to_numpy(self.density_curve[0]))
-        # plt.show()
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {399.9333: 0.1744, 416.2330: 0.1563, 437.2710: 0.1569, 456.4138: 0.1708, 477.4518: 0.1968,

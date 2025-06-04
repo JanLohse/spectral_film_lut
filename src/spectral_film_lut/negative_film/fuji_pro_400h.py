@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class FujiPro400H(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.iso = 400
         self.density_measure = 'status_m'
-        self.exposure_kelvin = 5500
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {555.7648: -0.7374, 560.9472: -0.5653, 566.2461: -0.3681, 569.0994: -0.2548,
@@ -54,8 +52,6 @@ class FujiPro400H(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         midscale_sd = {400.6356: 1.9806, 402.7542: 1.8826, 404.8729: 1.7869, 406.6737: 1.7237, 408.7394: 1.6693,

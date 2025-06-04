@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class FujiVelvia50(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.iso = 50
         self.density_measure = "status_a"
-        self.exposure_kelvin = 5500
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {579.0990: -0.8037, 583.8257: -0.6074, 586.7799: -0.4504, 592.0236: -0.3037,
@@ -51,8 +49,6 @@ class FujiVelvia50(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {382.3151: 0.3404, 385.0161: 0.3162, 386.4952: 0.2807, 390.3537: 0.2275, 397.4277: 0.1807,

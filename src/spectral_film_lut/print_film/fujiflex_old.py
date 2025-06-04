@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class FujiflexOld(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.lad = [0.8, 0.8, 0.8]
         self.density_measure = 'status_a'
-        self.exposure_kelvin = None
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {590.7529: 0.2476, 607.6678: 0.3165, 619.9101: 0.3802, 627.2947: 0.4181, 637.0199: 0.4492,
@@ -67,8 +65,6 @@ class FujiflexOld(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype) * 4
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {381.5340: 1.9250, 384.6084: 1.6649, 391.6230: 1.2967, 394.9097: 1.1512, 402.7927: 0.8911,

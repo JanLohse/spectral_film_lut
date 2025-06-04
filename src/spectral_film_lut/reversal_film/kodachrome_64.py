@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class Kodachrome64(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.iso = 64
         self.density_measure = "status_a"
-        self.exposure_kelvin = 5500
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {481.3051: -1.8515, 495.4145: -1.7974, 503.3510: -1.7516, 513.0511: -1.5836,
@@ -52,8 +50,6 @@ class Kodachrome64(FilmSpectral):
              0.2442, 0.2142, 0.2012], dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {419.8569: 0.1521, 430.7245: 0.1047, 443.2692: 0.0616, 457.8936: 0.0327, 475.0000: 0.0214,

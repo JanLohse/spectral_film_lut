@@ -10,20 +10,44 @@ colour.utilities.set_default_float_dtype(default_dtype)
 
 class FilmSpectral:
     def __init__(self):
-        pass
+        self.iso = None
+        self.lad = None
+        self.density_curve = None
+        self.log_exposure = None
+        self.log_H_ref = None
+        self.H_ref = None
+        self.log_sensitivity = None
+        self.sensitivity = None
+        self.exposure_base = 10
+        self.d_min = None
+        self.d_ref = None
+        self.d_max = None
+        self.density_measure = None
+        self.spectral_density = None
+        self.d_min_sd = None
+        self.d_ref_sd = None
+        self.XYZ_to_exp = None
+        self.rms_curve = None
+        self.rms_density = None
+        self.rms = None
+        self.exposure_kelvin = 5500
+        self.projection_kelvin = 6500
 
     def calibrate(self):
         # target exposure of middle gray in log lux-seconds
         # normally use iso value, if not provided use target density of 1.0 on the green channel
-        if hasattr(self, 'iso'):
+        if self.iso is not None:
             self.log_H_ref = xp.ones(len(self.log_exposure)) * math.log10(12.5 / self.iso)
-        elif hasattr(self, 'lad'):
-            self.log_H_ref = xp.array(
-                [xp.interp(xp.asarray(a), b, c) for a, b, c in zip(self.lad, self.density_curve, self.log_exposure)])
+        elif self.lad is not None:
+            self.log_H_ref = xp.array([
+                xp.interp(xp.asarray(a), xp.asarray(sorted_b), xp.asarray(sorted_c))
+                for a, b, c in zip(self.lad, self.density_curve, self.log_exposure)
+                for sorted_b, sorted_c in [zip(*sorted(zip(b, c)))]
+            ])
         self.H_ref = 10 ** self.log_H_ref
 
         # extrapolate log_sensitivity to linear sensitivity
-        if hasattr(self, "log_sensitivity"):
+        if self.log_sensitivity is not None:
             self.log_sensitivity = xp.stack(
                 [xp.asarray(colour.SpectralDistribution(x).align(spectral_shape, extrapolator_kwargs={
                     'method': 'linear'}).align(spectral_shape).values) for x in self.log_sensitivity]).T
@@ -46,15 +70,15 @@ class FilmSpectral:
             self.d_ref_sd = self.spectral_density * self.d_ref + self.d_min
             self.spectral_density = self.spectral_density.reshape(-1, 1)
         else:
-            if hasattr(self, 'd_min_sd'):
+            if self.d_min_sd is not None:
                 self.d_min_sd = self.gaussian_extrapolation(self.d_min_sd)
                 self.d_min_sd = xp.asarray(self.d_min_sd.values)
             else:
                 self.d_min_sd = xp.asarray(colour.sd_zeros(spectral_shape).values)
 
-            if hasattr(self, 'd_ref_sd'):
+            if self.d_ref_sd is not None:
                 self.gaussian_extrapolation(self.d_ref_sd)
-            if hasattr(self, 'spectral_density') and self.density_measure != 'absolute':
+            if self.spectral_density is not None and self.density_measure != 'absolute':
                 self.spectral_density = xp.stack(
                     [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
             elif self.density_measure != 'absolute':
@@ -68,11 +92,11 @@ class FilmSpectral:
 
         self.XYZ_to_exp = self.sensitivity.T @ densiometry.xyz_dual
 
-        if hasattr(self, 'rms_curve') and hasattr(self, 'rms_density'):
+        if self.rms_curve is not None and self.rms_density is not None:
             rms_temp = [self.prepare_rms_data(a, b) for a, b in zip(self.rms_curve, self.rms_density)]
             self.rms_curve = [x[0] for x in rms_temp]
             self.rms_density = [x[1] for x in rms_temp]
-            if hasattr(self, 'rms'):
+            if self.rms is not None:
                 if len(self.rms_density) == 3:
                     rms_color_factors = xp.array([0.26, 0.57, 0.17], dtype=xp.float32)
                     scaling = 1.2375
@@ -101,7 +125,8 @@ class FilmSpectral:
         rms = rms[sorting]
         return rms, density
 
-    def gaussian_extrapolation(self, sd: SpectralDistribution):
+    @staticmethod
+    def gaussian_extrapolation(sd):
         def extrapolate(a_x, a_y, b_x, b_y, wavelengths, d_1=30, d_2=0.75):
             m = (a_y - b_y) / (a_x - b_x)
             d = d_1 * m / np.absolute(a_y) ** d_2
@@ -188,12 +213,6 @@ class FilmSpectral:
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
                             output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=True, **kwargs):
         pipeline = []
-
-        # colour.plotting.plot_single_cmfs(MultiSpectralDistributions(to_numpy(print_film.spectral_density), spectral_shape))
-
-        # for x, y in zip(print_film.log_exposure, print_film.density_curve):
-        #     plt.plot(to_numpy(x), to_numpy(y))
-        # plt.show()
 
         def add(func, name):
             pipeline.append((func, name))

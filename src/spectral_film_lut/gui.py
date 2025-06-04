@@ -36,7 +36,9 @@ from spectral_film_lut.print_film.fujiflex_new import FujiflexNew
 from spectral_film_lut.print_film.fujiflex_old import FujiflexOld
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
-from spectral_film_lut.print_film.kodak_dye_transfer_slide import KodakDyeTransferSlide
+from spectral_film_lut.reversal_print.ilfochrome_micrographic_p import IlfochromeMicrographicP
+from spectral_film_lut.reversal_print.ilfochrome_micrographic_m import IlfochromeMicrographicM
+from spectral_film_lut.reversal_print.kodak_dye_transfer_slide import KodakDyeTransferSlide
 from spectral_film_lut.print_film.kodak_exr_5386 import KodakExr5386
 from spectral_film_lut.print_film.kodak_dye_transfer_negative import KodakDyeTransferNegative
 from spectral_film_lut.print_film.kodak_duraflex_plus import KodakDuraflexPlus
@@ -306,7 +308,7 @@ def main():
                   FujiCrystalArchiveSuperTypeC, FujiflexNew, FujiflexOld, Fuji3513DI, Kodak2303Dev2, Kodak2303Dev3,
                   Kodak2303Dev5, Kodak2303Dev7, Kodak2303Dev9, KodakPolymax, KodakPolymaxGradeNeg1, KodakPolymaxGrade0,
                   KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5,
-                  KodakDyeTransferNegative, KodakDyeTransferSlide]
+                  KodakDyeTransferNegative, KodakDyeTransferSlide, IlfochromeMicrographicP, IlfochromeMicrographicM]
     REVERSAL_FILM = [KodakEktachromeE100, Kodachrome64, FujiVelvia50, FujiProvia100F, FujiInstaxColor]
     filmstocks = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM
     filmstocks = [x() for x in filmstocks]

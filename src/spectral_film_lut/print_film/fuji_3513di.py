@@ -2,13 +2,12 @@ from spectral_film_lut.film_spectral import *
 
 
 class Fuji3513DI(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.lad = [1.09, 1.06, 1.03]
         self.density_measure = 'status_a'
         self.exposure_kelvin = 2854
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {361.2142: 1.7802, 370.3606: 1.7095, 379.7197: 1.5734, 394.2263: 1.3515,
@@ -60,8 +59,6 @@ class Fuji3513DI(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         midscale_sd = {401.0358: 0.9359, 404.4390: 0.9427, 407.6202: 0.9550, 410.3676: 0.9701,

@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class KodakTriX400(FilmSpectral):
-    def __init__(self, dev_time=6, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, dev_time=6):
+        super().__init__()
 
         self.iso = 400
         self.density_measure = 'bw'
-        self.exposure_kelvin = 5500
-        self.projection_kelvin = None
 
         # spectral sensitivity
         self.log_sensitivity = [
@@ -37,8 +35,6 @@ class KodakTriX400(FilmSpectral):
         curve = curve[dev_time]
         self.log_exposure = [xp.array(list(curve.keys()), dtype=default_dtype)]
         self.density_curve = [xp.array(list(curve.values()), dtype=default_dtype)]
-
-        self.exposure_base = 10
 
         self.mtf = [{2.4816: 1.0537, 4.0332: 1.0757, 6.4830: 1.0922, 9.7272: 1.1032, 15.2838: 1.0707, 20.6312: 1.0254,
                      26.1407: 0.9698, 32.6765: 0.8663, 38.4819: 0.7641, 45.4302: 0.6366, 53.4356: 0.4976,

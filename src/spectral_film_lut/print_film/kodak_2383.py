@@ -2,13 +2,12 @@ from spectral_film_lut.film_spectral import *
 
 
 class Kodak2383(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.lad = [1.09, 1.06, 1.03]
         self.density_measure = 'status_a'
         self.exposure_kelvin = 3200
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {583.6181: -3.0050, 587.4146: -2.5975, 588.8383: -2.4818, 591.2111: -2.4365,
@@ -58,8 +57,6 @@ class Kodak2383(FilmSpectral):
              3.7088, 3.9160, 4.0705, 4.0076, 4.1346, 4.1518], dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {349.1999: 0.2560, 356.9782: 0.2550, 366.8778: 0.2688, 378.5452: 0.2866, 385.8285: 0.2945,

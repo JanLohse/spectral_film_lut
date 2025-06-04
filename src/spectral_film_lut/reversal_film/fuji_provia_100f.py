@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class FujiProvia100F(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.iso = 100
         self.density_measure = "status_a"
-        self.exposure_kelvin = 5500
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {571.5337: -0.5466, 576.9325: -0.4540, 581.1043: -0.3572, 587.7301: -0.1152,
@@ -52,8 +50,6 @@ class FujiProvia100F(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {389.9301: 0.2806, 399.2208: 0.2436, 418.4016: 0.1976, 440.6394: 0.1585, 461.8581: 0.1280,

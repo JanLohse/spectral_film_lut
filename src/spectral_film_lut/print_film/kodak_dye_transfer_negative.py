@@ -3,13 +3,11 @@ from spectral_film_lut.wratten_filters import WRATTEN
 
 
 class KodakDyeTransferNegative(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.lad = [.8] * 3
         self.density_measure = 'absolute'
-        self.exposure_kelvin = None
-        self.projection_kelvin = 6500
 
         sensitivity = Kodak5222().sensitivity
         filters = xp.stack([WRATTEN["29"], WRATTEN["99"], WRATTEN["98"]])
@@ -27,8 +25,6 @@ class KodakDyeTransferNegative(FilmSpectral):
         density_curve = (density_curve / factor) ** 1 * factor
         self.log_exposure = [log_exposure] * 3
         self.density_curve = [density_curve] * 3
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {399.9333: 0.1744, 416.2330: 0.1563, 437.2710: 0.1569, 456.4138: 0.1708, 477.4518: 0.1968,

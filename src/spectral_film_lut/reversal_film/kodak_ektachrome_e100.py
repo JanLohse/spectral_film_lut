@@ -2,12 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class KodakEktachromeE100(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.iso = 100
         self.density_measure = "status_a"
-        self.exposure_kelvin = 6500
         self.projection_kelvin = 6000
 
         # spectral sensitivity
@@ -48,8 +47,6 @@ class KodakEktachromeE100(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {400.3102: 0.1455, 418.3040: 0.0948, 439.4002: 0.0578, 459.8759: 0.0422, 481.2823: 0.0358,
@@ -104,5 +101,3 @@ class KodakEktachromeE100(FilmSpectral):
         self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
 
         self.calibrate()
-
-        self.exposure_kelvin = 5500

@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class FujiCrystalArchiveSuperTypeC(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.lad = [0.8, 0.8, 0.8]
         self.density_measure = 'status_a'
-        self.exposure_kelvin = None
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {590.1800: -0.5984, 608.9201: -0.4395, 623.6898: -0.2960, 634.6480: -0.2153,
@@ -54,8 +52,6 @@ class FujiCrystalArchiveSuperTypeC(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {377.5238: 0.0540, 412.3810: 0.0454, 440.9524: 0.0422, 473.9683: 0.0383, 507.3016: 0.0438,

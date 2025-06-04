@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class KodakPortra800(FilmSpectral):
-    def __init__(self, iso=800, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, iso=800):
+        super().__init__()
 
         self.iso = iso
         self.density_measure = 'status_m'
-        self.exposure_kelvin = 5500
-        self.projection_kelvin = None
 
         # spectral sensitivity
         red_log_sensitivity = {490.0709: 0.2449, 495.3014: 0.3447, 500.0887: 0.3655, 510.5496: 0.5736, 517.8191: 0.7177,
@@ -74,8 +72,6 @@ class KodakPortra800(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         midscale_sd = {399.6496: 1.3339, 404.6952: 1.3415, 409.7407: 1.4075, 416.6083: 1.5137, 423.3357: 1.6182,

@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class FujiInstaxColor(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.iso = 800
         self.density_measure = "status_a"
-        self.exposure_kelvin = 5500
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {575.0794: -0.1667, 579.2737: 0.0402, 586.5731: 0.3226, 594.1176: 0.5849,
@@ -49,8 +47,6 @@ class FujiInstaxColor(FilmSpectral):
              0.6038, 0.4441, 0.3476, 0.2858, 0.2356, 0.2163, 0.2124, 0.2111], dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {480.8194: 0.1784, 495.1898: 0.1853, 513.8533: 0.2131, 528.6684: 0.2560, 548.2313: 0.3454,

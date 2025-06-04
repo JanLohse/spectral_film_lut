@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class KodakDuraflexPlus(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.lad = [0.8, 0.8, 0.8]
         self.density_measure = 'status_a'
-        self.exposure_kelvin = None
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {500.7862: -1.5181, 507.3375: -1.4346, 514.6751: -1.3873, 519.9161: -1.3873,
@@ -71,8 +69,6 @@ class KodakDuraflexPlus(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {399.7571: 1.1988, 405.8300: 1.0229, 411.4170: 0.8470, 417.7328: 0.6651, 421.0121: 0.5863,

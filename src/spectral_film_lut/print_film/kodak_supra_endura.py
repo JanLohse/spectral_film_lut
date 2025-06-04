@@ -2,13 +2,11 @@ from spectral_film_lut.film_spectral import *
 
 
 class KodakSupraEndura(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.lad = [0.8, 0.8, 0.8]
         self.density_measure = 'status_a'
-        self.exposure_kelvin = None
-        self.projection_kelvin = 6500
 
         # spectral sensitivity
         red_log_sensitivity = {494.2737: -1.4187, 500.1397: -1.3608, 504.7486: -1.2962, 511.4525: -1.2517,
@@ -69,8 +67,6 @@ class KodakSupraEndura(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         red_sd = {400.2987: 0.1155, 408.3624: 0.1081, 419.7113: 0.0932, 431.3589: 0.0708, 444.2011: 0.0472,

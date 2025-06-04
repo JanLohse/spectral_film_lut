@@ -3,8 +3,8 @@ from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
 
 
 class FujiCrystalArchiveMaxima(FujiCrystalArchiveDPII):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         # estimate d-max based on calibration data
         self.density_curve[0] *= 2.55 / 2.35

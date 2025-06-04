@@ -3,8 +3,8 @@ from spectral_film_lut.film_spectral import *
 
 
 class Kodak5383(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
         self.lad = [1.08, 1.04, 1.03]
         self.density_measure = 'status_a'
@@ -58,8 +58,6 @@ class Kodak5383(FilmSpectral):
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
-
-        self.exposure_base = 10
 
         # spectral dye density
         midscale_sd = {360.0110: 0.7179, 364.4635: 0.6818, 369.3143: 0.6574, 375.3801: 0.6614, 380.4902: 0.6938,
