@@ -37,7 +37,7 @@ from spectral_film_lut.print_film.fujiflex_old import FujiflexOld
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
 from spectral_film_lut.print_film.technicolor_v import TechinicolorV
-from spectral_film_lut.reversal_film.technicolor_iv import TechnicolorIV
+from spectral_film_lut.reversal_film.technicolor_iv import *
 from spectral_film_lut.reversal_print.ilfochrome_micrographic_p import IlfochromeMicrographicP
 from spectral_film_lut.reversal_print.ilfochrome_micrographic_m import IlfochromeMicrographicM
 from spectral_film_lut.reversal_print.kodak_dye_transfer_slide import KodakDyeTransferSlide
@@ -315,7 +315,7 @@ def main():
                   KodakDyeTransferNegative, TechinicolorV, KodakDyeTransferSlide, KodakDyeTransferKodachrome,
                   IlfochromeMicrographicP, IlfochromeMicrographicM]
     REVERSAL_FILM = [KodakEktachromeE100, Kodachrome64, FujiVelvia50, FujiProvia100F, FujiInstaxColor,
-                     KodakDyeTransferSeparation, TechnicolorIV]
+                     KodakDyeTransferSeparation, TechnicolorIV, TechnicolorIValt1, TechnicolorIValt2]
     filmstocks = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}

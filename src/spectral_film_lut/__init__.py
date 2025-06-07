@@ -31,7 +31,7 @@ from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
 from spectral_film_lut.print_film.kodak_5383 import Kodak5383
 from spectral_film_lut.print_film.kodak_5384 import Kodak5384
-from spectral_film_lut.reversal_film.technicolor_iv import TechnicolorIV
+from spectral_film_lut.reversal_film.technicolor_iv import *
 from spectral_film_lut.reversal_print.ilfochrome_micrographic_p import IlfochromeMicrographicP
 from spectral_film_lut.reversal_print.ilfochrome_micrographic_m import IlfochromeMicrographicM
 from spectral_film_lut.reversal_print.kodak_dye_transfer_slide import KodakDyeTransferSlide
@@ -63,7 +63,7 @@ PRINT_FILM = [KodakEnduraPremier, KodakDuraflexPlus, KodakPortraEndura, KodakSup
               KodakDyeTransferNegative, TechinicolorV, KodakDyeTransferSlide, KodakDyeTransferKodachrome,
               IlfochromeMicrographicP, IlfochromeMicrographicM]
 REVERSAL_FILM = [KodakEktachromeE100, Kodachrome64, FujiVelvia50, FujiProvia100F, FujiInstaxColor,
-                 KodakDyeTransferSeparation, TechnicolorIV]
+                 KodakDyeTransferSeparation, TechnicolorIV, TechnicolorIValt1, TechnicolorIValt2]
 FILMSTOCKS = NEGATIVE_FILM + PRINT_FILM + REVERSAL_FILM
 NEGATIVE_FILM = {film.__name__: film for film in NEGATIVE_FILM}
 PRINT_FILM = {film.__name__: film for film in PRINT_FILM}

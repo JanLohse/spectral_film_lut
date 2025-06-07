@@ -47,7 +47,7 @@ class TechinicolorV(FilmSpectral):
         density_curve_max = density_curve.max()
 
         # boost contrast
-        density_curve = (1 - (1 - density_curve / density_curve_max) ** 3) * density_curve_max
+        density_curve = (1 - (1 - density_curve / density_curve_max) ** 2) * density_curve_max
 
         self.log_exposure = [log_exposure] * 3
         self.density_curve = [density_curve] * 3
