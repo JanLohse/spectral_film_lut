@@ -1,4 +1,8 @@
+from operator import truediv
+
+import colour.plotting
 from colour import SpectralDistribution, MultiSpectralDistributions
+from matplotlib import pyplot as plt
 
 from spectral_film_lut.utils import *
 from spectral_film_lut.densiometry import DENSIOMETRY
@@ -60,6 +64,12 @@ class FilmSpectral:
             self.log_exposure = [xp.log10(self.exposure_base ** x * 10 ** y) for x, y in
                                  zip(self.log_exposure, self.log_H_ref)]
 
+        # interpolate and process characteristic curve
+        log_H_min = min([x.min() for x in self.log_exposure])
+        log_H_max = max([x.max() for x in self.log_exposure])
+        x_new = np.linspace(log_H_min, log_H_max, 100, dtype=np.float32)
+        self.density_curve = [PchipInterpolator(x, y)(x_new) for x, y in zip(self.log_exposure, self.density_curve)]
+        self.log_exposure = [x_new] * len(self.log_exposure)
         self.d_min = xp.array([xp.min(x) for x in self.density_curve])
         self.density_curve = [x - d for x, d in zip(self.density_curve, self.d_min)]
         self.d_ref = self.log_exposure_to_density(self.log_H_ref).reshape(-1)
@@ -81,14 +91,24 @@ class FilmSpectral:
             if self.d_ref_sd is not None:
                 self.gaussian_extrapolation(self.d_ref_sd)
             if self.spectral_density is not None and self.density_measure != 'absolute':
+                if self.density_measure == 'status_a' and min([x.values.min() for x in self.spectral_density]) > 0.05:
+                    self.estimate_d_min_sd()
                 self.spectral_density = xp.stack(
                     [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
             elif self.density_measure != 'absolute':
                 self.spectral_density = construct_spectral_density(self.d_ref_sd - to_numpy(self.d_min_sd))
 
-            if self.density_measure != 'absolute':
-                self.spectral_density @= xp.linalg.inv(DENSIOMETRY[self.density_measure].T @ self.spectral_density)
-            self.d_min_sd = self.d_min_sd + self.spectral_density @ (
+            status_matrix = xp.linalg.inv(DENSIOMETRY[self.density_measure].T @ self.spectral_density)
+            if self.density_measure == 'status_m':
+                self.spectral_density @= status_matrix
+                status_matrix = xp.identity(3, default_dtype)
+            elif self.density_measure != 'absolute':
+                density_curve = xp.stack(self.density_curve).T
+                density_curve @= status_matrix.T
+                self.density_curve = [density_curve[:, 0], density_curve[:, 1], density_curve[:, 2]]
+
+
+            self.d_min_sd = self.d_min_sd + self.spectral_density @ status_matrix @ (
                     self.d_min - DENSIOMETRY[self.density_measure].T @ self.d_min_sd)
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
 
@@ -114,6 +134,34 @@ class FilmSpectral:
         for key, value in self.__dict__.items():
             if type(value) is xp.ndarray and value.dtype is not default_dtype:
                 self.__dict__[key] = value.astype(default_dtype)
+
+    def estimate_d_min_sd(self):
+        x_values = np.concatenate([x.wavelengths for x in self.spectral_density])
+        y_values = np.concatenate([x.values for x in self.spectral_density])
+        # Combine x and y into a single array of points
+        points = np.column_stack((x_values, y_values))
+
+        # Sort points by x_values (then y for stability)
+        points = points[np.lexsort((points[:, 1], points[:, 0]))]
+
+        # Function to compute the cross product of two vectors
+        def cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+        # Build the lower hull
+        lower = []
+        for p in points:
+            while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+                lower.pop()
+            lower.append(tuple(p))
+        lower = np.array(lower)[1:-1].T
+        self.spectral_density = [SpectralDistribution(
+            {x: y - scipy.interpolate.interp1d(lower[0], lower[1], fill_value='extrapolate')(x) + 0.005 for
+             x, y in zip(sd.wavelengths, sd.values)}) for sd in self.spectral_density]
+        if not self.d_min_sd.any() and lower.shape[1] > 1:
+            self.d_min_sd = SpectralDistribution({x: y for x, y in lower.T})
+            self.d_min_sd.align(spectral_shape, interpolator=colour.LinearInterpolator)
+            self.d_min_sd = xp.asarray(self.d_min_sd.align(spectral_shape).values)
 
     @staticmethod
     def prepare_rms_data(rms, density):

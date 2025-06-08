@@ -49,7 +49,6 @@ from spectral_film_lut.print_film.kodak_duraflex_plus import KodakDuraflexPlus
 from spectral_film_lut.print_film.kodak_endura_premier import KodakEnduraPremier
 from spectral_film_lut.print_film.kodak_portra_endura import KodakPortraEndura
 from spectral_film_lut.print_film.kodak_supra_endura import KodakSupraEndura
-from spectral_film_lut.reversal_film.fuji_instax_color import FujiInstaxColor
 from spectral_film_lut.reversal_film.fuji_provia_100f import FujiProvia100F
 from spectral_film_lut.reversal_film.fuji_velvia_50 import FujiVelvia50
 from spectral_film_lut.reversal_film.kodachrome_64 import Kodachrome64
@@ -314,8 +313,8 @@ def main():
                   KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5,
                   KodakDyeTransferNegative, TechinicolorV, KodakDyeTransferSlide, KodakDyeTransferKodachrome,
                   IlfochromeMicrographicP, IlfochromeMicrographicM]
-    REVERSAL_FILM = [KodakEktachromeE100, Kodachrome64, FujiVelvia50, FujiProvia100F, FujiInstaxColor,
-                     KodakDyeTransferSeparation, TechnicolorIV, TechnicolorIValt1, TechnicolorIValt2]
+    REVERSAL_FILM = [KodakEktachromeE100, Kodachrome64, FujiVelvia50, FujiProvia100F, KodakDyeTransferSeparation,
+                     TechnicolorIV, TechnicolorIValt1, TechnicolorIValt2]
     filmstocks = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}

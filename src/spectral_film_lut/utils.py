@@ -7,6 +7,7 @@ import traceback
 from pathlib import Path
 
 import colour
+import scipy
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
 from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
@@ -23,13 +24,14 @@ try:
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
+    from cupyx.scipy.interpolate import PchipInterpolator
 
     cuda_available = True
 except ImportError:
     import numpy as xp
     from scipy import ndimage as xdimage
     from scipy import signal
-    import scipy
+    from scipy.interpolate import PchipInterpolator
 
     cuda_available = False
 import numpy as np
