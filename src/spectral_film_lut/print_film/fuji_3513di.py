@@ -61,9 +61,9 @@ class Fuji3513DI(FilmSpectral):
                       1.6077: 3.0755, 1.6363: 3.2466, 1.6649: 3.4244, 1.6900: 3.5809, 1.7115: 3.7225, 1.7365: 3.8805,
                       1.7651: 4.0561, 1.7937: 4.2215, 1.8259: 4.3778, 1.8688: 4.5341, 1.9261: 4.6850, 2.0155: 4.8325,
                       2.1157: 4.9129, }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
+        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype) - 0.1
         red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
+        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype) + 0.1
         green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
         blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
         blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)

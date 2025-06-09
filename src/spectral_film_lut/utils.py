@@ -15,9 +15,8 @@ from ffmpeg._run import compile
 from ffmpeg.nodes import output_operator
 from numba import njit
 
-spectral_shape = colour.SpectralShape(380, 780, 5)
-
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
@@ -42,6 +41,9 @@ def to_numpy(x):
         return xp.asnumpy(x)
     else:
         return x
+
+
+spectral_shape = colour.SpectralShape(380, 780, 5)
 
 
 def create_lut(negative_film, print_film=None, lut_size=33, name="test", verbose=False, **kwargs):

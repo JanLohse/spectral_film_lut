@@ -1,12 +1,10 @@
-from operator import truediv
-
 import colour.plotting
-from colour import SpectralDistribution, MultiSpectralDistributions
+from colour import SpectralDistribution
 from matplotlib import pyplot as plt
 
-from spectral_film_lut.utils import *
-from spectral_film_lut.densiometry import DENSIOMETRY
 from spectral_film_lut import densiometry
+from spectral_film_lut.densiometry import DENSIOMETRY
+from spectral_film_lut.utils import *
 
 default_dtype = np.float32
 colour.utilities.set_default_float_dtype(default_dtype)
@@ -98,6 +96,8 @@ class FilmSpectral:
             elif self.density_measure != 'absolute':
                 self.spectral_density = construct_spectral_density(self.d_ref_sd - to_numpy(self.d_min_sd))
 
+            self.spectral_density /= (self.spectral_density * DENSIOMETRY[self.density_measure]).sum(axis=0)
+
             status_matrix = xp.linalg.inv(DENSIOMETRY[self.density_measure].T @ self.spectral_density)
             if self.density_measure == 'status_m':
                 self.spectral_density @= status_matrix
@@ -106,7 +106,7 @@ class FilmSpectral:
                 density_curve = xp.stack(self.density_curve).T
                 density_curve @= status_matrix.T
                 self.density_curve = [density_curve[:, 0], density_curve[:, 1], density_curve[:, 2]]
-
+                self.d_ref = self.log_exposure_to_density(self.log_H_ref).reshape(-1)
 
             self.d_min_sd = self.d_min_sd + self.spectral_density @ status_matrix @ (
                     self.d_min - DENSIOMETRY[self.density_measure].T @ self.d_min_sd)
@@ -255,6 +255,67 @@ class FilmSpectral:
         peak_xyz = colour.XYZ_to_RGB(to_numpy(xyz_cmfs.T @ (projector_light * 10 ** -self.d_min_sd)), "sRGB")
         projector_light /= xp.max(peak_xyz) / white_point
         return projector_light, xyz_cmfs
+
+    @staticmethod
+    def plot_data(film_a, film_b=None):
+        wavelengths = spectral_shape.wavelengths
+        default_colors = ['r', 'g', 'b']
+
+        is_comparison = film_b is not None
+        cols = 2 if is_comparison else 1
+
+        fig, axes = plt.subplots(3, cols, figsize=(12 if cols == 2 else 8, 12), squeeze=False)
+
+        def plot_film_data(film, ax_col):
+            # Spectral Density
+            num_curves = film.spectral_density.shape[1]
+            colors = ['black'] if num_curves == 1 else default_colors
+            for i, x in enumerate(film.spectral_density.T):
+                color = colors[i] if i < len(colors) else None
+                axes[0, ax_col].plot(wavelengths, to_numpy(x), color=color)
+            axes[0, ax_col].set_title(f"{film.__class__.__name__} - Spectral Density")
+            axes[0, ax_col].set_xlabel('Wavelength')
+            axes[0, ax_col].set_ylabel('Density')
+
+            # Density Curve
+            num_curves = len(film.log_exposure)
+            colors = ['black'] if num_curves == 1 else default_colors
+            for i, (a, b) in enumerate(zip(film.log_exposure, film.density_curve)):
+                color = colors[i] if i < len(colors) else None
+                axes[1, ax_col].plot(to_numpy(a), to_numpy(b), color=color)
+
+            # Check for nearly identical log_H_ref values
+            if np.allclose(film.log_H_ref, film.log_H_ref[0]):
+                axes[1, ax_col].axvline(x=to_numpy(film.log_H_ref[0]), color='black', linestyle='--', linewidth=1)
+            else:
+                for i in range(len(film.log_H_ref)):
+                    color = colors[i] if i < len(colors) else None
+                    axes[1, ax_col].axvline(x=to_numpy(film.log_H_ref[i]), color=color, linestyle='--', linewidth=1)
+
+            axes[0, ax_col].plot(wavelengths, to_numpy(film.d_min_sd), color='black')
+            axes[1, ax_col].set_title(f"{film.__class__.__name__} - Density Curve")
+            axes[1, ax_col].set_xlabel('Log Exposure')
+            axes[1, ax_col].set_ylabel('Density')
+
+            # Spectral Sensitivity
+            num_curves = film.sensitivity.shape[1]
+            colors = ['black'] if num_curves == 1 else default_colors
+            for i, a in enumerate(film.sensitivity.T):
+                color = colors[i] if i < len(colors) else None
+                axes[2, ax_col].plot(wavelengths, to_numpy(a), color=color)
+            axes[2, ax_col].set_title(f"{film.__class__.__name__} - Spectral Sensitivity")
+            axes[2, ax_col].set_xlabel('Wavelength')
+            axes[2, ax_col].set_ylabel('Sensitivity')
+
+        # Plot film_a in the first column
+        plot_film_data(film_a, ax_col=0)
+
+        # Plot film_b in the second column if provided
+        if is_comparison:
+            plot_film_data(film_b, ax_col=1)
+
+        plt.tight_layout()
+        plt.show()
 
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
