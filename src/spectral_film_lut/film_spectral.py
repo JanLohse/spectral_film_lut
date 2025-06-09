@@ -79,6 +79,7 @@ class FilmSpectral:
             self.d_min_sd = xp.asarray(colour.colorimetry.sd_constant(to_numpy(self.d_min), spectral_shape).values)
             self.d_ref_sd = self.spectral_density * self.d_ref + self.d_min
             self.spectral_density = self.spectral_density.reshape(-1, 1)
+            self.extend_characteristic_curve()
         else:
             if self.d_min_sd is not None:
                 self.d_min_sd = self.gaussian_extrapolation(self.d_min_sd)
@@ -102,6 +103,7 @@ class FilmSpectral:
             if self.density_measure == 'status_m':
                 self.spectral_density @= status_matrix
                 status_matrix = xp.identity(3, default_dtype)
+                self.extend_characteristic_curve()
             elif self.density_measure != 'absolute':
                 density_curve = xp.stack(self.density_curve).T
                 density_curve @= status_matrix.T
@@ -134,6 +136,27 @@ class FilmSpectral:
         for key, value in self.__dict__.items():
             if type(value) is xp.ndarray and value.dtype is not default_dtype:
                 self.__dict__[key] = value.astype(default_dtype)
+
+    def extend_characteristic_curve(self, height=2):
+        for i, (log_exposure, density_curve) in enumerate(zip(self.log_exposure, self.density_curve)):
+            dy_dx = xp.gradient(density_curve, log_exposure)
+            gamma = dy_dx.max()
+            end_gamma = dy_dx[-1]
+            stepsize = (log_exposure.max() - log_exposure.min()) / log_exposure.shape[0]
+            logistic_func = lambda x: height / (1 + xp.exp(-4 * gamma / height * x))
+            step_count = math.floor(1.5 * height / gamma / stepsize)
+            logistic_func_x = xp.linspace(0, step_count * stepsize, step_count)
+            logistic_func_y = logistic_func(logistic_func_x)
+            logistic_func_derivative = xp.gradient(logistic_func_y, logistic_func_x)
+            idx = xp.abs(logistic_func_derivative - end_gamma).argmin()
+            logistic_func_x = logistic_func_x[idx:]
+            logistic_func_y = logistic_func_y[idx:]
+            logistic_func_x += log_exposure[-1] - logistic_func_x[0]
+            logistic_func_y += density_curve[-1] - logistic_func_y[0]
+            self.log_exposure[i] = xp.concatenate([log_exposure, logistic_func_x[1:]])
+            self.density_curve[i] = xp.concatenate([density_curve, logistic_func_y[1:]])
+
+
 
     def estimate_d_min_sd(self):
         x_values = np.concatenate([x.wavelengths for x in self.spectral_density])
@@ -206,8 +229,7 @@ class FilmSpectral:
                 in zip(self.log_exposure, self.H_ref)]
         else:
             log_exposure_curve = self.log_exposure
-        extrapolate = self.density_measure != "status_a"
-        density = multi_channel_interp(log_exposure, log_exposure_curve, self.density_curve, right_extrapolate=extrapolate)
+        density = multi_channel_interp(log_exposure, log_exposure_curve, self.density_curve)
 
         return density
 
@@ -256,8 +278,7 @@ class FilmSpectral:
         projector_light /= xp.max(peak_xyz) / white_point
         return projector_light, xyz_cmfs
 
-    @staticmethod
-    def plot_data(film_a, film_b=None):
+    def plot_data(self, film_b=None):
         wavelengths = spectral_shape.wavelengths
         default_colors = ['r', 'g', 'b']
 
@@ -308,7 +329,7 @@ class FilmSpectral:
             axes[2, ax_col].set_ylabel('Sensitivity')
 
         # Plot film_a in the first column
-        plot_film_data(film_a, ax_col=0)
+        plot_film_data(self, ax_col=0)
 
         # Plot film_b in the second column if provided
         if is_comparison:
