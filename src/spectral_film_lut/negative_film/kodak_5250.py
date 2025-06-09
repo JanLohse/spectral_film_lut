@@ -1,4 +1,5 @@
 from spectral_film_lut.film_spectral import *
+from spectral_film_lut.negative_film.kodak_5247_II import *
 
 
 class Kodak5250(FilmSpectral):
@@ -27,21 +28,33 @@ class Kodak5250(FilmSpectral):
         self.log_sensitivity = [red_log_sensitivity, green_log_sensitivity, blue_log_sensitivity]
 
         # sensiometry - characteristic curve
-        red_curve = {0.1424: 0.2255, 0.3176: 0.2277, 0.4839: 0.2415, 0.6590: 0.2726, 0.8143: 0.3199, 1.0438: 0.4318,
-                     1.2317: 0.5581, 1.4567: 0.7097, 1.6751: 0.8575, 1.9285: 1.0283, 2.2126: 1.2107, 2.4551: 1.3698,
-                     2.7129: 1.5233, 2.8243: 1.5897, 2.8733: 1.6182, 2.9249: 1.6403, 2.9905: 1.6586}
-        green_curve = {0.1716: 0.6171, 0.3468: 0.6128, 0.4847: 0.6330, 0.6313: 0.6715, 0.7932: 0.7208, 0.9790: 0.8121,
-                       1.1254: 0.8940, 1.3045: 1.0109, 1.5536: 1.1770, 1.7851: 1.3384, 2.0450: 1.5185, 2.3466: 1.7019,
-                       2.6066: 1.8577, 2.7355: 1.9302, 2.8645: 1.9939, 2.9883: 2.0357}
-        blue_curve = {0.1002: 0.9904, 0.2995: 0.9954, 0.4614: 1.0213, 0.6211: 1.0682, 0.7938: 1.1455, 1.0057: 1.2854,
-                      1.3094: 1.4963, 1.5912: 1.6839, 1.8712: 1.8678, 2.2510: 2.0966, 2.5307: 2.2613, 2.7602: 2.3877,
-                      2.8869: 2.4555}
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype) - 2.75
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype) * 0.91
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype) - 2.75
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype) * 0.91
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype) - 2.75
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype) * 0.91
+        red_curve = {0.0496: 0.0772, 0.0714: 0.0759, 0.0932: 0.0771, 0.1161: 0.0798, 0.1365: 0.0816, 0.1545: 0.0839,
+                     0.1799: 0.0876, 0.2085: 0.0943, 0.2366: 0.1007, 0.2802: 0.1155, 0.3043: 0.1272, 0.3191: 0.1352,
+                     0.3487: 0.1503, 0.3767: 0.1695, 0.3985: 0.1824, 0.4202: 0.1944, 0.4400: 0.2077, 0.4639: 0.2261,
+                     0.4867: 0.2415, 0.5168: 0.2622, 0.5421: 0.2797, 0.5562: 0.2880, 0.5848: 0.3072, 0.6123: 0.3262,
+                     0.6413: 0.3467, 0.6657: 0.3624, 0.6827: 0.3740, 0.7046: 0.3858, 0.7306: 0.4028, 0.7613: 0.4221,
+                     0.7838: 0.4377, 0.8006: 0.4488, 0.8214: 0.4620, 0.8468: 0.4767, 0.8686: 0.4907, 0.9008: 0.5087,
+                     0.9297: 0.5261, 0.9522: 0.5385, 0.9771: 0.5492}
+        green_curve = {0.0430: 0.2065, 0.1397: 0.2110, 0.1612: 0.2147, 0.1807: 0.2190, 0.2041: 0.2252, 0.2322: 0.2340,
+                       0.2664: 0.2465, 0.2919: 0.2577, 0.3225: 0.2734, 0.3470: 0.2857, 0.3661: 0.2945, 0.3870: 0.3078,
+                       0.4086: 0.3223, 0.4346: 0.3413, 0.4575: 0.3541, 0.4782: 0.3657, 0.4995: 0.3808, 0.5228: 0.4000,
+                       0.5451: 0.4166, 0.5700: 0.4343, 0.5944: 0.4497, 0.6162: 0.4668, 0.6291: 0.4747, 0.7345: 0.5400,
+                       0.7563: 0.5536, 0.7781: 0.5664, 0.7999: 0.5799, 0.8217: 0.5933, 0.8435: 0.6057, 0.8653: 0.6188,
+                       0.8871: 0.6304, 0.9089: 0.6417, 0.9307: 0.6542, 0.9525: 0.6636, 0.9757: 0.6729, 0.9888: 0.6767}
+        blue_curve = {0.0351: 0.3325, 0.0559: 0.3320, 0.0824: 0.3333, 0.1140: 0.3366, 0.1457: 0.3421, 0.1758: 0.3496,
+                      0.2080: 0.3605, 0.2392: 0.3725, 0.2625: 0.3838, 0.2925: 0.4037, 0.3163: 0.4179, 0.3315: 0.4273,
+                      0.3559: 0.4438, 0.3839: 0.4628, 0.4065: 0.4793, 0.4257: 0.4920, 0.4473: 0.5065, 0.4789: 0.5297,
+                      0.4929: 0.5378, 0.5225: 0.5593, 0.5478: 0.5759, 0.5604: 0.5829, 0.5889: 0.6021, 0.6121: 0.6163,
+                      0.6299: 0.6270, 0.6584: 0.6454, 0.6815: 0.6593, 0.6983: 0.6689, 0.7249: 0.6852, 0.7506: 0.7010,
+                      0.7650: 0.7087, 0.7903: 0.7239, 0.8178: 0.7404, 0.8494: 0.7579, 0.8717: 0.7704, 0.8920: 0.7809,
+                      0.9221: 0.7983, 0.9456: 0.8104, 0.9600: 0.8180}
+        d_scale, log_H_scale, log_H_offset = 3, 3.1, 2.6
+        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype) * log_H_scale - log_H_offset
+        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype) * d_scale
+        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype) * log_H_scale - log_H_offset
+        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype) * d_scale
+        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype) * log_H_scale - log_H_offset
+        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype) * d_scale
         self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
         self.density_curve = [red_density_curve, green_density_curve, blue_density_curve]
 
@@ -86,3 +99,7 @@ class Kodak5250(FilmSpectral):
         self.rms = 5.5
 
         self.calibrate()
+
+
+if __name__ == "__main__":
+    Kodak5250().plot_data(Kodak5247II())

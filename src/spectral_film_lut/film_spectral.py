@@ -125,7 +125,8 @@ class FilmSpectral:
                     rms_color_factors = xp.array([0.26, 0.57, 0.17], dtype=xp.float32)
                     scaling = 1.2375
                     rms_color_factors /= rms_color_factors.sum()
-                    ref_rms = xp.sqrt(xp.sum((multi_channel_interp(xp.ones(3), self.rms_density, self.rms_curve) ** 2 * rms_color_factors ** 2))) / scaling
+                    ref_rms = xp.sqrt(xp.sum((multi_channel_interp(xp.ones(3), self.rms_density,
+                                                                   self.rms_curve) ** 2 * rms_color_factors ** 2))) / scaling
                 else:
                     ref_rms = xp.interp(xp.asarray(1), self.rms_density[0], self.rms_curve[0])
                 if self.rms > 1:
@@ -137,11 +138,11 @@ class FilmSpectral:
             if type(value) is xp.ndarray and value.dtype is not default_dtype:
                 self.__dict__[key] = value.astype(default_dtype)
 
-    def extend_characteristic_curve(self, height=2):
+    def extend_characteristic_curve(self, height=3):
         for i, (log_exposure, density_curve) in enumerate(zip(self.log_exposure, self.density_curve)):
             dy_dx = xp.gradient(density_curve, log_exposure)
             gamma = dy_dx.max()
-            end_gamma = dy_dx[-1]
+            end_gamma = dy_dx[-10:].mean()
             stepsize = (log_exposure.max() - log_exposure.min()) / log_exposure.shape[0]
             logistic_func = lambda x: height / (1 + xp.exp(-4 * gamma / height * x))
             step_count = math.floor(1.5 * height / gamma / stepsize)
@@ -155,8 +156,6 @@ class FilmSpectral:
             logistic_func_y += density_curve[-1] - logistic_func_y[0]
             self.log_exposure[i] = xp.concatenate([log_exposure, logistic_func_x[1:]])
             self.density_curve[i] = xp.concatenate([density_curve, logistic_func_y[1:]])
-
-
 
     def estimate_d_min_sd(self):
         x_values = np.concatenate([x.wavelengths for x in self.spectral_density])
@@ -288,45 +287,67 @@ class FilmSpectral:
         fig, axes = plt.subplots(3, cols, figsize=(12 if cols == 2 else 8, 12), squeeze=False)
 
         def plot_film_data(film, ax_col):
-            # Spectral Density
-            num_curves = film.spectral_density.shape[1]
-            colors = ['black'] if num_curves == 1 else default_colors
-            for i, x in enumerate(film.spectral_density.T):
-                color = colors[i] if i < len(colors) else None
-                axes[0, ax_col].plot(wavelengths, to_numpy(x), color=color)
-            axes[0, ax_col].set_title(f"{film.__class__.__name__} - Spectral Density")
-            axes[0, ax_col].set_xlabel('Wavelength')
-            axes[0, ax_col].set_ylabel('Density')
-
-            # Density Curve
-            num_curves = len(film.log_exposure)
-            colors = ['black'] if num_curves == 1 else default_colors
-            for i, (a, b) in enumerate(zip(film.log_exposure, film.density_curve)):
-                color = colors[i] if i < len(colors) else None
-                axes[1, ax_col].plot(to_numpy(a), to_numpy(b), color=color)
-
-            # Check for nearly identical log_H_ref values
-            if np.allclose(film.log_H_ref, film.log_H_ref[0]):
-                axes[1, ax_col].axvline(x=to_numpy(film.log_H_ref[0]), color='black', linestyle='--', linewidth=1)
-            else:
-                for i in range(len(film.log_H_ref)):
-                    color = colors[i] if i < len(colors) else None
-                    axes[1, ax_col].axvline(x=to_numpy(film.log_H_ref[i]), color=color, linestyle='--', linewidth=1)
-
-            axes[0, ax_col].plot(wavelengths, to_numpy(film.d_min_sd), color='black')
-            axes[1, ax_col].set_title(f"{film.__class__.__name__} - Density Curve")
-            axes[1, ax_col].set_xlabel('Log Exposure')
-            axes[1, ax_col].set_ylabel('Density')
-
             # Spectral Sensitivity
             num_curves = film.sensitivity.shape[1]
             colors = ['black'] if num_curves == 1 else default_colors
             for i, a in enumerate(film.sensitivity.T):
                 color = colors[i] if i < len(colors) else None
-                axes[2, ax_col].plot(wavelengths, to_numpy(a), color=color)
-            axes[2, ax_col].set_title(f"{film.__class__.__name__} - Spectral Sensitivity")
+                axes[0, ax_col].plot(wavelengths, to_numpy(a), color=color)
+            axes[0, ax_col].set_title(f"{film.__class__.__name__} - Spectral Sensitivity")
+            axes[0, ax_col].set_xlabel('Wavelength')
+            axes[0, ax_col].set_ylabel('Sensitivity')
+
+            # Density Curve
+            num_curves = len(film.log_exposure)
+            colors = ['black'] if num_curves == 1 else default_colors
+            gamma_values = []
+
+            for i, (log_exp, density) in enumerate(zip(film.log_exposure, film.density_curve)):
+                log_exp_np = to_numpy(log_exp)
+                density_np = to_numpy(density)
+                color = colors[i] if i < len(colors) else None
+                axes[1, ax_col].plot(log_exp_np, density_np, color=color)
+
+                # Compute gamma
+                d_density_d_logH = np.gradient(density_np, log_exp_np)
+                gamma_interp = scipy.interpolate.interp1d(log_exp_np, d_density_d_logH, kind='linear', fill_value="extrapolate")
+                log_H_val = to_numpy(film.log_H_ref[i])
+                gamma = gamma_interp(log_H_val)
+                gamma_values.append((color, gamma))
+
+            # Draw vertical line(s)
+            if np.allclose(film.log_H_ref, film.log_H_ref[0]):
+                ref_val = to_numpy(film.log_H_ref[0])
+                axes[1, ax_col].axvline(x=ref_val, color='black', linestyle='--', linewidth=1)
+            else:
+                for i in range(len(film.log_H_ref)):
+                    color = colors[i] if i < len(colors) else None
+                    axes[1, ax_col].axvline(x=to_numpy(film.log_H_ref[i]), color=color, linestyle='--', linewidth=1)
+
+            axes[1, ax_col].set_title(f"{film.__class__.__name__} - Density Curve")
+            axes[1, ax_col].set_xlabel('Log Exposure')
+            axes[1, ax_col].set_ylabel('Density')
+
+            # Add gamma annotations in top-right
+            text_lines = [f"{color.upper() if color else 'Channel'} γ = {gamma:.2f}" for color, gamma in gamma_values]
+            text = '\n'.join(text_lines)
+            axes[1, ax_col].text(
+                0.98, 0.95, text,
+                transform=axes[1, ax_col].transAxes,
+                ha='right', va='top', fontsize=9,
+                bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
+
+            # Spectral Density
+            num_curves = film.spectral_density.shape[1]
+            colors = ['black'] if num_curves == 1 else default_colors
+            for i, x in enumerate(film.spectral_density.T):
+                color = colors[i] if i < len(colors) else None
+                axes[2, ax_col].plot(wavelengths, to_numpy(x), color=color)
+            axes[2, ax_col].plot(wavelengths, to_numpy(film.d_min_sd), '--', color='black')
+            axes[2, ax_col].plot(wavelengths, to_numpy(film.d_ref_sd), color='black')
+            axes[2, ax_col].set_title(f"{film.__class__.__name__} - Spectral Density")
             axes[2, ax_col].set_xlabel('Wavelength')
-            axes[2, ax_col].set_ylabel('Sensitivity')
+            axes[2, ax_col].set_ylabel('Density')
 
         # Plot film_a in the first column
         plot_film_data(self, ax_col=0)
@@ -345,6 +366,8 @@ class FilmSpectral:
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
                             output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=True, **kwargs):
         pipeline = []
+
+        # negative_film.plot_data(print_film)
 
         def add(func, name):
             pipeline.append((func, name))
@@ -542,7 +565,7 @@ class FilmSpectral:
 
     @staticmethod
     def add_status_inversion(add, negative_film, add_black_offset, add_output_transform):
-        status_m_to_apd = negative_film.densiometry["apd"].T @ negative_film.spectral_density
+        status_m_to_apd = DENSIOMETRY["apd"].T @ negative_film.spectral_density
         gray = 10 ** -negative_film.d_ref @ status_m_to_apd.T
         target_gray = 0.18
         output_gamma = 4
