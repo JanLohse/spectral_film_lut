@@ -479,9 +479,12 @@ class FilmSpectral:
                 elif output_transform is not None:
                     add(lambda x: output_transform(x, apply_matrix=False).repeat(3, axis=-1), "output")
             elif print_film is not None or negative_film.density_measure == "status_a" or photo_inversion:
-                if print_film is None and negative_film.density_measure == "status_m":
+                if print_film is None:
                     output_kelvin = projector_kelvin
-                    projector_kelvin = negative_film.projection_kelvin if negative_film.projection_kelvin is not None else 8500
+                    if negative_film.density_measure == "status_m":
+                        projector_kelvin = negative_film.projection_kelvin if negative_film.projection_kelvin is not None else 8500
+                    elif negative_film.density_measure == "status_a":
+                        projector_kelvin = negative_film.projection_kelvin if negative_film.projection_kelvin is not None else 2854
                 projection_light, xyz_cmfs = output_film.compute_projection_light(projector_kelvin=projector_kelvin,
                                                                                   white_point=white_point)
                 d_min_sd = output_film.d_min_sd
@@ -491,6 +494,10 @@ class FilmSpectral:
                     density_mat = density_mat.reshape(9, 9, 3).mean(axis=1)
                     output_mat = output_mat.reshape(9, 9, 3).sum(axis=1)
                 add(lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix")
+                if output_film.density_measure == "status_a" and print_film is None:
+                    mid_gray = to_numpy(pipeline[-1][0](output_film.d_ref))
+                    out_gray = xp.asarray(negative_film.CCT_to_XYZ(output_kelvin, mid_gray[1]))
+                    output_mat = xp.asarray(colour.chromatic_adaptation(to_numpy(output_mat), mid_gray, to_numpy(out_gray)))
 
                 if print_film is None and negative_film.density_measure == "status_m":
                     FilmSpectral.add_photographic_inversion(add, negative_film, output_kelvin, pipeline)

@@ -19,6 +19,7 @@ from spectral_film_lut.negative_film.kodak_5207 import Kodak5207
 from spectral_film_lut.negative_film.kodak_5219 import Kodak5219
 from spectral_film_lut.negative_film.kodak_5250 import Kodak5250
 from spectral_film_lut.negative_film.kodak_5248 import Kodak5248
+from spectral_film_lut.negative_film.kodak_5277 import Kodak5277
 from spectral_film_lut.negative_film.kodak_exr_5248 import KodakEXR5248
 from spectral_film_lut.negative_film.kodak_5247_II import Kodak5247II
 from spectral_film_lut.negative_film.kodak_5293 import Kodak5293
@@ -39,6 +40,7 @@ from spectral_film_lut.print_film.fujiflex_old import FujiflexOld
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
 from spectral_film_lut.print_film.technicolor_v import TechinicolorV
+from spectral_film_lut.reversal_print.kodak_ektachrome_radiance_iii import KodakEktachromeRadianceIIIPaper
 from spectral_film_lut.reversal_film.technicolor_iv import *
 from spectral_film_lut.reversal_print.ilfochrome_micrographic_p import IlfochromeMicrographicP
 from spectral_film_lut.reversal_print.ilfochrome_micrographic_m import IlfochromeMicrographicM
@@ -304,20 +306,21 @@ class MainWindow(QMainWindow):
 
 def main():
     NEGATIVE_FILM = [KodakEktar100, KodakPortra160, KodakPortra400, KodakPortra800, KodakPortra800At1600,
-                     KodakPortra800At3200, Kodak5203, Kodak5213, Kodak5207, Kodak5219, KodakEXR5248, Kodak5293,
-                     Kodak5247II, Kodak5250, Kodak5248, Kodak5247, FujiPro160S, FujiPro160C, FujiPro400H, FujiEterna500,
-                     FujiEterna500Vivid, Kodak5222Dev4, Kodak5222Dev5, Kodak5222Dev6, Kodak5222Dev9, Kodak5222Dev12,
-                     KodakTriX400Dev6, KodakTriX400Dev7, KodakTriX400Dev9, KodakTriX400Dev11]
+                     KodakPortra800At3200, Kodak5203, Kodak5213, Kodak5207, Kodak5219, Kodak5277, KodakEXR5248,
+                     Kodak5293, Kodak5247II, Kodak5250, Kodak5248, Kodak5247, FujiPro160S, FujiPro160C, FujiPro400H,
+                     FujiEterna500, FujiEterna500Vivid, Kodak5222Dev4, Kodak5222Dev5, Kodak5222Dev6, Kodak5222Dev9,
+                     Kodak5222Dev12, KodakTriX400Dev6, KodakTriX400Dev7, KodakTriX400Dev9, KodakTriX400Dev11]
     PRINT_FILM = [KodakEnduraPremier, KodakDuraflexPlus, KodakPortraEndura, KodakSupraEndura, Kodak2383, Kodak2393,
                   KodakExr5386, Kodak5384, Kodak5383, Kodak5381, FujiCrystalArchiveDPII, FujiCrystalArchiveMaxima,
                   FujiCrystalArchiveSuperTypeC, FujiflexNew, FujiflexOld, Fuji3513DI, Kodak2303Dev2, Kodak2303Dev3,
                   Kodak2303Dev5, Kodak2303Dev7, Kodak2303Dev9, KodakPolymax, KodakPolymaxGradeNeg1, KodakPolymaxGrade0,
                   KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5,
-                  KodakDyeTransferNegative, TechinicolorV, KodakDyeTransferSlide, KodakDyeTransferKodachrome,
-                  IlfochromeMicrographicP, IlfochromeMicrographicM]
+                  KodakDyeTransferNegative, TechinicolorV, KodakDyeTransferKodachrome]
+    REVERSAL_PRINT = [KodakDyeTransferSlide, IlfochromeMicrographicP, IlfochromeMicrographicM,
+                      KodakEktachromeRadianceIIIPaper]
     REVERSAL_FILM = [KodakEktachromeE100, Kodachrome64, FujiVelvia50, FujiProvia100F, KodakDyeTransferSeparation,
                      TechnicolorIV, TechnicolorIValt1, TechnicolorIValt2]
-    filmstocks = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM
+    filmstocks = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM + REVERSAL_PRINT
     filmstocks = [x() for x in filmstocks]
     filmstocks = {stock.__class__.__name__: stock for stock in filmstocks}
 
