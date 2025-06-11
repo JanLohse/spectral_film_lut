@@ -364,7 +364,7 @@ class FilmSpectral:
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
-                            output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=True, **kwargs):
+                            output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=False, **kwargs):
         pipeline = []
 
         # negative_film.plot_data(print_film)
@@ -576,10 +576,72 @@ class FilmSpectral:
         gray = 10 ** -negative_film.d_ref @ status_m_to_apd.T
         target_gray = 0.18
         output_gamma = 4
-        sRGB_to_XYZ = xp.linalg.inv(xp.asarray(colour.RGB_COLOURSPACES["sRGB"].matrix_XYZ_to_RGB))
+
+        # calculated from Kodak Duraflex Plus:
+        projection_to_XYZ = xp.array([[0.39433440, 0.38861403, 0.15924151],
+                                      [0.21333715, 0.71804404, 0.06861880],
+                                      [0.04734647, 0.25670424, 0.70413210]])
+
         add(lambda x: 10 ** -x, "project")
         add(lambda x: (gray * target_gray / (x @ status_m_to_apd.T)) ** output_gamma * target_gray ** (
                 1 - output_gamma), "invert")
-        add(lambda x: (x / (x + 1)) @ sRGB_to_XYZ.T, "rolloff")
+        add(lambda x: (x / (x + 1)) @ projection_to_XYZ.T, "rolloff")
         add_black_offset()
         add_output_transform()
+
+    @staticmethod
+    def compute_status_to_XYZ_matrix(print_film, saturation=1):
+        # compute target whipte point of print film
+        projection_light, xyz_cmfs = print_film.compute_projection_light()
+        white_point = (xyz_cmfs * projection_light.reshape(-1, 1)).T @ 10 ** -print_film.d_ref_sd
+
+        # compute reference XYZ values for highly saturated red, green, and blue colors
+        layer_activation = saturation * 2.25 * print_film.d_ref / xp.linalg.norm(print_film.d_ref)
+        layer_activation = (xp.ones((3, 3)) - xp.identity(3)) * xp.ones(3) * layer_activation
+        projection_to_XYZ = densiometry.xyz_cmfs.T @ 10 ** -(
+                print_film.spectral_density @ layer_activation + print_film.d_min_sd.reshape(-1, 1))
+
+        # adjust white_point and brightness
+        projection_to_XYZ = FilmSpectral.adapt_rgb_to_xyz_matrix(projection_to_XYZ, white_point)
+        projection_to_XYZ /= projection_to_XYZ.sum(1)[1]
+
+        print(projection_to_XYZ, print_film.__class__.__name__)
+        return projection_to_XYZ
+
+    @staticmethod
+    def adapt_rgb_to_xyz_matrix(rgb_to_xyz, target_white_xyz):
+        rgb_to_xyz = to_numpy(rgb_to_xyz)
+        target_white_xyz = to_numpy(target_white_xyz)
+
+        # Step 1: Compute primaries in XYZ (columns of the matrix)
+        XYZ_primaries = rgb_to_xyz.T  # Shape (3, 3)
+
+        # Step 2: Convert XYZ primaries to xy chromaticities
+        xy_primaries = [colour.XYZ_to_xy(XYZ_primaries[i]) for i in range(3)]
+
+        # Step 3: Convert target white XYZ to xy
+        target_white_xy = colour.XYZ_to_xy(target_white_xyz)
+
+        # Step 4: Recompute RGB → XYZ matrix from primaries + new white
+        adapted_rgb_to_xyz = FilmSpectral.compute_rgb_to_xyz_matrix_from_primaries_and_white(xy_primaries,
+                                                                                             target_white_xy)
+
+        return xp.asarray(adapted_rgb_to_xyz)
+
+    @staticmethod
+    def compute_rgb_to_xyz_matrix_from_primaries_and_white(primaries_xy, white_xy):
+        """
+        Computes RGB to XYZ matrix from xy chromaticities and white point.
+        """
+        # Convert chromaticities to XYZ
+        primaries_XYZ = np.array([colour.xy_to_XYZ(xy) for xy in primaries_xy])
+        white_XYZ = colour.xy_to_XYZ(white_xy)
+
+        # Matrix of unscaled primaries
+        M = primaries_XYZ.T
+
+        # Solve for scaling factors
+        S = np.linalg.solve(M, white_XYZ)
+
+        # Apply scaling to columns
+        return M * S

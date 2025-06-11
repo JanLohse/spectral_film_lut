@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDial
 from ffmpeg._run import compile
 from ffmpeg.nodes import output_operator
 from numba import njit
+from matplotlib import pyplot as plt
 
 import warnings
 
@@ -454,3 +455,41 @@ def wavelength_argmin(distribution, low=None, high=None):
         range.trim(colour.SpectralShape(low, high, 1))
     peak = range.wavelengths[range.values.argmin()]
     return peak
+
+def plot_gamuts(rgb_to_xyz, labels=None):
+    rgb_to_xyz = [to_numpy(x) for x in rgb_to_xyz]
+
+    # RGB cube corners (R, G, B) in [0, 1]
+    rgb_primaries = np.identity(3)
+
+    # Convert RGB primaries to XYZ
+    xyz_primaries = [rgb_primaries @ x.T for x in rgb_to_xyz]
+
+    # Convert XYZ to xy chromaticities
+    xy_primaries = [colour.XYZ_to_xy(x) for x in xyz_primaries]
+
+    # Compute the whitepoint (assumes white = [1, 1, 1] in RGB)
+    xyz_white = [np.dot(x, np.ones(3)) for x in rgb_to_xyz]
+    xy_white = [colour.XYZ_to_xy(x) for x in xyz_white]
+
+    # Close the triangle by appending the first point at the end
+    xy_gamut = [np.vstack((x, x[0])) for x in xy_primaries]
+
+    # Plot the CIE 1931 Chromaticity Diagram
+    colour.plotting.plot_chromaticity_diagram_CIE1931(standalone=False)
+
+    # Plot the RGB gamut triangle
+    if labels is None or len(labels) != len(rgb_to_xyz):
+        labels = list(range(len(rgb_to_xyz)))
+
+    for i, x, y in zip(labels, xy_gamut, xy_white):
+        line, = plt.plot(x[:, 0], x[:, 1], 'o-', label=i)
+        # Use the same color to plot the white point
+        plt.plot(y[0], y[1], 'x', color=line.get_color())
+
+    plt.legend()
+    plt.title("RGB Gamut on CIE 1931 Chromaticity Diagram")
+    plt.show()
+
+def plot_gamut(rgb_to_xyz, label=None):
+    plot_gamuts([rgb_to_xyz], [label])
