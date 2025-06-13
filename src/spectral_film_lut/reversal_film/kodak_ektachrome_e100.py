@@ -7,7 +7,6 @@ class KodakEktachromeE100(FilmSpectral):
 
         self.iso = 100
         self.density_measure = "status_a"
-        self.projection_kelvin = 6000
 
         # spectral sensitivity
         red_log_sensitivity = {554.0856: -1.0220, 564.3580: -0.9702, 573.3463: -0.6981, 588.6381: 0.4380,
@@ -121,4 +120,4 @@ class KodakEktachromeE100(FilmSpectral):
         self.rms_curve = [red_rms, green_rms, blue_rms]
         self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
 
-        self.calibrate()
+        self.calibrate(True)

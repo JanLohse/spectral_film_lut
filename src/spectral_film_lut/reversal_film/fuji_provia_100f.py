@@ -97,4 +97,4 @@ class FujiProvia100F(FilmSpectral):
         self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
         self.rms = 9
 
-        self.calibrate()
+        self.calibrate(True)

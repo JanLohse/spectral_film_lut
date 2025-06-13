@@ -35,7 +35,7 @@ class FilmSpectral:
         self.exposure_kelvin = 5500
         self.projection_kelvin = 6500
 
-    def calibrate(self):
+    def calibrate(self, interlayer_colorcorrection=False):
         # target exposure of middle gray in log lux-seconds
         # normally use iso value, if not provided use target density of 1.0 on the green channel
         if self.iso is not None:
@@ -105,6 +105,9 @@ class FilmSpectral:
                 status_matrix = xp.identity(3, default_dtype)
                 self.extend_characteristic_curve()
             elif self.density_measure != 'absolute':
+                if interlayer_colorcorrection:
+                    self.spectral_density @= status_matrix / 2 + xp.eye(3)
+                    status_matrix = xp.linalg.inv(DENSIOMETRY[self.density_measure].T @ self.spectral_density)
                 density_curve = xp.stack(self.density_curve).T
                 density_curve @= status_matrix.T
                 self.density_curve = [density_curve[:, 0], density_curve[:, 1], density_curve[:, 2]]
@@ -484,7 +487,7 @@ class FilmSpectral:
                     if negative_film.density_measure == "status_m":
                         projector_kelvin = negative_film.projection_kelvin if negative_film.projection_kelvin is not None else 8500
                     elif negative_film.density_measure == "status_a":
-                        projector_kelvin = negative_film.projection_kelvin if negative_film.projection_kelvin is not None else 2854
+                        projector_kelvin = negative_film.projection_kelvin
                 projection_light, xyz_cmfs = output_film.compute_projection_light(projector_kelvin=projector_kelvin,
                                                                                   white_point=white_point)
                 d_min_sd = output_film.d_min_sd
