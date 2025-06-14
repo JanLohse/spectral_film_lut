@@ -35,7 +35,7 @@ class FilmSpectral:
         self.exposure_kelvin = 5500
         self.projection_kelvin = 6500
 
-    def calibrate(self, interlayer_colorcorrection=False):
+    def calibrate(self, interlayer_colorcorrection=0):
         # target exposure of middle gray in log lux-seconds
         # normally use iso value, if not provided use target density of 1.0 on the green channel
         if self.iso is not None:
@@ -106,7 +106,8 @@ class FilmSpectral:
                 self.extend_characteristic_curve()
             elif self.density_measure != 'absolute':
                 if interlayer_colorcorrection:
-                    self.spectral_density @= status_matrix / 2 + xp.eye(3)
+                    self.spectral_density @= status_matrix * interlayer_colorcorrection + xp.eye(3) * (
+                                1 - interlayer_colorcorrection)
                     status_matrix = xp.linalg.inv(DENSIOMETRY[self.density_measure].T @ self.spectral_density)
                 density_curve = xp.stack(self.density_curve).T
                 density_curve @= status_matrix.T
@@ -577,8 +578,8 @@ class FilmSpectral:
     def add_status_inversion(add, negative_film, add_black_offset, add_output_transform):
         status_m_to_apd = DENSIOMETRY["apd"].T @ negative_film.spectral_density
         gray = 10 ** -negative_film.d_ref @ status_m_to_apd.T
-        target_gray = 0.18
-        output_gamma = 4
+        target_gray = 0.15
+        output_gamma = 3.2
 
         # calculated from Kodak Duraflex Plus:
         projection_to_XYZ = xp.array([[0.39433440, 0.38861403, 0.15924151],

@@ -6,7 +6,9 @@ def compute_xyz_dual():
 
     reference_sds = xp.asarray(colour.characterisation.read_training_data_rawtoaces_v1().align(spectral_shape).values)
     reference_xyz = xp.asarray(reference_sds.T @ xyz_cmfs)
-    xyz_dual = xp.linalg.lstsq(reference_xyz, reference_sds.T, rcond=None)[0].T
+    xyz_dual_data = xp.linalg.lstsq(reference_xyz, reference_sds.T, rcond=None)[0].T
+    xyz_dual_clean = xp.linalg.pinv(xyz_cmfs.T)
+    xyz_dual = xyz_dual_data / 2 + xyz_dual_clean / 2
 
     return xyz_cmfs, xyz_dual
 
