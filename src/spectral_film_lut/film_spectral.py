@@ -577,11 +577,31 @@ class FilmSpectral:
     @staticmethod
     def add_status_inversion(add, negative_film, add_black_offset, add_output_transform):
         status_m_to_apd = DENSIOMETRY["apd"].T @ negative_film.spectral_density
+        output_gamma = 2.6
+
+        # TODO: calculate this from film stock
+        projection_to_XYZ = xp.array([[0.4124564, 0.3575761, 0.1804375],
+                                      [0.2126729, 0.7151522, 0.0721750],
+                                      [0.0193339, 0.1191920, 0.9503041]])
+
+        # calculated from Kodak Duraflex Plus:
+        gray = output_gamma * -negative_film.d_ref @ status_m_to_apd.T
+        output_scale = 0.8 * xp.ones(3) - gray
+
+        def softmax(x, a=2.5):
+            return xp.log(1 + xp.exp(x * a)) / a
+
+        add(lambda x: 10 ** -softmax(output_gamma * -x @ status_m_to_apd.T + output_scale) @ projection_to_XYZ.T, "output")
+        add_black_offset()
+        add_output_transform()
+
+    @staticmethod
+    def add_status_inversion_old(add, negative_film, add_black_offset, add_output_transform):
+        status_m_to_apd = DENSIOMETRY["apd"].T @ negative_film.spectral_density
         gray = 10 ** -negative_film.d_ref @ status_m_to_apd.T
         target_gray = 0.15
         output_gamma = 3.2
 
-        # calculated from Kodak Duraflex Plus:
         projection_to_XYZ = xp.array([[0.39433440, 0.38861403, 0.15924151],
                                       [0.21333715, 0.71804404, 0.06861880],
                                       [0.04734647, 0.25670424, 0.70413210]])
@@ -592,6 +612,7 @@ class FilmSpectral:
         add(lambda x: (x / (x + 1)) @ projection_to_XYZ.T, "rolloff")
         add_black_offset()
         add_output_transform()
+
 
     @staticmethod
     def compute_status_to_XYZ_matrix(print_film, saturation=1):
