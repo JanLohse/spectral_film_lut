@@ -111,6 +111,6 @@ class KodakPortra160(FilmSpectral):
         self.rms_curve = [red_rms, green_rms, blue_rms]
         self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
         # guessed value:
-        self.rms = 2.5
+        self.rms = 2.8
 
         self.calibrate()
