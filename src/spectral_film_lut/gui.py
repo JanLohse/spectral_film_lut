@@ -21,6 +21,8 @@ from spectral_film_lut.negative_film.kodak_5250 import Kodak5250
 from spectral_film_lut.negative_film.kodak_5248 import Kodak5248
 from spectral_film_lut.negative_film.kodak_5277 import Kodak5277
 from spectral_film_lut.negative_film.kodak_exr_5248 import KodakEXR5248
+from spectral_film_lut.negative_film.kodak_ultramax_400 import KodakUltramax400
+from spectral_film_lut.negative_film.kodak_gold_200 import KodakGold200
 from spectral_film_lut.negative_film.kodak_5247_II import Kodak5247II
 from spectral_film_lut.negative_film.kodak_5293 import Kodak5293
 from spectral_film_lut.print_film.kodak_5381 import Kodak5381
@@ -306,10 +308,11 @@ class MainWindow(QMainWindow):
 
 def main():
     NEGATIVE_FILM = [KodakEktar100, KodakPortra160, KodakPortra400, KodakPortra800, KodakPortra800At1600,
-                     KodakPortra800At3200, Kodak5203, Kodak5213, Kodak5207, Kodak5219, Kodak5277, KodakEXR5248,
-                     Kodak5293, Kodak5247II, Kodak5250, Kodak5248, Kodak5247, FujiPro160S, FujiPro160C, FujiPro400H,
-                     FujiEterna500, FujiEterna500Vivid, Kodak5222Dev4, Kodak5222Dev5, Kodak5222Dev6, Kodak5222Dev9,
-                     Kodak5222Dev12, KodakTriX400Dev6, KodakTriX400Dev7, KodakTriX400Dev9, KodakTriX400Dev11]
+                     KodakPortra800At3200, KodakUltramax400, KodakGold200, Kodak5213, Kodak5207, Kodak5219, Kodak5277,
+                     KodakEXR5248, Kodak5293, Kodak5247II, Kodak5250, Kodak5248, Kodak5247, FujiPro160S, FujiPro160C,
+                     FujiPro400H, FujiEterna500, FujiEterna500Vivid, Kodak5222Dev4, Kodak5222Dev5, Kodak5222Dev6,
+                     Kodak5222Dev9, Kodak5222Dev12, KodakTriX400Dev6, KodakTriX400Dev7, KodakTriX400Dev9,
+                     KodakTriX400Dev11]
     PRINT_FILM = [KodakEnduraPremier, KodakDuraflexPlus, KodakPortraEndura, KodakSupraEndura, Kodak2383, Kodak2393,
                   KodakExr5386, Kodak5384, Kodak5383, Kodak5381, FujiCrystalArchiveDPII, FujiCrystalArchiveMaxima,
                   FujiCrystalArchiveSuperTypeC, FujiflexNew, FujiflexOld, Fuji3513DI, Kodak2303Dev2, Kodak2303Dev3,

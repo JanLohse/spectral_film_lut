@@ -129,7 +129,7 @@ class KodakPortra800(FilmSpectral):
         self.rms_curve = [red_rms, green_rms, blue_rms]
         self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
         # guessed value:
-        self.rms = {800: 5, 1600: 6, 3200: 7}[iso]
+        self.rms = {800: 4.8, 1600: 6, 3200: 7}[iso]
 
         self.calibrate()
 
