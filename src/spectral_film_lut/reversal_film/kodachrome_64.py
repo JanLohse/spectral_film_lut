@@ -106,4 +106,6 @@ class Kodachrome64(FilmSpectral):
         self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
         self.rms = 10
 
-        self.calibrate(0.25)
+        self.color_masking = 0.25
+
+        self.calibrate()

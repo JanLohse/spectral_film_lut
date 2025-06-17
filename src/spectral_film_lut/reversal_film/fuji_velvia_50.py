@@ -97,4 +97,6 @@ class FujiVelvia50(FilmSpectral):
         self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
         self.rms = 9
 
-        self.calibrate(0.75)
+        self.color_masking = 0.75
+
+        self.calibrate()

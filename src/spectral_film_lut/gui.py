@@ -157,6 +157,10 @@ class MainWindow(QMainWindow):
         self.lut_size.setMinMaxTicks(2, 67)
         add_option(self.lut_size, "LUT size:", 33, self.lut_size.setValue)
 
+        self.color_masking = Slider()
+        self.color_masking.setMinMaxTicks(0, 1, 1, 10)
+        add_option(self.color_masking, "Color masking:", 1, self.color_masking.setValue)
+
         self.mode = QComboBox()
         self.mode.addItems(['full', 'negative', 'print'])
         add_option(self.mode, "Mode:", "full", self.mode.setCurrentText)
@@ -178,6 +182,7 @@ class MainWindow(QMainWindow):
         self.blue_light.valueChanged.connect(self.lights_changed)
         self.lut_size.valueChanged.connect(self.parameter_changed)
         self.black_offset.valueChanged.connect(self.parameter_changed)
+        self.color_masking.valueChanged.connect(self.parameter_changed)
         self.white_point.valueChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
 
@@ -217,13 +222,14 @@ class MainWindow(QMainWindow):
         size = int(self.lut_size.getValue())
         white_point = self.white_point.getValue()
         black_offset = self.black_offset.getValue()
+        color_masking = self.color_masking.getValue()
         mode = self.mode.currentText()
         exp_wb = self.exp_wb.getValue()
         lut = create_lut(negative_film, print_film, name=name, matrix_method=False, lut_size=size,
                          input_colourspace=input_colourspace, output_colourspace=output_colourspace,
                          projector_kelvin=projector_kelvin, exp_comp=exp_comp, white_point=white_point,
                          exposure_kelvin=exp_wb, mode=mode, red_light=red_light, green_light=green_light,
-                         blue_light=blue_light, black_offset=black_offset)
+                         blue_light=blue_light, black_offset=black_offset, color_masking=color_masking)
         return lut
 
     def lights_changed(self, value):
