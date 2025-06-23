@@ -290,22 +290,21 @@ class MainWindow(QMainWindow):
         lut = self.generate_lut()
 
         src = self.image_selector.currentText()
-        target = "temp.jpg"
-        if os.path.isfile(target):
-            os.remove(target)
-        try:
-            start = time.time()
-            run(ffmpeg.input(src).filter('scale', "1024", "-1").filter('lut3d', file=lut).output(target,
-                                                                                                 loglevel="quiet"))
-            if verbose:
-                print(f"applied lut in {time.time() - start:.2f} seconds")
-        except:
-            return
-        self.pixmap = QPixmap(target)
+        start = time.time()
+        width, height = get_image_dimensions(src)
+        process = run_async(ffmpeg.input(src).filter('lut3d', file=lut).output(
+            'pipe:', format='rawvideo', pix_fmt='rgb24', vframes=1, loglevel='quiet'), pipe_stdout=True)
+
+        image = process.stdout.read(width * height * 3)
+        process.wait()
+        os.remove(lut)
+        image = np.frombuffer(image, np.uint8).reshape([height, width, 3])
+        image = QImage(np.require(image, np.uint8, 'C'), width, height, 3 * width, QImage.Format.Format_RGB888)
+        self.pixmap = QPixmap.fromImage(image)
         self.image.setPixmap(self.pixmap)
         self.scale_pixmap()
-        os.remove(target)
-        os.remove(lut)
+        if verbose:
+            print(f"applied lut in {time.time() - start:.2f} seconds")
 
     def save_lut(self):
         filename, ok = QFileDialog.getSaveFileName(self)

@@ -5,11 +5,12 @@ import sys
 import time
 import traceback
 from pathlib import Path
+import ffmpeg
 
 import colour
 import scipy
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
-from PyQt6.QtGui import QWheelEvent
+from PyQt6.QtGui import QWheelEvent, QImage
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
 from ffmpeg._run import compile
 from ffmpeg.nodes import output_operator
@@ -493,3 +494,16 @@ def plot_gamuts(rgb_to_xyz, labels=None):
 
 def plot_gamut(rgb_to_xyz, label=None):
     plot_gamuts([rgb_to_xyz], [label])
+
+
+def get_image_dimensions(image_path):
+    probe = ffmpeg.probe(image_path)
+    # Assuming the first stream is the video/image stream
+    video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
+
+    if video_stream is None:
+        raise ValueError("No video stream found in the file.")
+
+    width = int(video_stream['width'])
+    height = int(video_stream['height'])
+    return width, height
