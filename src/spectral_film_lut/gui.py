@@ -116,6 +116,10 @@ class MainWindow(QMainWindow):
         self.exp_wb.setMinMaxTicks(2000, 15000, 100)
         add_option(self.exp_wb, "WB:", 6500, self.exp_wb.setValue)
 
+        self.tint = Slider()
+        self.tint.setMinMaxTicks(-1, 1, 1, 20)
+        add_option(self.tint, "Tint:", 0, self.tint.setValue)
+
         self.negative_selector = QComboBox()
         self.negative_selector.addItems(list(filmstocks.keys()))
         add_option(self.negative_selector, "Negativ stock:", "Kodak5207", self.negative_selector.setCurrentText)
@@ -181,6 +185,7 @@ class MainWindow(QMainWindow):
         self.projector_kelvin.valueChanged.connect(self.parameter_changed)
         self.exp_comp.valueChanged.connect(self.parameter_changed)
         self.exp_wb.valueChanged.connect(self.parameter_changed)
+        self.tint.valueChanged.connect(self.parameter_changed)
         self.red_light.valueChanged.connect(self.lights_changed)
         self.green_light.valueChanged.connect(self.lights_changed)
         self.blue_light.valueChanged.connect(self.lights_changed)
@@ -229,11 +234,12 @@ class MainWindow(QMainWindow):
         color_masking = self.color_masking.getValue()
         mode = self.mode.currentText()
         exp_wb = self.exp_wb.getValue()
+        tint = self.tint.getValue()
         lut = create_lut(negative_film, print_film, name=name, matrix_method=False, lut_size=size,
                          input_colourspace=input_colourspace, output_colourspace=output_colourspace,
                          projector_kelvin=projector_kelvin, exp_comp=exp_comp, white_point=white_point,
                          exposure_kelvin=exp_wb, mode=mode, red_light=red_light, green_light=green_light,
-                         blue_light=blue_light, black_offset=black_offset, color_masking=color_masking)
+                         blue_light=blue_light, black_offset=black_offset, color_masking=color_masking, tint=tint)
         return lut
 
     def lights_changed(self, value):

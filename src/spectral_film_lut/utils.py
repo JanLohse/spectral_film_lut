@@ -24,6 +24,7 @@ try:
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
     from cupyx.scipy.interpolate import PchipInterpolator
+    from cupyx import scipy
 
     cuda_available = True
 except ImportError:
@@ -31,6 +32,7 @@ except ImportError:
     from scipy import ndimage as xdimage
     from scipy import signal
     from scipy.interpolate import PchipInterpolator
+    import scipy
 
     cuda_available = False
 import numpy as np

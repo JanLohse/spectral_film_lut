@@ -392,7 +392,7 @@ class FilmSpectral:
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
                             output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=False,
-                            color_masking=None, **kwargs):
+                            color_masking=None, tint=0, **kwargs):
         pipeline = []
 
         if color_masking is None:
@@ -430,7 +430,7 @@ class FilmSpectral:
                 add(lambda x: xp.asarray(x), "cast to cuda")
 
             exp_comp = 2 ** exp_comp
-            gray = xp.asarray(negative_film.CCT_to_XYZ(exposure_kelvin, 0.18))
+            gray = xp.asarray(negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint))
             ref_exp = negative_film.XYZ_to_exp @ gray
             correction_factors = negative_film.H_ref / ref_exp
             if negative_film.density_measure == 'bw':
@@ -563,8 +563,9 @@ class FilmSpectral:
             return convert, 0
 
     @staticmethod
-    def CCT_to_XYZ(CCT, Y=1.):
+    def CCT_to_XYZ(CCT, Y=1., tint=0):
         xy = colour.CCT_to_xy(CCT)
+        xy[0] *= 1 + tint
         xyY = (xy[0], xy[1], Y)
         XYZ = colour.xyY_to_XYZ(xyY)
         return XYZ
