@@ -8,8 +8,8 @@ class TechnicolorIV(FilmSpectral):
     def __init__(self, version=1):
         super().__init__()
 
-        self.lad = [0.9] * 3
-        self.density_measure = 'absolute'
+        self.lad = [1] * 3
+        self.density_measure = 'status_a'
 
         # taken from ilford ortho plus 80
         ortho_sensitivity = {356.6403: 0.1040, 360.7890: 0.2099, 364.2056: 0.3072, 367.8662: 0.4068, 371.7709: 0.5015,
@@ -72,8 +72,6 @@ class TechnicolorIV(FilmSpectral):
              688.3707: 0.1591, 703.7047: 0.1713, 719.5584: 0.2158}]
         self.spectral_density = [colour.SpectralDistribution(x).normalise() for x in
                                  (red_sd[version], green_sd[version], blue_sd[version])]
-        self.spectral_density = xp.stack(
-            [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
 
         # sensiometry curve from kodak matrix film 4150
         curve = {-0.8901: 0.0337, -0.8083: 0.0450, -0.7327: 0.0582, -0.6203: 0.0795, -0.5184: 0.1129, -0.4309: 0.1500,
@@ -86,9 +84,6 @@ class TechnicolorIV(FilmSpectral):
         log_H_ref_mat = xp.interp(xp.asarray(self.lad[0]), density_curve_matrix, log_exposure_matrix)
         separation_curve = separation_neg.density_curve[0]
         separation_exposure = separation_neg.log_exposure[0]
-        slope = (separation_curve[-1] - separation_curve[-2]) / (separation_exposure[-1] - separation_exposure[-2])
-        separation_curve = xp.append(separation_curve, separation_curve[-1] + slope * 1)
-        separation_exposure = xp.append(separation_exposure, separation_exposure[-1] + 1)
         density_curve = xp.interp(log_H_ref_mat - separation_curve + separation_neg.d_ref, log_exposure_matrix,
                                   density_curve_matrix)
 

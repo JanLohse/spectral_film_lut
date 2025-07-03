@@ -8,8 +8,8 @@ class KodakDyeTransferSeparation(FilmSpectral):
     def __init__(self):
         super().__init__()
 
-        self.lad = [0.9] * 3
-        self.density_measure = 'absolute'
+        self.lad = [1] * 3
+        self.density_measure = 'status_a'
 
         separation_neg = Kodak5222Dev9()
         sensitivity = separation_neg.sensitivity
@@ -33,9 +33,9 @@ class KodakDyeTransferSeparation(FilmSpectral):
                    548.3367: 0.0752, 563.3097: 0.0757, 595.9091: 0.0700, 630.7830: 0.0545, 655.2326: 0.0466,
                    679.1136: 0.0340, 693.7075: 0.0318, 699.7726: 0.0306}
         self.spectral_density = [colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)]
-        self.spectral_density = xp.stack(
+        spectral_density = xp.stack(
             [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
-        density_measurements = xp.sum(densiometry.status_a * self.spectral_density, axis=0)
+        density_measurements = xp.sum(densiometry.status_a * spectral_density, axis=0)
         density_measurements /= density_measurements[0]
 
         # sensiometry curve from kodak matrix film 4150
@@ -49,9 +49,6 @@ class KodakDyeTransferSeparation(FilmSpectral):
         log_H_ref_mat = xp.interp(xp.asarray(self.lad[0]), density_curve_matrix, log_exposure_matrix)
         separation_curve = separation_neg.density_curve[0]
         separation_exposure = separation_neg.log_exposure[0]
-        slope = (separation_curve[-1] - separation_curve[-2]) / (separation_exposure[-1] - separation_exposure[-2])
-        separation_curve = xp.append(separation_curve, separation_curve[-1] + slope * 1)
-        separation_exposure = xp.append(separation_exposure, separation_exposure[-1] + 1)
         density_curve = xp.interp(log_H_ref_mat - separation_curve + separation_neg.d_ref,
                                   log_exposure_matrix, density_curve_matrix)
 

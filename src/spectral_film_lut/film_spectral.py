@@ -34,6 +34,7 @@ class FilmSpectral:
         self.rms_curve = None
         self.rms_density = None
         self.rms = None
+        self.mtf = None
         self.exposure_kelvin = 5500
         self.projection_kelvin = 6500
 
@@ -565,9 +566,11 @@ class FilmSpectral:
     @staticmethod
     def CCT_to_XYZ(CCT, Y=1., tint=0):
         xy = colour.CCT_to_xy(CCT)
-        xy[0] *= 1 + tint
         xyY = (xy[0], xy[1], Y)
         XYZ = colour.xyY_to_XYZ(xyY)
+        Lab = colour.XYZ_to_Lab(XYZ)
+        Lab += np.array([0, 1, -0.5]) * 30 * tint
+        XYZ = colour.Lab_to_XYZ(Lab)
         return XYZ
 
     @staticmethod
@@ -612,7 +615,6 @@ class FilmSpectral:
         status_m_to_apd = DENSIOMETRY["apd"].T @ negative_film.get_spectral_density(color_masking)
         output_gamma = 2.6
 
-        # TODO: calculate this from film stock
         projection_to_XYZ = xp.array([[0.4124564, 0.3575761, 0.1804375],
                                       [0.2126729, 0.7151522, 0.0721750],
                                       [0.0193339, 0.1191920, 0.9503041]])

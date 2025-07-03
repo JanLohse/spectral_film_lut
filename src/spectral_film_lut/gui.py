@@ -1,6 +1,6 @@
 import ffmpeg
 from PyQt6.QtCore import QSize, QThreadPool
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
 
@@ -117,7 +117,7 @@ class MainWindow(QMainWindow):
         add_option(self.exp_wb, "WB:", 6500, self.exp_wb.setValue)
 
         self.tint = Slider()
-        self.tint.setMinMaxTicks(-1, 1, 1, 20)
+        self.tint.setMinMaxTicks(-1, 1, 1, 100)
         add_option(self.tint, "Tint:", 0, self.tint.setValue)
 
         self.negative_selector = QComboBox()
