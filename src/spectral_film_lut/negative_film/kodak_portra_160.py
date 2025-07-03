@@ -114,3 +114,15 @@ class KodakPortra160(FilmSpectral):
         self.rms = 2.8
 
         self.calibrate()
+
+
+    # add(lambda x: xp.clip(x, 0, None) @ compression_inv, "gamut_compression_inv")
+
+if __name__ == "__main__":
+    film = KodakPortra160()
+    gamut_compression = 0.2
+    values = generate_all_summing_to_one(20)
+    XYZ_to_exp, compression_inv = FilmSpectral.gamut_compression_matrices(film.XYZ_to_exp, gamut_compression)
+
+    plot_chromaticties([xp.clip(values @ xp.linalg.inv(film.XYZ_to_exp).T, 0, None),
+                        xp.clip(values @ xp.linalg.inv(compression_inv).T, 0, None) @ xp.linalg.inv(XYZ_to_exp).T])

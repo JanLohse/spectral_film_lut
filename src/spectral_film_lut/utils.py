@@ -4,20 +4,18 @@ import subprocess
 import sys
 import time
 import traceback
+import warnings
 from pathlib import Path
-import ffmpeg
 
 import colour
-import scipy
+import ffmpeg
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
-from PyQt6.QtGui import QWheelEvent, QImage
+from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
 from ffmpeg._run import compile
 from ffmpeg.nodes import output_operator
-from numba import njit
 from matplotlib import pyplot as plt
-
-import warnings
+from numba import njit
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -494,6 +492,74 @@ def plot_gamuts(rgb_to_xyz, labels=None):
 
 def plot_gamut(rgb_to_xyz, label=None):
     plot_gamuts([rgb_to_xyz], [label])
+
+
+def plot_chromaticity(chromaticity, label=None):
+    plot_chromaticties([chromaticity], [label])
+
+
+def plot_chromaticties(chromaticies, labels=None):
+    # Plot the CIE 1931 Chromaticity Diagram
+    colour.plotting.plot_chromaticity_diagram_CIE1931(standalone=False)
+
+    if labels is None or len(labels) != len(chromaticies):
+        labels = list(range(len(chromaticies)))
+
+    for chromaticity, label in zip(chromaticies, labels):
+        chromaticity = to_numpy(chromaticity)
+
+        if chromaticity.ndim == 1:
+            chromaticity = chromaticity.reshape(1, -1)
+
+        # Convert XYZ to xy chromaticities
+        xy = colour.XYZ_to_xy(chromaticity).T
+
+        plt.scatter(xy[0], xy[1], label=label)
+
+    plt.legend()
+    plt.title("RGB Gamut on CIE 1931 Chromaticity Diagram")
+    plt.show()
+
+
+def generate_combinations(steps):
+    values = np.linspace(0, 1, steps + 1)[:-1]
+    result = []
+
+    # First: zero in position 2 -> [a, b, 0]
+    for a in values:
+        b = 1 - a
+        result.append([b, a, 0.0])
+
+    # Second: zero in position 0 -> [0, a, b]
+    for a in values:
+        b = 1 - a
+        result.append([0.0, b, a])
+
+    # Third: zero in position 1 -> [a, 0, b]
+    for a in values:
+        b = 1 - a
+        result.append([b, 0.0, a])
+
+    return xp.array(result)
+
+
+def generate_all_summing_to_one(steps):
+    """
+    Generate all (a, b, c) such that a + b + c = 1 and a, b, c ∈ [0, 1]
+    with a specified number of steps (granularity).
+
+    Parameters:
+        steps (int): The number of divisions of the interval [0, 1].
+
+    Returns:
+        np.ndarray: Array of shape (n, 3) with all combinations summing to 1.
+    """
+    result = []
+    for i in range(steps + 1):
+        for j in range(steps + 1 - i):
+            k = steps - i - j
+            result.append([i / steps, j / steps, k / steps])
+    return xp.array(result)
 
 
 def get_image_dimensions(image_path):

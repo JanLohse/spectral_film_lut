@@ -120,3 +120,10 @@ class KodakEktar100(FilmSpectral):
         self.rms = 2.1
 
         self.calibrate()
+
+
+if __name__ == "__main__":
+    film = KodakEktar100()
+    plot_chromaticties(film.sensitivity @ xp.linalg.inv(film.XYZ_to_exp).T)
+    plt.plot(spectral_shape.wavelengths, to_numpy(film.sensitivity))
+    plt.show()

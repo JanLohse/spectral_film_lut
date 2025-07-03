@@ -138,3 +138,13 @@ class Kodak5207(FilmSpectral):
         # computed rms of 3.74
 
         self.calibrate()
+
+
+
+
+if __name__ == "__main__":
+    film = Kodak5207()
+    plot_chromaticties(film.sensitivity @ xp.linalg.inv(film.XYZ_to_exp).T)
+    plt.plot(spectral_shape.wavelengths, to_numpy(film.sensitivity))
+    plt.show()
+
