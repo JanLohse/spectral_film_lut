@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
         add_option(self.save_lut_button)
 
         self.input_colourspace_selector.currentTextChanged.connect(self.parameter_changed)
-        self.negative_selector.currentTextChanged.connect(self.parameter_changed)
+        self.negative_selector.currentTextChanged.connect(self.negative_changed)
         self.output_colourspace_selector.currentTextChanged.connect(self.parameter_changed)
         self.print_selector.currentTextChanged.connect(self.print_light_changed)
         self.image_selector.textChanged.connect(self.parameter_changed)
@@ -293,6 +293,10 @@ class MainWindow(QMainWindow):
         worker.signals.progress.connect(self.progress_fn)
 
         self.threadpool.start(worker)
+
+    def negative_changed(self, negative_film):
+        self.color_masking.setValue(self.filmstocks[negative_film].color_masking)
+        self.parameter_changed()
 
     def update_preview(self, verbose=False, *args, **kwargs):
         if self.image_selector.currentText() == "" or not os.path.isfile(self.image_selector.currentText()):
