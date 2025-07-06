@@ -20,7 +20,8 @@ dependencies = [
     "colour-science",
     "scipy",
     "pyqt6",
-    "ffmpeg-python"
+    "ffmpeg-python",
+    "numba"
 ]
 
 [project.urls]
