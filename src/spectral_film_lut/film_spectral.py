@@ -72,11 +72,11 @@ class FilmSpectral:
                                  zip(self.log_exposure, self.log_H_ref)]
 
         # interpolate and process characteristic curve
+        if self.density_measure == 'status_m' or self.density_measure == 'bw':
+            self.extend_characteristic_curve()
         log_H_min = min([x.min() for x in self.log_exposure])
         log_H_max = max([x.max() for x in self.log_exposure])
         x_new = np.linspace(log_H_min, log_H_max, 100, dtype=np.float32)
-        if self.density_measure == 'status_m' or self.density_measure == 'bw':
-            self.extend_characteristic_curve()
         self.density_curve = [PchipInterpolator(x, y)(x_new) for x, y in zip(self.log_exposure, self.density_curve)]
         self.log_exposure = [x_new] * len(self.log_exposure)
         self.d_min = xp.array([xp.min(x) for x in self.density_curve])
@@ -146,6 +146,7 @@ class FilmSpectral:
                 self.__dict__[key] = value.astype(default_dtype)
 
     def extend_characteristic_curve(self, height=3):
+        print(self.__class__.__name__)
         for i, (log_exposure, density_curve) in enumerate(zip(self.log_exposure, self.density_curve)):
             dy_dx = xp.gradient(density_curve, log_exposure)
             gamma = dy_dx.max()
