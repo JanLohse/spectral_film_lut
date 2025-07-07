@@ -21,7 +21,8 @@ dependencies = [
     "scipy",
     "pyqt6",
     "ffmpeg-python",
-    "numba"
+    "numba",
+    "imageio"
 ]
 
 [project.urls]
