@@ -146,7 +146,6 @@ class FilmSpectral:
                 self.__dict__[key] = value.astype(default_dtype)
 
     def extend_characteristic_curve(self, height=3):
-        print(self.__class__.__name__)
         for i, (log_exposure, density_curve) in enumerate(zip(self.log_exposure, self.density_curve)):
             dy_dx = xp.gradient(density_curve, log_exposure)
             gamma = dy_dx.max()
