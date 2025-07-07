@@ -16,6 +16,7 @@ from ffmpeg._run import compile
 from ffmpeg.nodes import output_operator
 from matplotlib import pyplot as plt
 from numba import njit
+import imageio.v3 as iio
 import scipy
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -561,16 +562,3 @@ def generate_all_summing_to_one(steps):
             k = steps - i - j
             result.append([i / steps, j / steps, k / steps])
     return xp.array(result)
-
-
-def get_image_dimensions(image_path):
-    probe = ffmpeg.probe(image_path)
-    # Assuming the first stream is the video/image stream
-    video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
-
-    if video_stream is None:
-        raise ValueError("No video stream found in the file.")
-
-    width = int(video_stream['width'])
-    height = int(video_stream['height'])
-    return width, height

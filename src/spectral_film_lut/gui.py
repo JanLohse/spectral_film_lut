@@ -306,10 +306,15 @@ class MainWindow(QMainWindow):
 
         src = self.image_selector.currentText()
         start = time.time()
-        width, height = get_image_dimensions(src)
-        process = run_async(ffmpeg.input(src).filter('lut3d', file=lut).output(
-            'pipe:', format='rawvideo', pix_fmt='rgb24', vframes=1, loglevel='quiet'), pipe_stdout=True)
-
+        image = iio.imread(src)
+        height, width, _ = image.shape
+        process = run_async(
+            ffmpeg.input('pipe:', format='rawvideo', pix_fmt='rgb48', s='{}x{}'.format(width, height)).filter('lut3d',
+                                                                                                              file=lut).output(
+                'pipe:', format='rawvideo', pix_fmt='rgb24', vframes=1, loglevel='quiet'), pipe_stdin=True,
+            pipe_stdout=True)
+        process.stdin.write(image.tobytes())
+        process.stdin.close()
         image = process.stdout.read(width * height * 3)
         process.wait()
         os.remove(lut)
