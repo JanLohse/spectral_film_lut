@@ -8,6 +8,10 @@ class Fuji3513DI(FilmSpectral):
         self.lad = [1.09, 1.06, 1.03]
         self.density_measure = 'status_a'
         self.exposure_kelvin = 2854
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'print'
+        self.type = 'negative'
+        self.medium = 'cine'
 
         # spectral sensitivity
         red_log_sensitivity = {361.2142: 1.7802, 370.3606: 1.7095, 379.7197: 1.5734, 394.2263: 1.3515, 406.2655: 1.1230,

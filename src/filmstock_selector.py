@@ -1,82 +1,62 @@
-import sys
-
 from PyQt6.QtCore import Qt, QSize, QEvent, QTimer
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QStackedWidget, QListWidget, QListWidgetItem, QScrollArea,
-                             QWidget, QGridLayout, QToolButton, QLabel, QHBoxLayout, QPushButton, QApplication,
-                             QSizePolicy, QSplitter)
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QStackedWidget, QScrollArea, QWidget, QGridLayout,
+                             QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter)
 
 
-class MainWindow(QWidget):
-    def __init__(self):
+class FilmStockSelector(QWidget):
+    def __init__(self, film_stocks, **kwargs):
         super().__init__()
-        self.setWindowTitle("Film Stock Selector")
-
-        self.filmstocks = [
-            {'id': 'Kodak Vision3 500T', 'saturation': 4, 'granularity': 2, 'resolution': 5, 'year': 2007,
-             'manufacturer': 'Kodak', },
-            {'id': 'Fujifilm Eterna 250D', 'saturation': 3, 'granularity': 3, 'resolution': 4, 'year': 2005,
-             'manufacturer': 'Fujifilm', },
-            {'id': 'Agfa Vista Plus 200', 'saturation': 5, 'granularity': 4, 'resolution': 3, 'year': 2010,
-             'manufacturer': 'Agfa', },
-            {'id': 'Kodak Portra 400', 'saturation': 3, 'granularity': 2, 'resolution': 4, 'year': 1998,
-             'manufacturer': 'Kodak', },
-            {'id': 'Fujifilm Superia X-TRA 400', 'saturation': 4, 'granularity': 3, 'resolution': 3, 'year': 2003,
-             'manufacturer': 'Fujifilm', },
-            {'id': 'Ilford HP5 Plus 400', 'saturation': None, 'granularity': 2, 'resolution': 5, 'year': 1989,
-             'manufacturer': 'Ilford', },
-            {'id': 'Cinestill 800T', 'saturation': 4, 'granularity': 3, 'resolution': 4, 'year': 2015,
-             'manufacturer': 'Cinestill', },
-            {'id': 'Rollei Retro 80S', 'saturation': 2, 'granularity': 1, 'resolution': 5, 'year': 2011,
-             'manufacturer': 'Rollei', },
-            {'id': 'Lomography Color Negative 100', 'saturation': 5, 'granularity': 4, 'resolution': 2, 'year': 2017,
-             'manufacturer': 'Lomography', },
-            {'id': 'Adox Color Implosion', 'saturation': 5, 'granularity': 5, 'resolution': 2, 'year': 2012,
-             'manufacturer': 'Adox', },
-            {'id': 'Kodak Ektar 100', 'saturation': 5, 'granularity': 1, 'resolution': 5, 'year': 2008,
-             'manufacturer': 'Kodak', },
-            {'id': 'Fujifilm Pro 400H', 'saturation': 3, 'granularity': 2, 'resolution': 4, 'year': 2004,
-             'manufacturer': 'Fujifilm', }
-        ]
+        self.film_stocks = film_stocks
+        self.kwargs = kwargs
 
         self.film_combo = QComboBox()
-        self.film_combo.addItem("Select film stock")
-
-        self.select_button = QPushButton("Browse...")
-        self.select_button.clicked.connect(self.open_selector)
-
+        self.film_combo.addItems(self.film_stocks.keys())
+        self.select_button = QPushButton("🔍")
+        self.select_button.setFixedWidth(25)
         layout = QHBoxLayout()
+        self.setLayout(layout)
         layout.addWidget(self.film_combo)
         layout.addWidget(self.select_button)
-        self.setLayout(layout)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.select_button.clicked.connect(self.open_selector)
+
+        self.setCurrentText = self.film_combo.setCurrentText
+        self.currentTextChanged = self.film_combo.currentTextChanged
+        self.currentText = self.film_combo.currentText
 
     def open_selector(self):
-        dialog = FilmStockSelector(self, self.filmstocks)
+        current_stock = self.film_combo.currentText()
+        dialog = FilmStockSelectorWindow(self, self.film_stocks, highlighted_stock=current_stock, **self.kwargs)
         if dialog.exec():
             selected_stock = dialog.get_selected_film_stock()
-            self.film_combo.clear()
-            self.film_combo.addItem(selected_stock['name'])
+            self.film_combo.setCurrentText(selected_stock)
 
 
-class FilmStockSelector(QDialog):
+class FilmStockSelectorWindow(QDialog):
     UNKNOWN_LABEL = "Unknown"
 
-    def __init__(self, parent=None, film_stocks=None, id_key='id', sort_keys=None, group_keys=None, list_keys=None, sidebar_keys=None):
+    def __init__(self, parent=None, film_stocks=None, sort_keys=None, group_keys=None, list_keys=None,
+                 sidebar_keys=None, default_sort=None, default_group=None, highlighted_stock=None,):
         super().__init__(parent)
         self.setWindowTitle("Select Film Stock")
         self.resize(800, 500)
 
         self.selected_film = None
-        self.highlighted_widget = None
         self.highlighted_stock = None
 
         self.film_stocks = film_stocks
 
-        all_keys = list({key for d in self.film_stocks for key in d})
-        self.id_key = all_keys[0] if id_key is None else id_key
-        self.sort_keys = sort_keys or all_keys
+        if type(film_stocks) is dict:
+            all_keys = list({key for d in self.film_stocks.values() for key in d})
+        else:
+            all_keys = []
+        self.sort_keys = sort_keys or ['Name'] + all_keys
         self.group_keys = group_keys or all_keys
         self.list_keys = list_keys or all_keys
         self.sidebar_keys = sidebar_keys or all_keys
+
+        self.grid_widgets = {}
+        self.list_widgets = {}
 
         self.current_max_cols = None
 
@@ -84,6 +64,10 @@ class FilmStockSelector(QDialog):
         self.group_combo = QComboBox()
         self.sort_combo.addItems(self.sort_keys)
         self.group_combo.addItems(['none'] + self.group_keys)
+        if default_group is not None and default_group in self.group_keys:
+            self.group_combo.setCurrentText(default_group)
+        if default_sort is not None and default_sort in self.sort_keys:
+            self.sort_combo.setCurrentText(default_sort)
 
         self.sort_combo.currentTextChanged.connect(self.update_views)
         self.group_combo.currentTextChanged.connect(self.update_views)
@@ -140,12 +124,8 @@ class FilmStockSelector(QDialog):
         self.detail_area = QVBoxLayout()
         self.detail_area.addWidget(self.detail_image)
         self.detail_area.addWidget(self.detail_name)
-        self.detail_labels = []
-
-        for _ in range(len(self.sidebar_keys)):
-            label = QLabel()
-            self.detail_labels.append(label)
-            self.detail_area.addWidget(label)
+        self.detail_label = QLabel()
+        self.detail_area.addWidget(self.detail_label)
 
         self.detail_area.addStretch()
         self.detail_area.addWidget(self.ok_button)
@@ -170,6 +150,10 @@ class FilmStockSelector(QDialog):
         layout.addWidget(main_split)
         self.setLayout(layout)
 
+        if highlighted_stock is not None:
+            self.highlight_widget(highlighted_stock)
+            self.ensure_highlighted_visible()
+
     def eventFilter(self, obj, event):
         if obj is self.grid_scroll.viewport() and event.type() == QEvent.Type.Resize:
             col_width = 150
@@ -182,7 +166,7 @@ class FilmStockSelector(QDialog):
 
     def sort_and_group_stocks(self):
         sort_key = self.sort_combo.currentText()
-        grouped = self.group_combo.currentText()
+        group_key = self.group_combo.currentText()
 
         def safe_key(stock, key):
             val = stock.get(key)
@@ -190,14 +174,17 @@ class FilmStockSelector(QDialog):
                 return (val is not None, val.lower())
             return (val is not None, val)
 
-        sorted_stocks = sorted(self.film_stocks, key=lambda x: safe_key(x, sort_key))
+        if sort_key.lower in ['', 'name', 'id', 'none'] or sort_key is None:
+            sorted_stocks = sorted(self.film_stocks)
+        else:
+            sorted_stocks = sorted(self.film_stocks, key=lambda x: safe_key(self.film_stocks[x], sort_key))
 
-        if grouped == 'none':
+        if group_key == 'none' or group_key is None:
             return [(None, sorted_stocks)]
 
         groups = {}
         for stock in sorted_stocks:
-            key = stock.get(grouped)
+            key = self.film_stocks[stock].get(group_key)
             display_key = key if key is not None else self.UNKNOWN_LABEL
             groups.setdefault(display_key, []).append(stock)
 
@@ -205,17 +192,37 @@ class FilmStockSelector(QDialog):
 
     def update_sidebar(self, stock):
         self.detail_image.setText("[Image]")
-        self.detail_name.setText(stock.get(self.id_key, ''))
-        for i, key in enumerate(self.sidebar_keys):
-            self.detail_labels[i].setText(f"{key}: {stock.get(key, '')}")
+        self.detail_name.setText(stock)
+        detail_text = ""
+        for key in self.sidebar_keys:
+            if self.film_stocks[stock].get(key) is not None:
+                detail_text += f"{key}: {self.film_stocks[stock].get(key, '')}\n"
+        self.detail_label.setText(detail_text)
 
-    def highlight_widget(self, widget, stock):
-        if self.highlighted_widget:
-            self.highlighted_widget.setStyleSheet("")
-        self.highlighted_widget = widget
-        self.highlighted_stock = stock
-        widget.setStyleSheet("background-color: lightblue;")
-        self.update_sidebar(stock)
+    def highlight_widget(self, stock=None):
+        if stock is not None:
+            if stock in self.grid_widgets and stock in self.list_widgets:
+                grid_widget = self.grid_widgets[stock]
+                list_widget = self.list_widgets[stock]
+            else:
+                return
+            if self.highlighted_stock is not None:
+                if self.highlighted_stock in self.grid_widgets:
+                    self.grid_widgets[self.highlighted_stock].setStyleSheet("")
+                if self.highlighted_stock in self.list_widgets:
+                    self.list_widgets[self.highlighted_stock].setStyleSheet("")
+            self.highlighted_stock = stock
+        elif self.highlighted_stock is not None:
+            grid_widget = self.grid_widgets[self.highlighted_stock]
+            list_widget = self.list_widgets[self.highlighted_stock]
+        else:
+            return
+        grid_widget.setStyleSheet("background-color: lightblue;")
+        list_widget.setStyleSheet("background-color: lightblue;")
+        if stock is not None:
+            self.update_sidebar(stock)
+
+
 
     def confirm_selection(self):
         if self.highlighted_stock:
@@ -223,6 +230,8 @@ class FilmStockSelector(QDialog):
             self.accept()
 
     def populate_list_view(self):
+        self.list_widgets = {}
+
         for i in reversed(range(self.list_layout.count())):
             widget = self.list_layout.itemAt(i).widget()
             if widget:
@@ -239,13 +248,13 @@ class FilmStockSelector(QDialog):
                 item_layout = QHBoxLayout()
                 item_layout.setContentsMargins(5, 5, 5, 5)
 
-                name_label = QLabel(stock.get(self.id_key, ""))
+                name_label = QLabel(stock)
                 name_label.setStyleSheet("font-weight: bold;")
                 name_label.setMinimumWidth(150)
                 item_layout.addWidget(name_label)
 
                 for key in self.list_keys:
-                    val = stock.get(key)
+                    val = self.film_stocks[stock].get(key)
                     val_str = str(val) if val is not None else ""
                     attr_label = QLabel(val_str)
                     attr_label.setMinimumWidth(2)
@@ -258,12 +267,18 @@ class FilmStockSelector(QDialog):
                 item_widget.setFrameStyle(QLabel.Shape.Box)
                 item_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
                 item_widget.setMinimumHeight(40)
-                item_widget.mousePressEvent = lambda e, w=item_widget, s=stock: self.highlight_widget(w, s)
+                item_widget.mousePressEvent = lambda e, s=stock: self.highlight_widget(s)
                 item_widget.mouseDoubleClickEvent = lambda e, s=stock: self.confirm_selection()
 
                 self.list_layout.addWidget(item_widget)
 
+                self.list_widgets[stock] = item_widget
+
+        self.highlight_widget()
+
     def populate_grid_view(self):
+        self.grid_widgets = {}
+
         while self.grid_layout.count():
             child = self.grid_layout.takeAt(0)
             if child.widget():
@@ -286,12 +301,12 @@ class FilmStockSelector(QDialog):
 
             col = 0
             for stock in group:
-                label = QLabel("[Image]\n" + stock[self.id_key])
+                label = QLabel("[Image]\n" + stock)
                 label.setFrameShape(QLabel.Shape.Box)
                 label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 label.setFixedSize(QSize(col_width, 100))
                 label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-                label.mousePressEvent = lambda e, w=label, s=stock: self.highlight_widget(w, s)
+                label.mousePressEvent = lambda e, s=stock: self.highlight_widget(s)
                 label.mouseDoubleClickEvent = lambda e, s=stock: self.confirm_selection()
 
                 self.grid_layout.addWidget(label, row, col)
@@ -300,29 +315,43 @@ class FilmStockSelector(QDialog):
                     col = 0
                     row += 1
 
+                self.grid_widgets[stock] = label
+
             if col != 0:
                 row += 1
 
         self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.grid_container.adjustSize()
 
+        self.highlight_widget()
+
     def update_views(self):
         self.populate_list_view()
         self.populate_grid_view()
+        self.ensure_highlighted_visible()
 
     def toggle_view(self, checked):
         self.stacked_view.setCurrentIndex(1 if checked else 0)
+        self.ensure_highlighted_visible()
 
     def get_selected_film_stock(self):
         return self.selected_film
 
+    def ensure_highlighted_visible(self):
+        if self.highlighted_stock is None:
+            return
 
-def main():
-    app = QApplication(sys.argv)
-    w = MainWindow()
-    w.show()
-    app.exec()
+        if self.stacked_view.currentIndex() == 0:
+            scroll_area = self.list_scroll
+            widgets = self.list_widgets
+        else:
+            scroll_area = self.grid_scroll
+            widgets = self.grid_widgets
 
+        if self.highlighted_stock in widgets:
+            widget = widgets[self.highlighted_stock]
+        else:
+            return
 
-if __name__ == '__main__':
-    main()
+        QTimer.singleShot(0, lambda: scroll_area.ensureWidgetVisible(widget))
+

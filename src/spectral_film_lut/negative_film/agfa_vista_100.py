@@ -7,6 +7,11 @@ class AgfaVista100(FilmSpectral):
 
         self.iso = 100
         self.density_measure = 'status_m'
+        self.year = 2001
+        self.manufacturer = 'Agfa'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {395.4257: -0.8081, 407.4637: -0.7544, 415.4416: -0.8774, 418.5931: -0.9294,

@@ -7,6 +7,10 @@ class Kodak2303(FilmSpectral):
 
         self.lad = [1.0, ]
         self.density_measure = 'bw'
+        self.manufacturer = 'Kodak'
+        self.stage = 'print'
+        self.type = 'negative'
+        self.medium = 'cine'
 
         # spectral sensitivity
         self.log_sensitivity = [

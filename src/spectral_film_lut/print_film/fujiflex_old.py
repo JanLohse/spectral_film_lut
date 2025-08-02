@@ -7,6 +7,10 @@ class FujiflexOld(FilmSpectral):
 
         self.lad = [0.8, 0.8, 0.8]
         self.density_measure = 'status_a'
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'print'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {590.7529: 0.2476, 607.6678: 0.3165, 619.9101: 0.3802, 627.2947: 0.4181, 637.0199: 0.4492,

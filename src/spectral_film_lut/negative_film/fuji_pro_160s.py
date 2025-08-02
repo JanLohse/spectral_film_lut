@@ -7,6 +7,11 @@ class FujiPro160S(FilmSpectral):
 
         self.iso = 160
         self.density_measure = 'status_m'
+        self.year = 2004
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {557.4204: -0.5748, 568.4759: -0.0745, 578.0893: 0.3580, 586.8616: 0.6853,

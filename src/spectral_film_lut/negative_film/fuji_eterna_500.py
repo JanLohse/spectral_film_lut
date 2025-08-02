@@ -9,6 +9,11 @@ class FujiEterna500(FilmSpectral):
         self.density_measure = 'status_m'
         self.exposure_kelvin = 3200
         self.projection_kelvin = 5500
+        self.year = 2007
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'cine'
 
         # spectral sensitivity
         red_log_sensitivity = {584.6949: 0.6932, 589.0259: 0.8656, 595.4765: 1.0114, 600.9873: 1.0802, 604.7466: 1.1067,

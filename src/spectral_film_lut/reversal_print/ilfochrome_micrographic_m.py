@@ -7,6 +7,10 @@ class IlfochromeMicrographicM(FilmSpectral):
 
         self.lad = [0.91030324, 1.0133907, 0.9813101]
         self.density_measure = 'status_a'
+        self.manufacturer = 'Ilford'
+        self.stage = 'print'
+        self.type = 'positive'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {586.2032: 0.1181, 589.2634: 0.1931, 592.1196: 0.2683, 594.9757: 0.3466, 597.8319: 0.4304,

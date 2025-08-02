@@ -7,6 +7,10 @@ class FujiCrystalArchiveSuperTypeC(FilmSpectral):
 
         self.lad = [0.8, 0.8, 0.8]
         self.density_measure = 'status_a'
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'print'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {590.1800: -0.5984, 608.9201: -0.4395, 623.6898: -0.2960, 634.6480: -0.2153,

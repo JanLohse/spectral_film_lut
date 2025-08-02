@@ -8,6 +8,11 @@ class Kodak5219(FilmSpectral):
         self.iso = 500
         self.density_measure = 'status_m'
         self.exposure_kelvin = 3200
+        self.year = 2007
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'cine'
 
         # spectral sensitivity
         red_log_sensitivity = {508.4522: 0.6117, 516.9639: 0.6866, 523.4490: 0.7400, 528.7181: 0.7578, 535.8412: 0.7104,

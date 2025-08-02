@@ -7,6 +7,11 @@ class Kodak5222(FilmSpectral):
 
         self.iso = 250
         self.density_measure = 'bw'
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'cine'
+        self.year = 1959
 
         # spectral sensitivity
         self.log_sensitivity = [

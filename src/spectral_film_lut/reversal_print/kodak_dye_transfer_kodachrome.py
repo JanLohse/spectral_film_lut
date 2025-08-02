@@ -10,6 +10,11 @@ class KodakDyeTransferKodachrome(FilmSpectral):
 
         self.lad = [0.95] * 3
         self.density_measure = 'absolute'
+        self.manufacturer = 'Kodak'
+        self.stage = 'print'
+        self.type = 'positive'
+        self.medium = 'photo'
+        self.year = 1946
 
         separation_neg = Kodak5222()
         sensitivity = separation_neg.sensitivity

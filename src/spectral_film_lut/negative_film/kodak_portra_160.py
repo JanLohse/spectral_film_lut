@@ -7,6 +7,11 @@ class KodakPortra160(FilmSpectral):
 
         self.iso = 160
         self.density_measure = 'status_m'
+        self.year = 2011
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {490.3818: 0.0424, 498.5499: 0.0734, 505.6526: 0.1402, 512.5777: 0.2174, 521.3673: 0.2946,

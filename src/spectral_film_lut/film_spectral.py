@@ -35,10 +35,17 @@ class FilmSpectral:
         self.rms_density = None
         self.rms = None
         self.mtf = None
+        self.year = None
+        self.stage = None
+        self.color = None
+        self.type = None
+        self.medium = None
+        self.manufacturer = None
+        self.resolution = None
         self.exposure_kelvin = 5500
         self.projection_kelvin = 6500
 
-    def calibrate(self):
+    def calibrate(self, d_min_adjustment=None):
         # target exposure of middle gray in log lux-seconds
         # normally use iso value, if not provided use target density of 1.0 on the green channel
         if self.iso is not None:
@@ -52,6 +59,8 @@ class FilmSpectral:
                 for sorted_b, sorted_c in [zip(*sorted(zip(b, c)))]
             ])
         self.H_ref = 10 ** self.log_H_ref
+
+        self.color = 'BW' if self.density_measure == 'bw' else 'Color'
 
         if self.color_masking is None:
             if self.density_measure == 'status_m':
@@ -100,7 +109,7 @@ class FilmSpectral:
             if self.d_ref_sd is not None:
                 self.gaussian_extrapolation(self.d_ref_sd)
             if self.spectral_density is not None and self.density_measure != 'absolute':
-                if self.density_measure == 'status_a' and min([x.values.min() for x in self.spectral_density]) > 0.05:
+                if ((self.density_measure == 'status_a' and min([x.values.min() for x in self.spectral_density]) > 0.05) or d_min_adjustment) and d_min_adjustment != False:
                     self.estimate_d_min_sd()
                 self.spectral_density = xp.stack(
                     [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
@@ -127,19 +136,27 @@ class FilmSpectral:
             rms_temp = [self.prepare_rms_data(a, b) for a, b in zip(self.rms_curve, self.rms_density)]
             self.rms_curve = [x[0] for x in rms_temp]
             self.rms_density = [x[1] for x in rms_temp]
+            if len(self.rms_density) == 3:
+                rms_color_factors = xp.array([0.26, 0.57, 0.17], dtype=xp.float32)
+                scaling = 1.2375
+                rms_color_factors /= rms_color_factors.sum()
+                ref_rms = xp.sqrt(xp.sum((multi_channel_interp(xp.ones(3), self.rms_density,
+                                                               self.rms_curve) ** 2 * rms_color_factors ** 2))) / scaling
+            else:
+                ref_rms = xp.interp(xp.asarray(1), self.rms_density[0], self.rms_curve[0])
             if self.rms is not None:
-                if len(self.rms_density) == 3:
-                    rms_color_factors = xp.array([0.26, 0.57, 0.17], dtype=xp.float32)
-                    scaling = 1.2375
-                    rms_color_factors /= rms_color_factors.sum()
-                    ref_rms = xp.sqrt(xp.sum((multi_channel_interp(xp.ones(3), self.rms_density,
-                                                                   self.rms_curve) ** 2 * rms_color_factors ** 2))) / scaling
-                else:
-                    ref_rms = xp.interp(xp.asarray(1), self.rms_density[0], self.rms_curve[0])
                 if self.rms > 1:
                     self.rms /= 1000
                 factor = self.rms / ref_rms
                 self.rms_curve = [x * factor for x in self.rms_curve]
+            else:
+                self.rms = ref_rms
+            self.rms = round(float(self.rms) * 10000) / 10
+
+        if self.mtf is not None:
+            mtf = self.mtf[0] if len(self.mtf) == 1 else self.mtf[1]
+            self.resolution = round(np.interp(0.5, np.array(sorted(mtf.values())), np.array(sorted(mtf.keys()))[::-1]))
+
 
         for key, value in self.__dict__.items():
             if type(value) is xp.ndarray and value.dtype is not default_dtype:
@@ -565,7 +582,7 @@ class FilmSpectral:
 
     @staticmethod
     def CCT_to_XYZ(CCT, Y=1., tint=0):
-        xy = colour.CCT_to_xy(CCT)
+        xy = CCT_to_xy(CCT)
         xyY = (xy[0], xy[1], Y)
         XYZ = colour.xyY_to_XYZ(xyY)
         Lab = colour.XYZ_to_Lab(XYZ)

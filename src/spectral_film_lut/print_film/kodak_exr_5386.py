@@ -7,6 +7,11 @@ class KodakExr5386(FilmSpectral):
 
         self.lad = [1.10, 1.06, 1.03]
         self.density_measure = 'status_a'
+        self.manufacturer = 'Kodak'
+        self.stage = 'print'
+        self.type = 'negative'
+        self.medium = 'cine'
+        self.year = 1993
 
         # spectral sensitivity
         red_log_sensitivity = {369.7521: -0.3135, 386.2810: -0.2679, 400.1653: -0.3240, 410.2479: -0.5590,

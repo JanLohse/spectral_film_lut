@@ -7,6 +7,11 @@ class KodakGold200(FilmSpectral):
 
         self.iso = 200
         self.density_measure = 'status_m'
+        self.year = 2007
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {391.2959: 0.3886, 394.1727: 0.4731, 400.5253: 0.6223, 408.5567: 0.5588, 416.4679: 0.4540,

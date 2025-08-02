@@ -7,6 +7,11 @@ class KodakTriX400(FilmSpectral):
 
         self.iso = 400
         self.density_measure = 'bw'
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
+        self.year = 2007
 
         # spectral sensitivity
         self.log_sensitivity = [

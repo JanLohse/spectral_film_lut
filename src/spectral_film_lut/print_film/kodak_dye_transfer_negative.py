@@ -8,6 +8,11 @@ class KodakDyeTransferNegative(FilmSpectral):
 
         self.lad = [1., 1.05, 1.1]
         self.density_measure = 'absolute'
+        self.manufacturer = 'Kodak'
+        self.stage = 'print'
+        self.type = 'negative'
+        self.medium = 'photo'
+        self.year = 1946
 
         sensitivity = Kodak5222().sensitivity
         filters = xp.stack([WRATTEN["29"], WRATTEN["99"], WRATTEN["98"]])

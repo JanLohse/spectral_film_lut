@@ -7,6 +7,10 @@ class KodakAerocolor(FilmSpectral):
 
         self.iso = 125
         self.density_measure = 'status_m'
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {580.6654: 1.1723, 582.3916: 1.2569, 583.9851: 1.3450, 588.6328: 1.5261, 593.9444: 1.6132,

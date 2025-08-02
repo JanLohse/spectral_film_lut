@@ -8,6 +8,11 @@ class TechinicolorV(FilmSpectral):
 
         self.lad = [1.] * 3
         self.density_measure = 'absolute'
+        self.manufacturer = 'Technicolor'
+        self.stage = 'print'
+        self.type = 'negative'
+        self.medium = 'cine'
+        self.year = 1954
 
         sensitivity = Kodak5222().sensitivity
         filters = xp.stack([WRATTEN["29"], WRATTEN["99"], WRATTEN["98"]])

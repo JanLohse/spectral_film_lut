@@ -7,6 +7,10 @@ class KodakVericolorIII(FilmSpectral):
 
         self.iso = 160
         self.density_measure = 'status_m'
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {523.4304: -1.3138, 521.1706: -1.4153, 529.6446: -1.1710, 536.9888: -1.0858,

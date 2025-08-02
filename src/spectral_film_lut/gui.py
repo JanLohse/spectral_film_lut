@@ -3,7 +3,9 @@ from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
+from spectral_film_lut.reversal_film.fuji_instax_color import FujiInstaxColor
 
+from filmstock_selector import FilmStockSelector
 from spectral_film_lut.bw_negative_film.kodak_5222 import *
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
@@ -49,6 +51,8 @@ from spectral_film_lut.print_film.fujiflex_old import FujiflexOld
 from spectral_film_lut.print_film.kodak_2383 import Kodak2383
 from spectral_film_lut.print_film.kodak_2393 import Kodak2393
 from spectral_film_lut.print_film.technicolor_v import TechinicolorV
+from spectral_film_lut.reversal_film.fuji_fp100c import FujiFP100C
+from spectral_film_lut.reversal_film.kodak_aerochrome_iii import KodakAerochromeIII
 from spectral_film_lut.reversal_print.kodak_ektachrome_radiance_iii import KodakEktachromeRadianceIIIPaper
 from spectral_film_lut.reversal_film.technicolor_iv import *
 from spectral_film_lut.reversal_print.ilfochrome_micrographic_p import IlfochromeMicrographicP
@@ -122,9 +126,25 @@ class MainWindow(QMainWindow):
         self.tint = Slider()
         self.tint.setMinMaxTicks(-1, 1, 1, 100)
         add_option(self.tint, "Tint:", 0, self.tint.setValue)
-
-        self.negative_selector = QComboBox()
-        self.negative_selector.addItems(list(filmstocks.keys()))
+        'print'
+        self.type = 'negative'
+        self.medium = 'cine'
+        filmstock_info = {x: {'Year': filmstocks[x].year,
+                              'Manufacturer': filmstocks[x].manufacturer,
+                              'Type': {"camerapositive": "Slide", "cameranegative": "Negative", "printnegative": "Print", "printpositive": "SlidePrint"}[filmstocks[x].stage + filmstocks[x].type],
+                              'Medium': filmstocks[x].medium,
+                              'Sensitivity': f"ISO {filmstocks[x].iso}" if filmstocks[x].iso is not None else None,
+                              'sensitivity': filmstocks[x].iso if filmstocks[x].iso is not None else None,
+                              'resolution': f"{filmstocks[x].resolution} lines/mm" if filmstocks[x].resolution is not None else None,
+                              'Resolution': filmstocks[x].resolution if filmstocks[x].resolution is not None else None,
+                              'Granularity': f"{filmstocks[x].rms} rms" if filmstocks[x].rms is not None else None,
+                              'Decade': f"{filmstocks[x].year // 10 * 10}s" if filmstocks[x].year is not None else None} for x in filmstocks}
+        sort_keys = ["Name", "Year", "Resolution", "Granularity", "sensitivity"]
+        group_keys = ["Manufacturer", "Type", "Decade", "Medium"]
+        list_keys = ["Manufacturer", "Type", "Year", "Sensitivity", "resolution", "Granularity"]
+        sidebar_keys = ["Manufacturer", "Type", "Year", "Sensitivity", "resolution", "Granularity", "Medium"]
+        self.filmstocks["None"] = None
+        self.negative_selector = FilmStockSelector(filmstock_info, sort_keys=sort_keys, group_keys=group_keys, list_keys=list_keys, sidebar_keys=sidebar_keys, default_group="Manufacturer")
         add_option(self.negative_selector, "Negativ stock:", "Kodak5207", self.negative_selector.setCurrentText)
 
         self.red_light = Slider()
@@ -142,9 +162,8 @@ class MainWindow(QMainWindow):
         self.link_lights.setText("link lights")
         add_option(self.link_lights)
 
-        filmstocks["None"] = None
-        self.print_selector = QComboBox()
-        self.print_selector.addItems(["None"] + list(filmstocks.keys()))
+        filmstock_info_2 = {"None": {}, **filmstock_info}
+        self.print_selector = FilmStockSelector(filmstock_info_2)
         add_option(self.print_selector, "Print stock:", "Kodak2383", self.print_selector.setCurrentText)
 
         self.projector_kelvin = Slider()
@@ -364,7 +383,7 @@ def main():
                   KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5,
                   KodakDyeTransferNegative, TechinicolorV, KodakDyeTransferKodachrome]
     REVERSAL_PRINT = [KodakDyeTransferSlide, IlfochromeMicrographicP, IlfochromeMicrographicM,
-                      KodakEktachromeRadianceIIIPaper]
+                      KodakEktachromeRadianceIIIPaper, KodakAerochromeIII, FujiFP100C, FujiInstaxColor]
     REVERSAL_FILM = [KodakEktachromeE100, Kodachrome64, FujiVelvia50, FujiProvia100F, KodakDyeTransferSeparation,
                      TechnicolorIV, TechnicolorIValt1, TechnicolorIValt2]
     filmstocks = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM + REVERSAL_PRINT

@@ -7,6 +7,11 @@ class FujiSuperiaReala(FilmSpectral):
 
         self.iso = 100
         self.density_measure = 'status_m'
+        self.year = 1998
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {557.7054: 1.0543, 560.7612: 1.1395, 563.5820: 1.2203, 566.4028: 1.3003, 569.2236: 1.3799,

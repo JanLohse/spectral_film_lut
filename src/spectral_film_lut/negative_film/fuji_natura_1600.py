@@ -7,6 +7,10 @@ class FujiNatura1600(FilmSpectral):
 
         self.iso = 1600
         self.density_measure = 'status_m'
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {559.0706: 1.2566, 563.3437: 1.3328, 566.6673: 1.4094, 569.7534: 1.4871, 572.6022: 1.5641,

@@ -7,6 +7,11 @@ class FujiProvia100F(FilmSpectral):
 
         self.iso = 100
         self.density_measure = "status_a"
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'camera'
+        self.type = 'positive'
+        self.medium = 'photo'
+        self.year = 2000
 
         # spectral sensitivity
         red_log_sensitivity = {571.5337: -0.5466, 576.9325: -0.4540, 581.1043: -0.3572, 587.7301: -0.1152,

@@ -7,6 +7,11 @@ class FujiSuperiaXtra400(FilmSpectral):
 
         self.iso = 400
         self.density_measure = 'status_m'
+        self.year = 1998
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {565.5787: 1.0349, 567.9504: 1.1481, 570.3221: 1.2672, 572.6938: 1.3842, 575.0655: 1.4891,

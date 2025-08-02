@@ -10,6 +10,11 @@ class KodakDyeTransferSeparation(FilmSpectral):
 
         self.lad = [1] * 3
         self.density_measure = 'status_a'
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'positive'
+        self.medium = 'photo'
+        self.year = 1946
 
         separation_neg = Kodak5222Dev9()
         sensitivity = separation_neg.sensitivity

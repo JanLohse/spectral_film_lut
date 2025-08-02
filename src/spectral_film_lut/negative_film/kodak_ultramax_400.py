@@ -7,6 +7,11 @@ class KodakUltramax400(FilmSpectral):
 
         self.iso = 400
         self.density_measure = 'status_m'
+        self.year = 2007
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {487.6141: 0.2352, 494.1950: 0.3520, 504.2095: 0.4907, 515.1043: 0.6582, 524.5245: 0.7858,

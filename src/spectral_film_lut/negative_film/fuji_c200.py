@@ -7,6 +7,11 @@ class FujiC200(FilmSpectral):
 
         self.iso = 200
         self.density_measure = 'status_m'
+        self.year = 2017
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {566.1169: 1.0538, 568.3541: 1.1669, 570.5913: 1.2794, 573.1480: 1.4012, 576.0244: 1.5256,

@@ -7,6 +7,10 @@ class KodakDuraflexPlus(FilmSpectral):
 
         self.lad = [0.8, 0.8, 0.8]
         self.density_measure = 'status_a'
+        self.manufacturer = 'Kodak'
+        self.stage = 'print'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {500.7862: -1.5181, 507.3375: -1.4346, 514.6751: -1.3873, 519.9161: -1.3873,

@@ -7,6 +7,10 @@ class KodakPolymax(FilmSpectral):
 
         self.lad = [1.0,]
         self.density_measure = 'bw'
+        self.manufacturer = 'Kodak'
+        self.stage = 'print'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         self.log_sensitivity = [
@@ -56,15 +60,6 @@ class KodakPolymax(FilmSpectral):
         curve = curve[grade]
         self.log_exposure = [xp.array(list(curve.keys()), dtype=default_dtype)]
         self.density_curve = [xp.array(list(curve.values()), dtype=default_dtype)]
-
-        self.rms_curve = [
-            {-0.0046: 0.0624, 0.3563: 0.0684, 0.6135: 0.0805, 0.7653: 0.0865, 0.8861: 0.1147, 1.0194: 0.1851,
-             1.1278: 0.2615, 1.2239: 0.3501, 1.3029: 0.4708, 1.4284: 0.7001, 1.6050: 1.1146, 1.9101: 2.0802,
-             2.1425: 2.8689, 2.2603: 3.2270, 2.3176: 3.4000}]
-        self.rms_density = [
-            {-0.0017: 0.0018, 0.1229: 0.0020, 0.2782: 0.0019, 0.4386: 0.0023, 0.6195: 0.0024, 0.7833: 0.0027,
-             0.8840: 0.0033, 1.0273: 0.0040, 1.2235: 0.0050, 1.4352: 0.0070, 1.6109: 0.0090, 1.8362: 0.0114,
-             2.0802: 0.0140, 2.2747: 0.0158, 2.4215: 0.0175, 2.5580: 0.0211}]
 
         self.calibrate()
 

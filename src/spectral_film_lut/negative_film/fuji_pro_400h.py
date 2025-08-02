@@ -7,6 +7,11 @@ class FujiPro400H(FilmSpectral):
 
         self.iso = 400
         self.density_measure = 'status_m'
+        self.year = 2004
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {555.7648: -0.7374, 560.9472: -0.5653, 566.2461: -0.3681, 569.0994: -0.2548,

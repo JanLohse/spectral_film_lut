@@ -7,6 +7,11 @@ class FujiVelvia50(FilmSpectral):
 
         self.iso = 50
         self.density_measure = "status_a"
+        self.manufacturer = 'Fujifilm'
+        self.stage = 'camera'
+        self.type = 'positive'
+        self.medium = 'photo'
+        self.year = 2007
 
         # spectral sensitivity
         red_log_sensitivity = {579.0990: -0.8037, 583.8257: -0.6074, 586.7799: -0.4504, 592.0236: -0.3037,

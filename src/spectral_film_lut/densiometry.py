@@ -1,14 +1,15 @@
+import colour
+from spectral_film_lut.wratten_filters import WRATTEN
 from spectral_film_lut.utils import *
 
 
-def compute_xyz_dual():
+def compute_xyz_dual(CCT=7000, spectral_shape=spectral_shape):
     xyz_cmfs = xp.asarray(colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].align(spectral_shape).values)
-
     reference_sds = xp.asarray(colour.characterisation.read_training_data_rawtoaces_v1().align(spectral_shape).values)
+    illuminant = xp.asarray(CCT_to_illuminant_D(CCT, spectral_shape).values)
+    reference_sds *= illuminant.reshape(-1, 1)
     reference_xyz = xp.asarray(reference_sds.T @ xyz_cmfs)
-    xyz_dual_data = xp.linalg.lstsq(reference_xyz, reference_sds.T, rcond=None)[0].T
-    xyz_dual_clean = xp.linalg.pinv(xyz_cmfs.T)
-    xyz_dual = xyz_dual_data / 2 + xyz_dual_clean / 2
+    xyz_dual = xp.linalg.lstsq(reference_xyz, reference_sds.T, rcond=None)[0].T
 
     return xyz_cmfs, xyz_dual
 

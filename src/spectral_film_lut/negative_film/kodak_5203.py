@@ -7,6 +7,11 @@ class Kodak5203(FilmSpectral):
 
         self.iso = 50
         self.density_measure = 'status_m'
+        self.year = 2011
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'cine'
 
         # spectral sensitivity
         red_log_sensitivity = {572.6011: -0.0067, 579.3168: 0.3616, 589.1218: 0.8137, 595.0316: 1.0140,

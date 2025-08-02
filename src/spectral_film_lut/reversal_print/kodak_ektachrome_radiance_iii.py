@@ -7,6 +7,10 @@ class KodakEktachromeRadianceIIIPaper(FilmSpectral):
 
         self.lad = [1] * 3
         self.density_measure = 'status_a'
+        self.manufacturer = 'Kodak'
+        self.stage = 'print'
+        self.type = 'positive'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {564.4379: -0.6577, 572.7240: -0.5664, 581.0101: -0.4747, 589.5635: -0.3916,

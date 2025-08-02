@@ -7,6 +7,11 @@ class KodakEktar100(FilmSpectral):
 
         self.iso = 100
         self.density_measure = 'status_m'
+        self.year = 2008
+        self.manufacturer = 'Kodak'
+        self.stage = 'camera'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {554.7585: 0.1914, 559.3798: 0.2841, 562.2572: 0.3312, 565.1347: 0.3588,

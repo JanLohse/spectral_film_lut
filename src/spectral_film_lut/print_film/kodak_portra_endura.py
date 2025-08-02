@@ -7,6 +7,10 @@ class KodakPortraEndura(FilmSpectral):
 
         self.lad = [0.8, 0.8, 0.8]
         self.density_measure = 'status_a'
+        self.manufacturer = 'Kodak'
+        self.stage = 'print'
+        self.type = 'negative'
+        self.medium = 'photo'
 
         # spectral sensitivity
         red_log_sensitivity = {494.2737: -1.4187, 500.1397: -1.3608, 504.7486: -1.2962, 511.4525: -1.2517,
