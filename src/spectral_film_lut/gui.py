@@ -1,12 +1,10 @@
-import ffmpeg
 from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWidgets import QApplication, QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
 from spectral_film_lut.reversal_film.fuji_instax_color import FujiInstaxColor
 
-from filmstock_selector import FilmStockSelector
-from spectral_film_lut.bw_negative_film.kodak_5222 import *
+from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
 from spectral_film_lut.bw_print_film.kodak_polymax_fine_art import *
@@ -19,8 +17,6 @@ from spectral_film_lut.negative_film.fuji_pro_160c import FujiPro160C
 from spectral_film_lut.negative_film.fuji_pro_160s import FujiPro160S
 from spectral_film_lut.negative_film.fuji_pro_400h import FujiPro400H
 from spectral_film_lut.negative_film.fuji_superia_reala import FujiSuperiaReala
-from spectral_film_lut.negative_film.kodak_5203 import Kodak5203
-from spectral_film_lut.negative_film.kodak_5213 import Kodak5213
 from spectral_film_lut.negative_film.kodak_5207 import Kodak5207
 from spectral_film_lut.negative_film.kodak_5219 import Kodak5219
 from spectral_film_lut.negative_film.kodak_5250 import Kodak5250

@@ -1,6 +1,6 @@
 from PyQt6.QtCore import Qt, QSize, QEvent, QTimer
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QStackedWidget, QScrollArea, QWidget, QGridLayout,
-                             QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter)
+                             QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter, QLineEdit)
 
 
 class FilmStockSelector(QWidget):
@@ -36,7 +36,7 @@ class FilmStockSelectorWindow(QDialog):
     UNKNOWN_LABEL = "Unknown"
 
     def __init__(self, parent=None, film_stocks=None, sort_keys=None, group_keys=None, list_keys=None,
-                 sidebar_keys=None, default_sort=None, default_group=None, highlighted_stock=None,):
+                 sidebar_keys=None, default_sort=None, default_group=None, highlighted_stock=None, ):
         super().__init__(parent)
         self.setWindowTitle("Select Film Stock")
         self.resize(800, 500)
@@ -45,6 +45,7 @@ class FilmStockSelectorWindow(QDialog):
         self.highlighted_stock = None
 
         self.film_stocks = film_stocks
+        self.film_tags = {x: " ".join((str(z) for z in y.values())) + " " + x for x, y in self.film_stocks.items()}
 
         if type(film_stocks) is dict:
             all_keys = list({key for d in self.film_stocks.values() for key in d})
@@ -68,9 +69,11 @@ class FilmStockSelectorWindow(QDialog):
             self.group_combo.setCurrentText(default_group)
         if default_sort is not None and default_sort in self.sort_keys:
             self.sort_combo.setCurrentText(default_sort)
+        self.search_bar = QLineEdit()
 
         self.sort_combo.currentTextChanged.connect(self.update_views)
         self.group_combo.currentTextChanged.connect(self.update_views)
+        self.search_bar.textChanged.connect(self.update_views)
 
         self.view_toggle = QToolButton()
         self.view_toggle.setText("Toggle View")
@@ -114,6 +117,8 @@ class FilmStockSelectorWindow(QDialog):
         control_layout.addWidget(self.group_combo)
         control_layout.addSpacing(20)
         control_layout.addWidget(self.view_toggle)
+        control_layout.addSpacing(20)
+        control_layout.addWidget(self.search_bar)
         control_layout.addStretch()
 
         self.detail_image = QLabel("[Image]")
@@ -167,6 +172,7 @@ class FilmStockSelectorWindow(QDialog):
     def sort_and_group_stocks(self):
         sort_key = self.sort_combo.currentText()
         group_key = self.group_combo.currentText()
+        filter = self.search_bar.text()
 
         def safe_key(stock, key):
             val = stock.get(key)
@@ -174,10 +180,15 @@ class FilmStockSelectorWindow(QDialog):
                 return (val is not None, val.lower())
             return (val is not None, val)
 
+        def filter_search(tags, filter):
+            return all([x in tags for x in filter.split(' ')])
+
+        filtered_stocks = {x: y for x, y in self.film_stocks.items() if filter_search(self.film_tags[x], filter)}
+
         if sort_key.lower in ['', 'name', 'id', 'none'] or sort_key is None:
-            sorted_stocks = sorted(self.film_stocks)
+            sorted_stocks = sorted(filtered_stocks)
         else:
-            sorted_stocks = sorted(self.film_stocks, key=lambda x: safe_key(self.film_stocks[x], sort_key))
+            sorted_stocks = sorted(filtered_stocks, key=lambda x: safe_key(filtered_stocks, sort_key))
 
         if group_key == 'none' or group_key is None:
             return [(None, sorted_stocks)]
@@ -212,17 +223,18 @@ class FilmStockSelectorWindow(QDialog):
                 if self.highlighted_stock in self.list_widgets:
                     self.list_widgets[self.highlighted_stock].setStyleSheet("")
             self.highlighted_stock = stock
-        elif self.highlighted_stock is not None:
-            grid_widget = self.grid_widgets[self.highlighted_stock]
-            list_widget = self.list_widgets[self.highlighted_stock]
+        elif self.highlighted_stock is not None and self.highlighted_stock in self.list_widgets and self.highlighted_stock not in self.grid_widgets:
+            try:
+                grid_widget = self.grid_widgets[self.highlighted_stock]
+                list_widget = self.list_widgets[self.highlighted_stock]
+            except KeyError:
+                return
         else:
             return
         grid_widget.setStyleSheet("background-color: lightblue;")
         list_widget.setStyleSheet("background-color: lightblue;")
         if stock is not None:
             self.update_sidebar(stock)
-
-
 
     def confirm_selection(self):
         if self.highlighted_stock:
@@ -324,11 +336,11 @@ class FilmStockSelectorWindow(QDialog):
         self.grid_container.adjustSize()
 
         self.highlight_widget()
+        self.ensure_highlighted_visible()
 
     def update_views(self):
         self.populate_list_view()
         self.populate_grid_view()
-        self.ensure_highlighted_visible()
 
     def toggle_view(self, checked):
         self.stacked_view.setCurrentIndex(1 if checked else 0)
@@ -354,4 +366,3 @@ class FilmStockSelectorWindow(QDialog):
             return
 
         QTimer.singleShot(0, lambda: scroll_area.ensureWidgetVisible(widget))
-
