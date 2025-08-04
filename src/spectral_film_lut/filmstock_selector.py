@@ -110,16 +110,17 @@ class FilmStockSelectorWindow(QDialog):
         self.stacked_view.addWidget(self.grid_scroll)
 
         control_layout = QHBoxLayout()
-        control_layout.addWidget(QLabel("Sort by:"))
+        control_layout.addWidget(QLabel("Sort:"))
         control_layout.addWidget(self.sort_combo)
         control_layout.addSpacing(20)
-        control_layout.addWidget(QLabel("Group by:"))
+        control_layout.addWidget(QLabel("Group:"))
         control_layout.addWidget(self.group_combo)
         control_layout.addSpacing(20)
-        control_layout.addWidget(self.view_toggle)
-        control_layout.addSpacing(20)
+        control_layout.addWidget(QLabel("Filter:"))
         control_layout.addWidget(self.search_bar)
-        control_layout.addStretch()
+        control_layout.addSpacing(20)
+        control_layout.addWidget(self.view_toggle)
+        # control_layout.addStretch()
 
         self.detail_image = QLabel("[Image]")
         self.detail_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -142,7 +143,6 @@ class FilmStockSelectorWindow(QDialog):
         main_split = QSplitter()
         left_widget = QWidget()
         left_layout = QVBoxLayout()
-        left_layout.addLayout(control_layout)
         left_layout.addWidget(self.stacked_view)
         left_widget.setLayout(left_layout)
 
@@ -152,6 +152,7 @@ class FilmStockSelectorWindow(QDialog):
         main_split.setStretchFactor(1, 1)
 
         layout = QVBoxLayout()
+        layout.addLayout(control_layout)
         layout.addWidget(main_split)
         self.setLayout(layout)
 
@@ -185,10 +186,10 @@ class FilmStockSelectorWindow(QDialog):
 
         filtered_stocks = {x: y for x, y in self.film_stocks.items() if filter_search(self.film_tags[x], filter)}
 
-        if sort_key.lower in ['', 'name', 'id', 'none'] or sort_key is None:
+        if sort_key.lower() in ['', 'name', 'id', 'none'] or sort_key is None:
             sorted_stocks = sorted(filtered_stocks)
         else:
-            sorted_stocks = sorted(filtered_stocks, key=lambda x: safe_key(filtered_stocks, sort_key))
+            sorted_stocks = sorted(filtered_stocks, key=lambda x: safe_key(filtered_stocks[x], sort_key))
 
         if group_key == 'none' or group_key is None:
             return [(None, sorted_stocks)]
@@ -223,12 +224,9 @@ class FilmStockSelectorWindow(QDialog):
                 if self.highlighted_stock in self.list_widgets:
                     self.list_widgets[self.highlighted_stock].setStyleSheet("")
             self.highlighted_stock = stock
-        elif self.highlighted_stock is not None and self.highlighted_stock in self.list_widgets and self.highlighted_stock not in self.grid_widgets:
-            try:
-                grid_widget = self.grid_widgets[self.highlighted_stock]
-                list_widget = self.list_widgets[self.highlighted_stock]
-            except KeyError:
-                return
+        elif self.highlighted_stock is not None and self.highlighted_stock in self.grid_widgets and self.highlighted_stock in self.list_widgets:
+            grid_widget = self.grid_widgets[self.highlighted_stock]
+            list_widget = self.list_widgets[self.highlighted_stock]
         else:
             return
         grid_widget.setStyleSheet("background-color: lightblue;")
@@ -285,8 +283,6 @@ class FilmStockSelectorWindow(QDialog):
                 self.list_layout.addWidget(item_widget)
 
                 self.list_widgets[stock] = item_widget
-
-        self.highlight_widget()
 
     def populate_grid_view(self):
         self.grid_widgets = {}
