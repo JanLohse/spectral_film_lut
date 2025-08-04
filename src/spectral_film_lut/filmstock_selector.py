@@ -45,7 +45,7 @@ class FilmStockSelectorWindow(QDialog):
         self.highlighted_stock = None
 
         self.film_stocks = film_stocks
-        self.film_tags = {x: " ".join((str(z) for z in y.values())) + " " + x for x, y in self.film_stocks.items()}
+        self.film_tags = {x: " ".join((str(z).lower() for z in y.values())) + " " + x for x, y in self.film_stocks.items()}
 
         if type(film_stocks) is dict:
             all_keys = list({key for d in self.film_stocks.values() for key in d})
@@ -173,7 +173,7 @@ class FilmStockSelectorWindow(QDialog):
     def sort_and_group_stocks(self):
         sort_key = self.sort_combo.currentText()
         group_key = self.group_combo.currentText()
-        filter = self.search_bar.text()
+        filter = self.search_bar.text().lower()
 
         def safe_key(stock, key):
             val = stock.get(key)
