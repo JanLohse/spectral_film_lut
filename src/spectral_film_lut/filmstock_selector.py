@@ -1,6 +1,7 @@
 from PyQt6.QtCore import Qt, QSize, QEvent, QTimer
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QStackedWidget, QScrollArea, QWidget, QGridLayout,
-                             QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter, QLineEdit)
+                             QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter, QLineEdit, QFrame)
 
 
 class FilmStockSelector(QWidget):
@@ -36,7 +37,7 @@ class FilmStockSelectorWindow(QDialog):
     UNKNOWN_LABEL = "Unknown"
 
     def __init__(self, parent=None, film_stocks=None, sort_keys=None, group_keys=None, list_keys=None,
-                 sidebar_keys=None, default_sort=None, default_group=None, highlighted_stock=None, ):
+                 sidebar_keys=None, default_sort=None, default_group=None, highlighted_stock=None, image_key=None,):
         super().__init__(parent)
         self.setWindowTitle("Select Film Stock")
         self.resize(800, 500)
@@ -55,6 +56,7 @@ class FilmStockSelectorWindow(QDialog):
         self.group_keys = group_keys or all_keys
         self.list_keys = list_keys or all_keys
         self.sidebar_keys = sidebar_keys or all_keys
+        self.image_key = image_key
 
         self.grid_widgets = {}
         self.list_widgets = {}
@@ -120,11 +122,10 @@ class FilmStockSelectorWindow(QDialog):
         control_layout.addWidget(self.search_bar)
         control_layout.addSpacing(20)
         control_layout.addWidget(self.view_toggle)
-        # control_layout.addStretch()
 
         self.detail_image = QLabel("[Image]")
         self.detail_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.detail_image.setFixedSize(QSize(120, 120))
+        self.detail_image.setFixedSize(QSize(150, 100))
         self.detail_name = QLabel()
         self.detail_name.setStyleSheet("font-weight: bold; font-size: 16px;")
         self.detail_area = QVBoxLayout()
@@ -203,7 +204,14 @@ class FilmStockSelectorWindow(QDialog):
         return sorted(groups.items(), key=lambda x: (x[0] != self.UNKNOWN_LABEL, x[0]))
 
     def update_sidebar(self, stock):
-        self.detail_image.setText("[Image]")
+        if self.image_key is not None and self.image_key in self.film_stocks[stock]:
+            original_pixmap = QPixmap.fromImage(self.film_stocks[stock][self.image_key])
+            scaled_pixmap = original_pixmap.scaled(
+                self.detail_image.size(),  # Target size
+            )
+            self.detail_image.setPixmap(scaled_pixmap)
+        else:
+            self.detail_image.setText("[Image]")
         self.detail_name.setText(stock)
         detail_text = ""
         for key in self.sidebar_keys:
@@ -293,6 +301,7 @@ class FilmStockSelectorWindow(QDialog):
                 child.widget().deleteLater()
 
         col_width = 150
+        col_height = 100
         view_width = self.grid_scroll.viewport().width()
         max_cols = max(1, view_width // col_width)
         self.current_max_cols = max_cols
@@ -309,21 +318,42 @@ class FilmStockSelectorWindow(QDialog):
 
             col = 0
             for stock in group:
-                label = QLabel("[Image]\n" + stock)
-                label.setFrameShape(QLabel.Shape.Box)
-                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                label.setFixedSize(QSize(col_width, 100))
-                label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-                label.mousePressEvent = lambda e, s=stock: self.highlight_widget(s)
-                label.mouseDoubleClickEvent = lambda e, s=stock: self.confirm_selection()
+                container = QFrame()
+                container.setFrameShape(QFrame.Shape.Box)
+                container.setLineWidth(1)
 
-                self.grid_layout.addWidget(label, row, col)
+                layout = QVBoxLayout(container)
+                layout.setContentsMargins(0, 0, 0, 0)
+                layout.setSpacing(2)
+
+                if self.image_key and self.image_key in self.film_stocks[stock]:
+                    image_label = QLabel()
+                    image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    image_label.setFixedHeight(70)
+                    original_image = self.film_stocks[stock][self.image_key]
+                    pixmap = QPixmap.fromImage(original_image)
+                    scaled_pixmap = pixmap.scaled(col_width, 70, Qt.AspectRatioMode.KeepAspectRatio)
+                    image_label.setPixmap(scaled_pixmap)
+                    layout.addWidget(image_label)
+
+                text_label = QLabel(stock)
+                text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(text_label)
+
+                container.setFixedSize(QSize(col_width, col_height))
+                container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+                # Mouse events
+                container.mousePressEvent = lambda e, s=stock: self.highlight_widget(s)
+                container.mouseDoubleClickEvent = lambda e, s=stock: self.confirm_selection()
+
+                self.grid_layout.addWidget(container, row, col)
+                self.grid_widgets[stock] = container
+
                 col += 1
                 if col >= max_cols:
                     col = 0
                     row += 1
-
-                self.grid_widgets[stock] = label
 
             if col != 0:
                 row += 1

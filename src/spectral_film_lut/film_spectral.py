@@ -2,7 +2,7 @@ import colour.plotting
 from colour import SpectralDistribution
 
 from spectral_film_lut import densiometry
-from spectral_film_lut.densiometry import DENSIOMETRY
+from spectral_film_lut.densiometry import DENSIOMETRY, COLORCHECKER_2005
 from spectral_film_lut.utils import *
 
 default_dtype = np.float32
@@ -44,6 +44,8 @@ class FilmSpectral:
         self.resolution = None
         self.exposure_kelvin = 5500
         self.projection_kelvin = 6500
+        self.color_checker = None
+        self.gamma = None
 
     def calibrate(self, d_min_adjustment=None):
         # target exposure of middle gray in log lux-seconds
@@ -157,10 +159,26 @@ class FilmSpectral:
             mtf = self.mtf[0] if len(self.mtf) == 1 else self.mtf[1]
             self.resolution = round(np.interp(0.5, np.array(sorted(mtf.values())), np.array(sorted(mtf.keys()))[::-1]))
 
-
         for key, value in self.__dict__.items():
             if type(value) is xp.ndarray and value.dtype is not default_dtype:
                 self.__dict__[key] = value.astype(default_dtype)
+
+        # compute gamma
+        index = 1 if len(self.log_exposure) == 3 else 0
+        log_exp_np = to_numpy(self.log_exposure[index])
+        density_np = to_numpy(self.get_density_curve()[index])
+        d_density_d_logH = np.gradient(density_np, log_exp_np)
+        log_H_val = to_numpy(self.log_H_ref[index])
+        gamma_interp = scipy.interpolate.interp1d(log_exp_np, d_density_d_logH, kind='linear', fill_value="extrapolate")
+        self.gamma = abs(gamma_interp(log_H_val))
+
+    def set_color_checker(self, negative=None, print=None):
+        if negative is None:
+            negative = self
+        elif print is None:
+            print = self
+        self.color_checker = (self.generate_conversion(negative, print, input_colourspace=None)[0](COLORCHECKER_2005) * 255).astype(np.uint8)
+
 
     def extend_characteristic_curve(self, height=3):
         for i, (log_exposure, density_curve) in enumerate(zip(self.log_exposure, self.density_curve)):

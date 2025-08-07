@@ -88,6 +88,10 @@ def load_filmstocks(progress_callback):
     total = len(filmstocks)
     for i, film_cls in enumerate(filmstocks, start=1):
         instance = film_cls()
+        if result and instance.stage == "print" and instance.density_measure == "status_a":
+            instance.set_color_checker(negative=result[0])
+        else:
+            instance.set_color_checker()
         result.append(instance)
         progress_callback(i, total, film_cls.__name__)
     return {stock.__class__.__name__: stock for stock in result}

@@ -1,5 +1,3 @@
-import colour
-from spectral_film_lut.wratten_filters import WRATTEN
 from spectral_film_lut.utils import *
 
 
@@ -150,3 +148,15 @@ def compute_printer_lights():
 printer_lights = compute_printer_lights()
 
 xyz_cmfs, xyz_dual = compute_xyz_dual()
+
+COLORCHECKER_2005 = np.array([[0.3457, 0.3585, 100.], [0.4316, 0.3777, 10.08], [0.4197, 0.3744, 34.95], [0.2760, 0.3016, 18.36],
+                   [0.3703, 0.4499, 13.25], [0.2999, 0.2856, 23.04], [0.2848, 0.3911, 41.78], [0.5295, 0.4055, 31.18],
+                   [0.2305, 0.2106, 11.26], [0.5012, 0.3273, 19.38], [0.3319, 0.2482, 6.37], [0.3984, 0.5008, 44.46],
+                   [0.4957, 0.4427, 43.57], [0.2018, 0.1692, 5.75], [0.3253, 0.5032, 23.18], [0.5686, 0.3303, 12.57],
+                   [0.4697, 0.4734, 59.81], [0.4159, 0.2688, 20.09], [0.2131, 0.3023, 19.30], [0.3469, 0.3608, 91.31],
+                   [0.3440, 0.3584, 58.94], [0.3432, 0.3581, 36.32], [0.3446, 0.3579, 19.15], [0.3401, 0.3548, 8.83],
+                   [0.3406, 0.3537, 3.11]])
+COLORCHECKER_2005 = colour.xyY_to_XYZ(COLORCHECKER_2005)
+COLORCHECKER_2005 *= np.array([.94811, 1., 1.07304]) / COLORCHECKER_2005[0]
+COLORCHECKER_2005 = COLORCHECKER_2005[1:].reshape(4, 6, 3)
+COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005)
