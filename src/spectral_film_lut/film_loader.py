@@ -98,9 +98,9 @@ def load_filmstocks(progress_callback):
 
 
 class SplashScreen(QWidget):
-    def __init__(self, total_items):
+    def __init__(self, total_items, name):
         super().__init__()
-        self.setWindowTitle("Spectral Film LUT")
+        self.setWindowTitle(name)
         self.setFixedSize(400, 180)
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.CoverWindow)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -109,7 +109,7 @@ class SplashScreen(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(10)
 
-        self.heading = QLabel("Spectral Film LUT")
+        self.heading = QLabel(name)
         self.heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.heading.setStyleSheet("font-weight: bold; font-size: 16px;")
 
@@ -132,10 +132,10 @@ class SplashScreen(QWidget):
         QApplication.processEvents()
 
 
-def load_ui(main_window):
+def load_ui(main_window, name="Spectral Film LUT"):
     app = QApplication(sys.argv)
 
-    splash = SplashScreen(total_items=len(filmstocks))
+    splash = SplashScreen(total_items=len(filmstocks), name=name)
 
     def update_progress(current, total, name):
         splash.update(current, total, name)
