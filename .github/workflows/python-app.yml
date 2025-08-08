@@ -26,18 +26,15 @@ jobs:
         id: paths
         shell: python
         run: |
+          import os
           import colour.characterisation.datasets.rawtoaces as r
-          print(f"::set-output name=rawtoaces::{r.__path__[0]}")
-
-      - name: Build Python package
-        run: python -m build
+          path = r.__path__[0]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"rawtoaces={path}\n")
 
       - name: Build executable
-        run: |
-          py -m PyInstaller --noconfirm --onefile --noconsole ^
-            --name="SpectralFilmLUT" ^
-            --add-data "${{ steps.paths.outputs.rawtoaces }};colour/characterisation/datasets/rawtoaces" ^
-            src\spectral_film_lut\gui.py
+        run: py -m PyInstaller --noconfirm --onefile --noconsole --name="SpectralFilmLUT" --add-data "${{ steps.paths.outputs.rawtoaces }};colour/characterisation/datasets/rawtoaces" src\spectral_film_lut\gui.py
+
 
       - name: Upload package and exe to release
         uses: softprops/action-gh-release@v2
