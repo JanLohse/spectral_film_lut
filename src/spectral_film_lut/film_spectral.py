@@ -11,6 +11,11 @@ colour.utilities.set_default_float_dtype(default_dtype)
 
 class FilmSpectral:
     def __init__(self):
+        """
+        An object containing various spectral and sensiometric data for a film stock.
+        Provides methods to simulate how the film responds to input colors and simulate the resulting look
+        of that film.
+        """
         self.density_curve_pure = None
         self.spectral_density_pure = None
         self.color_masking = None
@@ -48,6 +53,11 @@ class FilmSpectral:
         self.gamma = None
 
     def calibrate(self, d_min_adjustment=None):
+        """
+        Called during initialization after data has been loaded to process the data and characterize the film.
+        Args:
+            d_min_adjustment: Whether to forcefully estimate the d_min of the film.
+        """
         # target exposure of middle gray in log lux-seconds
         # normally use iso value, if not provided use target density of 1.0 on the green channel
         if self.iso is not None:
@@ -55,11 +65,10 @@ class FilmSpectral:
         elif self.lad is not None:
             if self.density_measure == 'absolute':
                 self.lad = xp.linalg.inv(densiometry.status_a.T @ self.spectral_density) @ xp.array(self.lad)
-            self.log_H_ref = xp.array([
-                xp.interp(xp.asarray(a), xp.asarray(sorted_b), xp.asarray(sorted_c))
-                for a, b, c in zip(self.lad, self.density_curve, self.log_exposure)
-                for sorted_b, sorted_c in [zip(*sorted(zip(b, c)))]
-            ])
+            self.log_H_ref = xp.array(
+                [xp.interp(xp.asarray(a), xp.asarray(sorted_b), xp.asarray(sorted_c)) for a, b, c in
+                 zip(self.lad, self.density_curve, self.log_exposure) for sorted_b, sorted_c in
+                 [zip(*sorted(zip(b, c)))]])
         self.H_ref = 10 ** self.log_H_ref
 
         self.color = 'BW' if self.density_measure == 'bw' else 'Color'
@@ -72,9 +81,9 @@ class FilmSpectral:
 
         # extrapolate log_sensitivity to linear sensitivity
         if self.log_sensitivity is not None:
-            self.log_sensitivity = xp.stack(
-                [xp.asarray(colour.SpectralDistribution(x).align(spectral_shape, extrapolator_kwargs={
-                    'method': 'linear'}).align(spectral_shape).values) for x in self.log_sensitivity]).T
+            self.log_sensitivity = xp.stack([xp.asarray(
+                colour.SpectralDistribution(x).align(spectral_shape, extrapolator_kwargs={'method': 'linear'}).align(
+                    spectral_shape).values) for x in self.log_sensitivity]).T
             self.sensitivity = 10 ** self.log_sensitivity
 
         # convert relative camera exposure to absolute exposure in log lux-seconds for characteristic curve
@@ -111,7 +120,8 @@ class FilmSpectral:
             if self.d_ref_sd is not None:
                 self.gaussian_extrapolation(self.d_ref_sd)
             if self.spectral_density is not None and self.density_measure != 'absolute':
-                if ((self.density_measure == 'status_a' and min([x.values.min() for x in self.spectral_density]) > 0.05) or d_min_adjustment) and d_min_adjustment != False:
+                if ((self.density_measure == 'status_a' and min([x.values.min() for x in
+                                                                 self.spectral_density]) > 0.05) or d_min_adjustment) and d_min_adjustment != False:
                     self.estimate_d_min_sd()
                 self.spectral_density = xp.stack(
                     [xp.asarray(self.gaussian_extrapolation(x).values) for x in self.spectral_density]).T
@@ -173,14 +183,28 @@ class FilmSpectral:
         self.gamma = abs(gamma_interp(log_H_val))
 
     def set_color_checker(self, negative=None, print=None):
+        """
+        Simulate the look of the 2005 ColorChecker photographed with the current film stock.
+        Args:
+            negative: When a negative film is provided assume current film is print film.
+            print: Use this film as the print film for the color checker if provided.
+
+        Returns:
+
+        """
         if negative is None:
             negative = self
         elif print is None:
             print = self
-        self.color_checker = (self.generate_conversion(negative, print, input_colourspace=None)[0](COLORCHECKER_2005) * 255).astype(np.uint8)
-
+        self.color_checker = (self.generate_conversion(negative, print, input_colourspace=None)[0](
+            COLORCHECKER_2005) * 255).astype(np.uint8)
 
     def extend_characteristic_curve(self, height=3):
+        """
+        Extend the characteristic curve of the current film with a smooth rolloff.
+        Args:
+            height: Assumed height of the logistic curve used for extrapolation in density steps.
+        """
         for i, (log_exposure, density_curve) in enumerate(zip(self.log_exposure, self.density_curve)):
             dy_dx = xp.gradient(density_curve, log_exposure)
             gamma = dy_dx.max()
@@ -200,12 +224,25 @@ class FilmSpectral:
             self.density_curve[i] = xp.concatenate([density_curve, logistic_func_y[1:]])
 
     def get_d_ref(self, color_masking=None):
+        """
+        Get the d_ref of the current film stock under specified color masking intensity.
+        Args:
+            color_masking: Color masking factor in range [0, 1]. If None use default value for current film.
+
+        Returns:
+            np.array: d_ref value for each channel.
+        """
         if color_masking is None:
             color_masking = self.color_masking
 
         return self.log_exposure_to_density(self.log_H_ref, color_masking).reshape(-1)
 
     def estimate_d_min_sd(self):
+        """
+        Certain film stocks provide the minimum density for each layer, but they don't subtract the base density
+        of the material, resulting in low saturation during emulation. To separate the layers more clearly we
+        estimate the base density by subtracting the lower hull of the combined layers.
+        """
         x_values = np.concatenate([x.wavelengths for x in self.spectral_density])
         y_values = np.concatenate([x.values for x in self.spectral_density])
         # Combine x and y into a single array of points
@@ -226,8 +263,8 @@ class FilmSpectral:
             lower.append(tuple(p))
         lower = np.array(lower)[1:-1].T
         self.spectral_density = [SpectralDistribution(
-            {x: y - scipy.interpolate.interp1d(lower[0], lower[1], fill_value='extrapolate')(x) + 0.005 for
-             x, y in zip(sd.wavelengths, sd.values)}) for sd in self.spectral_density]
+            {x: y - scipy.interpolate.interp1d(lower[0], lower[1], fill_value='extrapolate')(x) + 0.005 for x, y in
+             zip(sd.wavelengths, sd.values)}) for sd in self.spectral_density]
         if not self.d_min_sd.any() and lower.shape[1] > 1:
             self.d_min_sd = SpectralDistribution({x: y for x, y in lower.T})
             self.d_min_sd.align(spectral_shape, interpolator=colour.LinearInterpolator)
@@ -235,6 +272,15 @@ class FilmSpectral:
 
     @staticmethod
     def prepare_rms_data(rms, density):
+        """
+        Align the provided rms granularity and density data.
+        Args:
+            rms: RMS granularity data in relation to exposure.
+            density: Density values for each channel in relation to exposure..
+
+        Returns:
+            Aligned rms and density data.
+        """
         x = xp.array(list(density.keys()), dtype=default_dtype)
         fp = xp.array(list(density.values()), dtype=default_dtype)
         fp -= fp.min()
@@ -247,6 +293,14 @@ class FilmSpectral:
 
     @staticmethod
     def gaussian_extrapolation(sd):
+        """
+        Extrapolate using a Gaussian distribution. Intended to be used for extrapolating spectral data.
+        Args:
+            sd: Spectral density data to extrapolate.
+
+        Returns:
+            Extrapolated spectral density.
+        """
         def extrapolate(a_x, a_y, b_x, b_y, wavelengths, d_1=30, d_2=0.75):
             m = (a_y - b_y) / (a_x - b_x)
             d = d_1 * m / np.absolute(a_y) ** d_2
@@ -270,6 +324,16 @@ class FilmSpectral:
         return sd
 
     def log_exposure_to_density(self, log_exposure, color_masking=0, pre_flash=-4):
+        """
+        Convert log_exposure to density values for current film stock.
+        Args:
+            log_exposure: Log exposure data to convert as array.
+            color_masking: Color Masking factor in range [0, 1].
+            pre_flash: Intensity of pre-flash exposure in number of stops below middle grey. Deactivated of under -4.
+
+        Returns:
+
+        """
         if pre_flash > -4:
             log_exposure_curve = [
                 xp.log10(xp.clip((10 ** x - y * 2 ** pre_flash) / (1 - 1 * 2 ** pre_flash), 10 ** -16, None)) for x, y
@@ -281,6 +345,14 @@ class FilmSpectral:
         return density
 
     def get_density_curve(self, color_masking=None):
+        """
+        Get characteristic density curve for current film stock.
+        Args:
+            color_masking: Color Masking factor in range [0, 1]. If None use default for current film stock.
+
+        Returns:
+            The density curve.
+        """
         if color_masking is None:
             color_masking = self.color_masking
         if self.density_curve_pure is None:
@@ -289,6 +361,14 @@ class FilmSpectral:
                 zip(self.density_curve_pure, self.density_curve)]
 
     def get_spectral_density(self, color_masking=None):
+        """
+        Get spectral density for current film stock.
+        Args:
+            color_masking: Color Masking factor in range [0, 1]. If None use default for current film stock.
+
+        Returns:
+            Spectral density.
+        """
         if color_masking is None:
             color_masking = self.color_masking
         if self.spectral_density_pure is None:
@@ -296,6 +376,15 @@ class FilmSpectral:
         return self.spectral_density_pure * color_masking + self.spectral_density * (1 - color_masking)
 
     def compute_print_matrix(self, print_film, **kwargs):
+        """
+        Computed matrix to convert from density of current film stock to log exposure of print film stock.
+        Args:
+            print_film: The film to print onto.
+            **kwargs: Args passed to compute_printer_light.
+
+        Returns:
+            The printing matrix and the exposure for zero density.
+        """
         printer_light = self.compute_printer_light(print_film, **kwargs)
         if print_film.density_measure == 'absolute':
             print_sensitivity = print_film.sensitivity * printer_light
@@ -311,6 +400,18 @@ class FilmSpectral:
         return density_matrix, peak_exposure - density_base
 
     def compute_printer_light(self, print_film, red_light=0, green_light=0, blue_light=0, **kwargs):
+        """
+        Compute printer light needed to print onto target print film to generate neutral exopsure.
+        Args:
+            print_film: Film stock to print onto.
+            red_light: Red printer light offset.
+            green_light: Green printer light offset.
+            blue_light: Blue printer light offset.
+            **kwargs: Not used.
+
+        Returns:
+            Printer light as spectral curve.
+        """
         compensation = 2 ** xp.array([red_light, green_light, blue_light], dtype=default_dtype)
         # transmitted printer lights by middle gray negative
         reduced_lights = (densiometry.printer_lights.T * 10 ** -self.d_ref_sd).T
@@ -322,7 +423,7 @@ class FilmSpectral:
         elif print_film.density_measure == 'absolute':
             black_body = xp.asarray(colour.sd_blackbody(10000, spectral_shape).values)
             lights = black_body[:, xp.newaxis] * (
-                        target_exp / (print_film.sensitivity.T @ (black_body * 10 ** -self.d_ref_sd)))
+                    target_exp / (print_film.sensitivity.T @ (black_body * 10 ** -self.d_ref_sd)))
             return lights
         else:
             light_factors = xp.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ target_exp
@@ -330,10 +431,8 @@ class FilmSpectral:
         return printer_light
 
     def compute_projection_light(self, projector_kelvin=5500, reference_kelvin=6504, white_point=1.):
-        reference_light = xp.asarray(
-            colour.sd_blackbody(reference_kelvin).align(spectral_shape).normalise().values)
-        projector_light = xp.asarray(
-            colour.sd_blackbody(projector_kelvin).align(spectral_shape).normalise().values)
+        reference_light = xp.asarray(colour.sd_blackbody(reference_kelvin).align(spectral_shape).normalise().values)
+        projector_light = xp.asarray(colour.sd_blackbody(projector_kelvin).align(spectral_shape).normalise().values)
         reference_white = xp.asarray(colour.xyY_to_XYZ([*colour.CCT_to_xy(reference_kelvin), 1.]))
         xyz_cmfs = densiometry.xyz_cmfs * (reference_white / (densiometry.xyz_cmfs.T @ reference_light))
         peak_xyz = colour.XYZ_to_RGB(to_numpy(xyz_cmfs.T @ (projector_light * 10 ** -self.d_min_sd)), "sRGB")
@@ -373,7 +472,8 @@ class FilmSpectral:
 
                 # Compute gamma
                 d_density_d_logH = np.gradient(density_np, log_exp_np)
-                gamma_interp = scipy.interpolate.interp1d(log_exp_np, d_density_d_logH, kind='linear', fill_value="extrapolate")
+                gamma_interp = scipy.interpolate.interp1d(log_exp_np, d_density_d_logH, kind='linear',
+                                                          fill_value="extrapolate")
                 log_H_val = to_numpy(film.log_H_ref[i])
                 gamma = gamma_interp(log_H_val)
                 gamma_values.append((color, gamma))
@@ -394,11 +494,8 @@ class FilmSpectral:
             # Add gamma annotations in top-right
             text_lines = [f"{color.upper() if color else 'Channel'} γ = {gamma:.2f}" for color, gamma in gamma_values]
             text = '\n'.join(text_lines)
-            axes[1, ax_col].text(
-                0.98, 0.95, text,
-                transform=axes[1, ax_col].transAxes,
-                ha='right', va='top', fontsize=9,
-                bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
+            axes[1, ax_col].text(0.98, 0.95, text, transform=axes[1, ax_col].transAxes, ha='right', va='top',
+                                 fontsize=9, bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
 
             # Spectral Density
             num_curves = film.spectral_density.shape[1]
@@ -450,11 +547,10 @@ class FilmSpectral:
                 offset = black_offset * max(pipeline[-1][0](output_film.d_max).min(), 0.0005)
             else:
                 offset = black_offset * 0.0005
-            func = lambda x: np.clip(
-                np.where(x >= black_pivot, x, black_pivot * ((x - offset) / (black_pivot - offset)) ** (
-                                                      (black_pivot - offset) / black_pivot))
-                , 0, None)
-            add(func,"black_offset")
+            func = lambda x: np.clip(np.where(x >= black_pivot, x,
+                                              black_pivot * ((x - offset) / (black_pivot - offset)) ** (
+                                                      (black_pivot - offset) / black_pivot)), 0, None)
+            add(func, "black_offset")
 
         if mode == 'negative' or mode == 'full':
             if gamma != 1:
@@ -571,7 +667,8 @@ class FilmSpectral:
                 if output_film.density_measure == "status_a" and print_film is None:
                     mid_gray = to_numpy(pipeline[-1][0](output_film.get_d_ref(color_masking)))
                     out_gray = xp.asarray(negative_film.CCT_to_XYZ(output_kelvin, mid_gray[1]))
-                    output_mat = xp.asarray(colour.chromatic_adaptation(to_numpy(output_mat), mid_gray, to_numpy(out_gray)))
+                    output_mat = xp.asarray(
+                        colour.chromatic_adaptation(to_numpy(output_mat), mid_gray, to_numpy(out_gray)))
 
                 add_black_offset(True)
                 add_output_transform()
@@ -581,7 +678,6 @@ class FilmSpectral:
 
             if output_transform is None:
                 add(lambda x: xp.clip(x, 0, 1), "clipping")
-
 
         def convert(x):
             start = time.time()
@@ -640,9 +736,8 @@ class FilmSpectral:
         target_gray = 0.18 * white
         output_gamma = 4
         gray = target_gray * gray ** gamma_adjustment
-        add(lambda x: (gray / (
-                (x * adjustment) @ XYZ_to_AP1.T) ** gamma_adjustment) ** output_gamma * target_gray ** (
-                              1 - output_gamma), "invert")
+        add(lambda x: (gray / ((x * adjustment) @ XYZ_to_AP1.T) ** gamma_adjustment) ** output_gamma * target_gray ** (
+                1 - output_gamma), "invert")
         add(lambda x: (x / (x + 1)) @ AP1_to_XYZ.T, "rolloff")
 
     @staticmethod
@@ -650,9 +745,8 @@ class FilmSpectral:
         status_m_to_apd = DENSIOMETRY["apd"].T @ negative_film.get_spectral_density(color_masking)
         output_gamma = 2.6
 
-        projection_to_XYZ = xp.array([[0.4124564, 0.3575761, 0.1804375],
-                                      [0.2126729, 0.7151522, 0.0721750],
-                                      [0.0193339, 0.1191920, 0.9503041]])
+        projection_to_XYZ = xp.array(
+            [[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750], [0.0193339, 0.1191920, 0.9503041]])
 
         # calculated from Kodak Duraflex Plus:
         gray = output_gamma * -negative_film.get_d_ref(color_masking) @ status_m_to_apd.T
@@ -661,7 +755,8 @@ class FilmSpectral:
         def softmax(x, a=2.5):
             return xp.log(1 + xp.exp(x * a)) / a
 
-        add(lambda x: 10 ** -softmax(output_gamma * -x @ status_m_to_apd.T + output_scale) @ projection_to_XYZ.T, "output")
+        add(lambda x: 10 ** -softmax(output_gamma * -x @ status_m_to_apd.T + output_scale) @ projection_to_XYZ.T,
+            "output")
         add_black_offset()
         add_output_transform()
 
@@ -672,8 +767,7 @@ class FilmSpectral:
         target_gray = 0.15
         output_gamma = 3.2
 
-        projection_to_XYZ = xp.array([[0.39433440, 0.38861403, 0.15924151],
-                                      [0.21333715, 0.71804404, 0.06861880],
+        projection_to_XYZ = xp.array([[0.39433440, 0.38861403, 0.15924151], [0.21333715, 0.71804404, 0.06861880],
                                       [0.04734647, 0.25670424, 0.70413210]])
 
         add(lambda x: 10 ** -x, "project")
@@ -682,7 +776,6 @@ class FilmSpectral:
         add(lambda x: (x / (x + 1)) @ projection_to_XYZ.T, "rolloff")
         add_black_offset()
         add_output_transform()
-
 
     @staticmethod
     def compute_status_to_XYZ_matrix(print_film, saturation=1):

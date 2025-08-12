@@ -1,11 +1,22 @@
+from typing import List
+
 from PyQt6.QtCore import Qt, QSize, QEvent, QTimer
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QStackedWidget, QScrollArea, QWidget, QGridLayout,
                              QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter, QLineEdit, QFrame)
 
+from spectral_film_lut import FilmSpectral
+
 
 class FilmStockSelector(QWidget):
-    def __init__(self, film_stocks, **kwargs):
+    def __init__(self, film_stocks: List[FilmSpectral], **kwargs):
+        """
+        Combobox style UI element that lets you select a film stock and can open a pop-up window for more
+        detailed information on the various film stocks.
+        Args:
+            film_stocks: lList of film stocks to choose from.
+            **kwargs: Arguments passed to FilmStockSelectorWindow.
+        """
         super().__init__()
         self.film_stocks = film_stocks
         self.kwargs = kwargs
@@ -26,6 +37,9 @@ class FilmStockSelector(QWidget):
         self.currentText = self.film_combo.currentText
 
     def open_selector(self):
+        """
+        Opens the FilmStockSelectorWindow when clicking on the looking-glass button.
+        """
         current_stock = self.film_combo.currentText()
         dialog = FilmStockSelectorWindow(self, self.film_stocks, highlighted_stock=current_stock, **self.kwargs)
         if dialog.exec():
@@ -37,7 +51,25 @@ class FilmStockSelectorWindow(QDialog):
     UNKNOWN_LABEL = "Unknown"
 
     def __init__(self, parent=None, film_stocks=None, sort_keys=None, group_keys=None, list_keys=None,
-                 sidebar_keys=None, default_sort=None, default_group=None, highlighted_stock=None, image_key=None,):
+                 sidebar_keys=None, default_sort=None, default_group=None, highlighted_stock=None, image_key=None):
+        """
+        Popup window which lets you choose a film stock with more detailed info.
+        Has a tabular view with some details and a grid view with thumbnail color checkers.
+        Lets you sort and group by keys and has a search field.
+        Shows detailed info of the currently selected film stock on the sidebar.
+
+        Args:
+            parent: Parent widget.
+            film_stocks: List of film stocks to choose from.
+            sort_keys: Keys by which the film stocks can be sorted by.
+            group_keys: Keys by which the film stocks can be grouped by.
+            list_keys: Keys for attributes that show up in the list view.
+            sidebar_keys: Keys for attributes that show up in the sidebar view.
+            default_sort: Default sort key.
+            default_group: Default group key.
+            highlighted_stock: Currently highlighted stock.
+            image_key: Key of the image used in the grid and sidebar view.
+        """
         super().__init__(parent)
         self.setWindowTitle("Select Film Stock")
         self.resize(800, 500)
@@ -46,7 +78,8 @@ class FilmStockSelectorWindow(QDialog):
         self.highlighted_stock = None
 
         self.film_stocks = film_stocks
-        self.film_tags = {x: " ".join((str(z).lower() for z in y.values())) + " " + x for x, y in self.film_stocks.items()}
+        self.film_tags = {x: " ".join((str(z).lower() for z in y.values())) + " " + x for x, y in
+                          self.film_stocks.items()}
 
         if type(film_stocks) is dict:
             all_keys = list({key for d in self.film_stocks.values() for key in d})
@@ -172,6 +205,10 @@ class FilmStockSelectorWindow(QDialog):
         return super().eventFilter(obj, event)
 
     def sort_and_group_stocks(self):
+        """
+        Returns:
+            dict: Sorted and grouped film stocks.
+        """
         sort_key = self.sort_combo.currentText()
         group_key = self.group_combo.currentText()
         filter = self.search_bar.text().lower()
@@ -206,8 +243,7 @@ class FilmStockSelectorWindow(QDialog):
     def update_sidebar(self, stock):
         if self.image_key is not None and self.image_key in self.film_stocks[stock]:
             original_pixmap = QPixmap.fromImage(self.film_stocks[stock][self.image_key])
-            scaled_pixmap = original_pixmap.scaled(
-                self.detail_image.size(),  # Target size
+            scaled_pixmap = original_pixmap.scaled(self.detail_image.size(),  # Target size
             )
             self.detail_image.setPixmap(scaled_pixmap)
         else:
