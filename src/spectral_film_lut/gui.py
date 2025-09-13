@@ -138,6 +138,10 @@ class MainWindow(QMainWindow):
         self.lut_size.setMinMaxTicks(2, 67)
         add_option(self.lut_size, "LUT size:", 33, self.lut_size.setValue)
 
+        self.cube_lut = QCheckBox()
+        self.cube_lut.setChecked(True)
+        add_option(self.cube_lut, "Cube LUT:", True, self.cube_lut.setChecked)
+
         self.color_masking = Slider()
         self.color_masking.setMinMaxTicks(0, 1, 1, 10)
         add_option(self.color_masking, "Color masking:", 1, self.color_masking.setValue)
@@ -167,6 +171,7 @@ class MainWindow(QMainWindow):
         self.color_masking.valueChanged.connect(self.parameter_changed)
         self.white_point.valueChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
+        self.cube_lut.stateChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -189,7 +194,7 @@ class MainWindow(QMainWindow):
         self.scale_pixmap()
         super().resizeEvent(event)
 
-    def generate_lut(self, name="temp"):
+    def generate_lut(self, name="temp", cube=True):
         negative_film = self.filmstocks[self.negative_selector.currentText()]
         print_film = self.filmstocks[self.print_selector.currentText()]
         input_colourspace = self.input_colourspace_selector.currentText()
@@ -208,7 +213,7 @@ class MainWindow(QMainWindow):
         mode = self.mode.currentText()
         exp_wb = self.exp_wb.getValue()
         tint = self.tint.getValue()
-        lut = create_lut(negative_film, print_film, name=name, matrix_method=False, lut_size=size,
+        lut = create_lut(negative_film, print_film, name=name, matrix_method=False, lut_size=size, cube=cube,
                          input_colourspace=input_colourspace, output_colourspace=output_colourspace,
                          projector_kelvin=projector_kelvin, exp_comp=exp_comp, white_point=white_point,
                          exposure_kelvin=exp_wb, mode=mode, red_light=red_light, green_light=green_light,
@@ -268,11 +273,13 @@ class MainWindow(QMainWindow):
         self.color_masking.setValue(self.filmstocks[negative_film].color_masking)
         self.parameter_changed()
 
-    def update_preview(self, verbose=False, *args, **kwargs):
+    def update_preview(self, verbose=True, *args, **kwargs):
         if self.image_selector.currentText() == "" or not os.path.isfile(self.image_selector.currentText()):
             return
 
-        lut = self.generate_lut()
+        cube = self.cube_lut.isChecked()
+
+        lut = self.generate_lut(cube=cube)
 
         src = self.image_selector.currentText()
         start = time.time()
@@ -284,6 +291,24 @@ class MainWindow(QMainWindow):
         scale_factor = math.floor(1 / scale_factor)
         image = image[::scale_factor, ::scale_factor, :]
         height, width, _ = image.shape
+        if cube:
+            image = self.apply_cube_lut(image, width, height, lut)
+        else:
+            pass
+        image = QImage(np.require(image, np.uint8, 'C'), width, height, 3 * width, QImage.Format.Format_RGB888)
+        self.pixmap = QPixmap.fromImage(image)
+        self.image.setPixmap(self.pixmap)
+        self.scale_pixmap()
+        if verbose:
+            print(f"applied {'cube ' if cube else 'numba'} lut in {time.time() - start:.2f} seconds")
+
+    def save_lut(self):
+        filename, ok = QFileDialog.getSaveFileName(self)
+
+        if ok:
+            self.generate_lut(filename)
+
+    def apply_cube_lut(self, image, width, height, lut):
         process = run_async(
             ffmpeg.input('pipe:', format='rawvideo', pix_fmt='rgb48', s=f'{width}x{height}').filter('lut3d',
                                                                                                     file=lut).output(
@@ -295,18 +320,7 @@ class MainWindow(QMainWindow):
         process.wait()
         os.remove(lut)
         image = np.frombuffer(image, np.uint8).reshape([height, width, 3])
-        image = QImage(np.require(image, np.uint8, 'C'), width, height, 3 * width, QImage.Format.Format_RGB888)
-        self.pixmap = QPixmap.fromImage(image)
-        self.image.setPixmap(self.pixmap)
-        self.scale_pixmap()
-        if verbose:
-            print(f"applied lut in {time.time() - start:.2f} seconds")
-
-    def save_lut(self):
-        filename, ok = QFileDialog.getSaveFileName(self)
-
-        if ok:
-            self.generate_lut(filename)
+        return image
 
 
 def main():

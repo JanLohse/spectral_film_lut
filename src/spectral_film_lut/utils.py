@@ -22,6 +22,7 @@ import scipy
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
+    raise ImportError
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
@@ -48,11 +49,13 @@ def to_numpy(x):
 spectral_shape = colour.SpectralShape(380, 780, 5)
 
 
-def create_lut(negative_film, print_film=None, lut_size=33, name="test", verbose=False, **kwargs):
+def create_lut(negative_film, print_film=None, lut_size=33, name="test", cube=True, verbose=False, **kwargs):
     lut = colour.LUT3D(size=lut_size, name="test")
     transform, _ = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
     lut.table = to_numpy(transform(lut.table))
+    if not cube:
+        return lut.table
     if lut.table.shape[-1] == 1:
         lut.table = lut.table.repeat(3, -1)
     end = time.time()
