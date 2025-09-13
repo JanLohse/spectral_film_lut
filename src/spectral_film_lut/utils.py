@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDial
 from ffmpeg._run import compile
 from ffmpeg.nodes import output_operator
 from matplotlib import pyplot as plt
-from numba import njit
+from numba import njit, prange
 import imageio.v3 as iio
 import scipy
 
@@ -428,6 +428,101 @@ def uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate=True, lef
 
     return result
 
+@njit(parallel=True)
+def apply_lut_tetrahedral_int(image, lut, exponent=16, out_exponent=8):
+    """
+    Apply a 3D LUT with tetrahedral interpolation.
+    Input: uint16 image in [0, 65535]
+    Output: uint8 image in [0, 255]
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image of shape (H, W, 3), dtype=uint16.
+    lut : np.ndarray
+        LUT of shape (size, size, size, 3), dtype=uint8.
+
+    Returns
+    -------
+    out : np.ndarray
+        Output image of shape (H, W, 3), dtype=uint8.
+    """
+    h, w, c = image.shape
+    size = lut.shape[0]
+    max_value = 2 ** exponent - 1
+    scale = max_value // (size - 1)
+    scale_out = scale * 2 ** (exponent - out_exponent)
+
+    out = np.empty((h, w, 3), dtype=np.uint8)
+
+    for y in prange(h):
+        for x in prange(w):
+            r = image[y, x, 0]
+            g = image[y, x, 1]
+            b = image[y, x, 2]
+
+            r0 = r // scale
+            g0 = g // scale
+            b0 = b // scale
+
+            dr = r % scale
+            dg = g % scale
+            db = b % scale
+
+            r1 = min(r0 + 1, size - 1)
+            g1 = min(g0 + 1, size - 1)
+            b1 = min(b0 + 1, size - 1)
+
+            # Fetch cube corners
+            c000 = lut[r0, g0, b0]
+            c100 = lut[r1, g0, b0]
+            c010 = lut[r0, g1, b0]
+            c001 = lut[r0, g0, b1]
+            c110 = lut[r1, g1, b0]
+            c101 = lut[r1, g0, b1]
+            c011 = lut[r0, g1, b1]
+            c111 = lut[r1, g1, b1]
+
+            # Tetrahedral interpolation
+            if dr >= dg:
+                if dg >= db:
+                    c = (c000 * scale
+                         + dr * (c100 - c000)
+                         + dg * (c110 - c100)
+                         + db * (c111 - c110))
+                elif dr >= db:
+                    c = (c000 * scale
+                         + dr * (c100 - c000)
+                         + db * (c101 - c100)
+                         + dg * (c111 - c101))
+                else:
+                    c = (c000 * scale
+                         + db * (c001 - c000)
+                         + dr * (c101 - c001)
+                         + dg * (c111 - c101))
+            else:
+                if db >= dg:
+                    c = (c000 * scale
+                         + db * (c001 - c000)
+                         + dg * (c011 - c001)
+                         + dr * (c111 - c011))
+                elif db >= dr:
+                    c = (c000 * scale
+                         + dg * (c010 - c000)
+                         + db * (c011 - c010)
+                         + dr * (c111 - c011))
+                else:
+                    c = (c000 * scale
+                         + dg * (c010 - c000)
+                         + dr * (c110 - c010)
+                         + db * (c111 - c110))
+
+            # Convert back to uint8 safely
+            out[y, x, 0] = np.uint8(c[0] // scale_out)
+            out[y, x, 1] = np.uint8(c[1] // scale_out)
+            out[y, x, 2] = np.uint8(c[2] // scale_out)
+
+    return out
 
 def construct_spectral_density(ref_density, sigma=25):
     red_peak = wavelength_argmax(ref_density, 600, min(750, spectral_shape.end))

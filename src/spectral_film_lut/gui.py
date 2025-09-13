@@ -1,3 +1,4 @@
+import numpy as np
 from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWidgets import QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
@@ -139,8 +140,8 @@ class MainWindow(QMainWindow):
         add_option(self.lut_size, "LUT size:", 33, self.lut_size.setValue)
 
         self.cube_lut = QCheckBox()
-        self.cube_lut.setChecked(True)
-        add_option(self.cube_lut, "Cube LUT:", True, self.cube_lut.setChecked)
+        self.cube_lut.setChecked(False)
+        add_option(self.cube_lut, "Cube LUT:", False, self.cube_lut.setChecked)
 
         self.color_masking = Slider()
         self.color_masking.setMinMaxTicks(0, 1, 1, 10)
@@ -273,7 +274,7 @@ class MainWindow(QMainWindow):
         self.color_masking.setValue(self.filmstocks[negative_film].color_masking)
         self.parameter_changed()
 
-    def update_preview(self, verbose=True, *args, **kwargs):
+    def update_preview(self, verbose=False, *args, **kwargs):
         if self.image_selector.currentText() == "" or not os.path.isfile(self.image_selector.currentText()):
             return
 
@@ -294,7 +295,10 @@ class MainWindow(QMainWindow):
         if cube:
             image = self.apply_cube_lut(image, width, height, lut)
         else:
-            pass
+            # print(lut.min(), lut.max(), image.min(), image.max(), lut.dtype, image.dtype)
+            lut = (lut * (2 ** 16 - 1)).astype(np.uint16)
+            image = apply_lut_tetrahedral_int(image, lut)
+            # print(lut.min(), lut.max(), image.min(), image.max(), lut.dtype, image.dtype)
         image = QImage(np.require(image, np.uint8, 'C'), width, height, 3 * width, QImage.Format.Format_RGB888)
         self.pixmap = QPixmap.fromImage(image)
         self.image.setPixmap(self.pixmap)
