@@ -1,4 +1,3 @@
-from spectral_film_lut.gui import main
 from spectral_film_lut.bw_negative_film.kodak_5222 import *
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
