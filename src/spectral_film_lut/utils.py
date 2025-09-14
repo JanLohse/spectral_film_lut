@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
 from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
 from matplotlib import pyplot as plt
-from numba import njit, prange
+from numba import njit, prange, cuda
 import imageio.v3 as iio
 import scipy
 
@@ -48,7 +48,7 @@ def create_lut(negative_film, print_film=None, lut_size=33, name="test", cube=Tr
     lut = colour.LUT3D(size=lut_size, name="test")
     transform, _ = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
-    lut.table = to_numpy(transform(lut.table))
+    lut.table = transform(lut.table)
     if not cube:
         return lut.table
     if lut.table.shape[-1] == 1:
@@ -458,6 +458,121 @@ def apply_lut_tetrahedral_int(image, lut, exponent=16, out_exponent=8):
             out[y, x, 2] = np.uint8(c[2] // scale_out)
 
     return out
+
+if cuda_available:
+    @cuda.jit
+    def apply_lut_tetrahedral_int_cuda(image, lut, out,
+                                       size, scale, scale_out):
+        """
+        CUDA kernel: Apply a 3D LUT with tetrahedral interpolation.
+        Input : uint16 image in [0, 65535]
+        Output: uint8 image in [0, 255]
+        """
+        idx = cuda.grid(1)
+        h, w, _ = image.shape
+        total = h * w
+
+        if idx >= total:
+            return
+
+        y = idx // w
+        x = idx % w
+
+        r = image[y, x, 0]
+        g = image[y, x, 1]
+        b = image[y, x, 2]
+
+        r0 = r // scale
+        g0 = g // scale
+        b0 = b // scale
+
+        dr = r % scale
+        dg = g % scale
+        db = b % scale
+
+        r1 = min(r0 + 1, size - 1)
+        g1 = min(g0 + 1, size - 1)
+        b1 = min(b0 + 1, size - 1)
+
+        # Fetch cube corners
+        c000 = lut[r0, g0, b0]
+        c100 = lut[r1, g0, b0]
+        c010 = lut[r0, g1, b0]
+        c001 = lut[r0, g0, b1]
+        c110 = lut[r1, g1, b0]
+        c101 = lut[r1, g0, b1]
+        c011 = lut[r0, g1, b1]
+        c111 = lut[r1, g1, b1]
+
+        c = cuda.local.array(3, dtype=np.float32)
+
+        # Tetrahedral interpolation in float
+        for ch in range(3):
+            if dr >= dg:
+                if dg >= db:
+                    c[ch] = c000[ch] * scale \
+                            + dr * (c100[ch] - c000[ch]) \
+                            + dg * (c110[ch] - c100[ch]) \
+                            + db * (c111[ch] - c110[ch])
+                elif dr >= db:
+                    c[ch] = c000[ch] * scale \
+                            + dr * (c100[ch] - c000[ch]) \
+                            + db * (c101[ch] - c100[ch]) \
+                            + dg * (c111[ch] - c101[ch])
+                else:
+                    c[ch] = c000[ch] * scale \
+                            + db * (c001[ch] - c000[ch]) \
+                            + dr * (c101[ch] - c001[ch]) \
+                            + dg * (c111[ch] - c101[ch])
+            else:
+                if db >= dg:
+                    c[ch] = c000[ch] * scale \
+                            + db * (c001[ch] - c000[ch]) \
+                            + dg * (c011[ch] - c001[ch]) \
+                            + dr * (c111[ch] - c011[ch])
+                elif db >= dr:
+                    c[ch] = c000[ch] * scale \
+                            + dg * (c010[ch] - c000[ch]) \
+                            + db * (c011[ch] - c010[ch]) \
+                            + dr * (c111[ch] - c011[ch])
+                else:
+                    c[ch] = c000[ch] * scale \
+                            + dg * (c010[ch] - c000[ch]) \
+                            + dr * (c110[ch] - c010[ch]) \
+                            + db * (c111[ch] - c110[ch])
+
+        # Normalize back to uint8
+        out[y, x, 0] = min(255, max(0, int(c[0] / scale_out)))
+        out[y, x, 1] = min(255, max(0, int(c[1] / scale_out)))
+        out[y, x, 2] = min(255, max(0, int(c[2] / scale_out)))
+
+
+    def run_lut_cuda(image: np.ndarray, lut: np.ndarray,
+                     exponent=16, out_exponent=8) -> np.ndarray:
+        """
+        Wrapper: runs the CUDA kernel on an image + LUT.
+        """
+        h, w, _ = image.shape
+        size = lut.shape[0]
+
+        max_value = 2 ** exponent - 1
+        scale = max_value // (size - 1)
+        scale_out = scale * 2 ** (exponent - out_exponent)
+
+        # Allocate GPU arrays
+        d_image = cuda.to_device(image)
+        d_lut = cuda.to_device(lut)
+        d_out = cuda.device_array((h, w, 3), dtype=np.uint8)
+
+        threads = 256
+        blocks = (h * w + threads - 1) // threads
+
+        apply_lut_tetrahedral_int_cuda[blocks, threads](
+            d_image, d_lut, d_out, size, scale, scale_out
+        )
+
+        return d_out.copy_to_host()
+
 
 def construct_spectral_density(ref_density, sigma=25):
     red_peak = wavelength_argmax(ref_density, 600, min(750, spectral_shape.end))
