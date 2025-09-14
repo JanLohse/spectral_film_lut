@@ -139,10 +139,6 @@ class MainWindow(QMainWindow):
         self.lut_size.setMinMaxTicks(2, 67)
         add_option(self.lut_size, "LUT size:", 33, self.lut_size.setValue)
 
-        self.cube_lut = QCheckBox()
-        self.cube_lut.setChecked(False)
-        add_option(self.cube_lut, "Cube LUT:", False, self.cube_lut.setChecked)
-
         self.color_masking = Slider()
         self.color_masking.setMinMaxTicks(0, 1, 1, 10)
         add_option(self.color_masking, "Color masking:", 1, self.color_masking.setValue)
@@ -172,7 +168,6 @@ class MainWindow(QMainWindow):
         self.color_masking.valueChanged.connect(self.parameter_changed)
         self.white_point.valueChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
-        self.cube_lut.stateChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -275,15 +270,13 @@ class MainWindow(QMainWindow):
         self.parameter_changed()
 
     def update_preview(self, verbose=False, *args, **kwargs):
+        start = time.time()
         if self.image_selector.currentText() == "" or not os.path.isfile(self.image_selector.currentText()):
             return
 
-        cube = self.cube_lut.isChecked()
-
-        lut = self.generate_lut(cube=cube)
+        lut = self.generate_lut(cube=False)
 
         src = self.image_selector.currentText()
-        start = time.time()
         image = iio.imread(src)
         height, width, _ = image.shape
         height_target = self.image.height()
@@ -292,39 +285,21 @@ class MainWindow(QMainWindow):
         scale_factor = math.floor(1 / scale_factor)
         image = image[::scale_factor, ::scale_factor, :]
         height, width, _ = image.shape
-        if cube:
-            image = self.apply_cube_lut(image, width, height, lut)
-        else:
-            # print(lut.min(), lut.max(), image.min(), image.max(), lut.dtype, image.dtype)
-            lut = (lut * (2 ** 16 - 1)).astype(np.uint16)
-            image = apply_lut_tetrahedral_int(image, lut)
-            # print(lut.min(), lut.max(), image.min(), image.max(), lut.dtype, image.dtype)
-        image = QImage(np.require(image, np.uint8, 'C'), width, height, 3 * width, QImage.Format.Format_RGB888)
+        lut = (lut * (2 ** 16 - 1)).astype(np.uint16)
+        image = apply_lut_tetrahedral_int(image, lut)
+
+        image = QImage(image, width, height, 3 * width, QImage.Format.Format_RGB888)
         self.pixmap = QPixmap.fromImage(image)
         self.image.setPixmap(self.pixmap)
         self.scale_pixmap()
         if verbose:
-            print(f"applied {'cube ' if cube else 'numba'} lut in {time.time() - start:.2f} seconds")
+            print(f"applied lut in {time.time() - start:.2f} seconds")
 
     def save_lut(self):
         filename, ok = QFileDialog.getSaveFileName(self)
 
         if ok:
             self.generate_lut(filename)
-
-    def apply_cube_lut(self, image, width, height, lut):
-        process = run_async(
-            ffmpeg.input('pipe:', format='rawvideo', pix_fmt='rgb48', s=f'{width}x{height}').filter('lut3d',
-                                                                                                    file=lut).output(
-                'pipe:', format='rawvideo', pix_fmt='rgb24', vframes=1, loglevel='quiet'), pipe_stdin=True,
-            pipe_stdout=True)
-        process.stdin.write(image.tobytes())
-        process.stdin.close()
-        image = process.stdout.read(width * height * 3)
-        process.wait()
-        os.remove(lut)
-        image = np.frombuffer(image, np.uint8).reshape([height, width, 3])
-        return image
 
 
 def main():

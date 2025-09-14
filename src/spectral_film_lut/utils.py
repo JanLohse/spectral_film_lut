@@ -1,6 +1,5 @@
 import math
 import os
-import subprocess
 import sys
 import time
 import traceback
@@ -8,12 +7,9 @@ import warnings
 from pathlib import Path
 
 import colour
-import ffmpeg
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
 from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
-from ffmpeg._run import compile
-from ffmpeg.nodes import output_operator
 from matplotlib import pyplot as plt
 from numba import njit, prange
 import imageio.v3 as iio
@@ -22,7 +18,6 @@ import scipy
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
-    raise ImportError
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
@@ -255,66 +250,6 @@ class Error(Exception):
         )
         self.stdout = stdout
         self.stderr = stderr
-
-@output_operator()
-def run_async(
-    stream_spec,
-    cmd='ffmpeg',
-    pipe_stdin=False,
-    pipe_stdout=False,
-    pipe_stderr=False,
-    quiet=False,
-    overwrite_output=False,
-):
-    startupinfo = subprocess.STARTUPINFO()
-    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-    args = compile(stream_spec, cmd, overwrite_output=overwrite_output)
-    stdin_stream = subprocess.PIPE if pipe_stdin else None
-    stdout_stream = subprocess.PIPE if pipe_stdout or quiet else None
-    stderr_stream = subprocess.PIPE if pipe_stderr or quiet else None
-    return subprocess.Popen(
-        args, stdin=stdin_stream, stdout=stdout_stream, stderr=stderr_stream, startupinfo=startupinfo
-    )
-
-@output_operator()
-def run(
-    stream_spec,
-    cmd='ffmpeg',
-    capture_stdout=False,
-    capture_stderr=False,
-    input=None,
-    quiet=False,
-    overwrite_output=False,
-):
-    """Invoke ffmpeg for the supplied node graph.
-
-    Args:
-        capture_stdout: if True, capture stdout (to be used with
-            ``pipe:`` ffmpeg outputs).
-        capture_stderr: if True, capture stderr.
-        quiet: shorthand for setting ``capture_stdout`` and ``capture_stderr``.
-        input: text to be sent to stdin (to be used with ``pipe:``
-            ffmpeg inputs)
-        **kwargs: keyword-arguments passed to ``get_args()`` (e.g.
-            ``overwrite_output=True``).
-
-    Returns: (out, err) tuple containing captured stdout and stderr data.
-    """
-    process = run_async(
-        stream_spec,
-        cmd,
-        pipe_stdin=input is not None,
-        pipe_stdout=capture_stdout,
-        pipe_stderr=capture_stderr,
-        quiet=quiet,
-        overwrite_output=overwrite_output,
-    )
-    out, err = process.communicate(input)
-    retcode = process.poll()
-    if retcode:
-        raise Error('ffmpeg', out, err)
-    return out, err
-
 
 def multi_channel_interp(x, xps, fps, num_bins=1024, interpolate=False, left_extrapolate=False, right_extrapolate=False):
     """
