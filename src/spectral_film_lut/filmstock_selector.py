@@ -1,15 +1,10 @@
-from typing import List
-
 from PyQt6.QtCore import Qt, QSize, QEvent, QTimer
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QStackedWidget, QScrollArea, QWidget, QGridLayout,
                              QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter, QLineEdit, QFrame)
 
-from spectral_film_lut import FilmSpectral
-
-
 class FilmStockSelector(QWidget):
-    def __init__(self, film_stocks: List[FilmSpectral], **kwargs):
+    def __init__(self, film_stocks, **kwargs):
         """
         Combobox style UI element that lets you select a film stock and can open a pop-up window for more
         detailed information on the various film stocks.
