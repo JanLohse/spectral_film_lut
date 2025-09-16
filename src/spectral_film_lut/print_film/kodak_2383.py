@@ -13,6 +13,7 @@ class Kodak2383(FilmSpectral):
         self.type = 'negative'
         self.medium = 'cine'
         self.year = 1998
+        self.alias = 'VISION Color Print Film 2383/3383'
 
         # spectral sensitivity
         red_log_sensitivity = {583.6181: -3.0050, 587.4146: -2.5975, 588.8383: -2.4818, 591.2111: -2.4365,

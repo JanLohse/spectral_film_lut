@@ -11,6 +11,7 @@ class KodakAerocolor(FilmSpectral):
         self.stage = 'camera'
         self.type = 'negative'
         self.medium = 'photo'
+        self.alias = 'KODAK AEROCOLOR IV Negative Film 2460'
 
         # spectral sensitivity
         red_log_sensitivity = {580.6654: 1.1723, 582.3916: 1.2569, 583.9851: 1.3450, 588.6328: 1.5261, 593.9444: 1.6132,

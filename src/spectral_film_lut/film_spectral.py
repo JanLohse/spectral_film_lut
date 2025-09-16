@@ -51,6 +51,8 @@ class FilmSpectral:
         self.projection_kelvin = 6500
         self.color_checker = None
         self.gamma = None
+        self.alias = None
+        self.comment = None
 
     def calibrate(self, d_min_adjustment=None):
         """

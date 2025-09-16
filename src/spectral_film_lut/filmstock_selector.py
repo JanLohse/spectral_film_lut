@@ -73,7 +73,7 @@ class FilmStockSelectorWindow(QDialog):
         self.highlighted_stock = None
 
         self.film_stocks = film_stocks
-        self.film_tags = {x: " ".join((str(z).lower() for z in y.values())) + " " + x for x, y in
+        self.film_tags = {x: x.lower() + " " + " ".join((str(z).lower() for z in y.values())) + " " + x for x, y in
                           self.film_stocks.items()}
 
         if type(film_stocks) is dict:
@@ -202,11 +202,11 @@ class FilmStockSelectorWindow(QDialog):
     def sort_and_group_stocks(self):
         """
         Returns:
-            dict: Sorted and grouped film stocks.
+            dict: Sorted, filtered, and grouped film stocks.
         """
         sort_key = self.sort_combo.currentText()
         group_key = self.group_combo.currentText()
-        filter = self.search_bar.text().lower()
+        filter_key = self.search_bar.text().lower()
 
         def safe_key(stock, key):
             val = stock.get(key)
@@ -214,10 +214,10 @@ class FilmStockSelectorWindow(QDialog):
                 return (val is not None, val.lower())
             return (val is not None, val)
 
-        def filter_search(tags, filter):
-            return all([x in tags for x in filter.split(' ')])
+        def filter_search(tags, filter_key):
+            return all([x in tags for x in filter_key.split(' ')])
 
-        filtered_stocks = {x: y for x, y in self.film_stocks.items() if filter_search(self.film_tags[x], filter)}
+        filtered_stocks = {x: y for x, y in self.film_stocks.items() if filter_search(self.film_tags[x], filter_key)}
 
         if sort_key.lower() in ['', 'name', 'id', 'none'] or sort_key is None:
             sorted_stocks = sorted(filtered_stocks)

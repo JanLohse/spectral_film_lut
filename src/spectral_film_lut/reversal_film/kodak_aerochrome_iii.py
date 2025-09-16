@@ -15,6 +15,7 @@ class KodakAerochromeIII(FilmSpectral):
         self.type = 'positive'
         self.medium = 'photo'
         self.year = 2001
+        self.comment = 'Very experimental and inaccurate results. Needs reflective data in the infrared domain to word properly.'
 
         # spectral sensitivity
         red_log_sensitivity = {410.0294: 1.2477, 422.4031: 1.2116, 434.2503: 1.1643, 445.8342: 1.0928, 456.8916: 0.9548,

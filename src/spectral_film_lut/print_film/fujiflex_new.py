@@ -11,6 +11,7 @@ class FujiflexNew(FilmSpectral):
         self.stage = 'print'
         self.type = 'negative'
         self.medium = 'photo'
+        self.comment = 'Optimized for laser printing.'
 
         # spectral sensitivity
         red_log_sensitivity = {589.7251: -0.6055, 604.4840: -0.4833, 615.5250: -0.3783, 625.2141: -0.2893,

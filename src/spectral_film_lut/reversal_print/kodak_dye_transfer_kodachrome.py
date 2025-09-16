@@ -15,6 +15,7 @@ class KodakDyeTransferKodachrome(FilmSpectral):
         self.type = 'positive'
         self.medium = 'photo'
         self.year = 1946
+        self.comment = 'Very experimental and unreliable results. Needs more testing and refinement.'
 
         separation_neg = Kodak5222()
         sensitivity = separation_neg.sensitivity

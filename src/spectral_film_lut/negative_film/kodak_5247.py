@@ -13,6 +13,8 @@ class Kodak5247(FilmSpectral):
         self.stage = 'camera'
         self.type = 'negative'
         self.medium = 'cine'
+        self.alias = 'Eastman Color Negative'
+        self.comment = 'First film with orange mask. Data unreliable.'
 
         # spectral sensitivity
         red_log_sensitivity = {585.2083: 0.6438, 598.0150: 1.0564, 614.1450: 1.5816, 620.1764: 1.7566, 625.6690: 1.8659,

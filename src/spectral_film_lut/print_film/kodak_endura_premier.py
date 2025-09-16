@@ -11,6 +11,7 @@ class KodakEnduraPremier(FilmSpectral):
         self.stage = 'print'
         self.type = 'negative'
         self.medium = 'photo'
+        self.alias = 'KODAK PROFESSIONAL ENDURA Premier Paper'
 
         # spectral sensitivity
         red_log_sensitivity = {529.6309: -1.6360, 551.2775: -1.5910, 565.1171: -1.5122, 569.9077: -1.5272,

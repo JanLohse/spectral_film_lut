@@ -13,6 +13,7 @@ class TechinicolorV(FilmSpectral):
         self.type = 'negative'
         self.medium = 'cine'
         self.year = 1954
+        self.comment = 'Very experimental and unreliable results. Needs more testing and refinement.'
 
         sensitivity = Kodak5222().sensitivity
         filters = xp.stack([WRATTEN["29"], WRATTEN["99"], WRATTEN["98"]])

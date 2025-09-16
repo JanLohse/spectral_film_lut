@@ -15,6 +15,7 @@ class TechnicolorIV(FilmSpectral):
         self.type = 'positive'
         self.medium = 'cine'
         self.year = 1932
+        self.comment = 'Very experimental and unreliable results. Needs more testing and refinement.'
 
         # taken from ilford ortho plus 80
         ortho_sensitivity = {356.6403: 0.1040, 360.7890: 0.2099, 364.2056: 0.3072, 367.8662: 0.4068, 371.7709: 0.5015,

@@ -1,4 +1,3 @@
-import numpy as np
 from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWidgets import QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
@@ -77,14 +76,14 @@ class MainWindow(QMainWindow):
                               'stage': filmstocks[x].stage,
                               'Chromaticity': 'BW' if filmstocks[x].density_measure == 'bw' else 'Color',
                               'image': QImage(np.require(filmstocks[x].color_checker, np.uint8, 'C'), 6, 4, 18, QImage.Format.Format_RGB888),
-                              'Gamma': round(filmstocks[x].gamma, 3)} for x in
-                          filmstocks}
+                              'Gamma': round(filmstocks[x].gamma, 3), 'Alias': filmstocks[x].alias,
+                              'Comment': filmstocks[x].comment} for x in filmstocks}
         negative_info = {x: y for x, y in filmstock_info.items() if y['stage'] == 'camera'}
         sort_keys_negative = ["Name", "Year", "Resolution", "Granularity", "sensitivity", "Gamma"]
         group_keys_negative = ["Manufacturer", "Type", "Decade", "Medium"]
         list_keys_negative = ["Manufacturer", "Type", "Year", "Sensitivity", "Chromaticity"]
         sidebar_keys_negative = ["Manufacturer", "Type", "Year", "Sensitivity", "resolution", "Granularity", "Medium",
-                                 "Chromaticity", "Gamma"]
+                                 "Chromaticity", "Gamma", "Alias", "Comment"]
         self.filmstocks["None"] = None
         self.negative_selector = FilmStockSelector(negative_info, sort_keys=sort_keys_negative,
                                                    group_keys=group_keys_negative, list_keys=list_keys_negative,
@@ -112,7 +111,7 @@ class MainWindow(QMainWindow):
         sort_keys_print = ["Name", "Year", "Gamma"]
         group_keys_print = ["Manufacturer", "Type", "Decade", "Medium"]
         list_keys_print = ["Manufacturer", "Type", "Year", "Chromaticity"]
-        sidebar_keys_print = ["Manufacturer", "Type", "Year", "Medium", "Chromaticity", "Gamma"]
+        sidebar_keys_print = ["Alias", "Manufacturer", "Type", "Year", "Medium", "Chromaticity", "Gamma", "Comment"]
         self.print_selector = FilmStockSelector(print_info, sort_keys=sort_keys_print, group_keys=group_keys_print,
                                                 list_keys=list_keys_print, sidebar_keys=sidebar_keys_print,
                                                 default_group="Manufacturer", image_key="image")

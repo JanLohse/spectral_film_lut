@@ -14,6 +14,7 @@ class Kodak5384(FilmSpectral):
         self.type = 'negative'
         self.medium = 'cine'
         self.year = 1981
+        self.alias = 'Eastman Color Print Film 5384/7384'
 
         # spectral sensitivity
         red_log_sensitivity = {369.2286: -1.0118, 379.0892: -1.0478, 388.9351: -1.1023, 397.8021: -1.2037,

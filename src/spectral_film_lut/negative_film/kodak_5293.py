@@ -13,6 +13,7 @@ class Kodak5293(FilmSpectral):
         self.stage = 'camera'
         self.type = 'negative'
         self.medium = 'cine'
+        self.alias = 'EASTMAN EXR 200T Film 5293/7293'
 
         # spectral sensitivity
         red_log_sensitivity = {525.8391: -0.2687, 532.8983: -0.1782, 548.5650: -0.0141, 557.1673: 0.1065,

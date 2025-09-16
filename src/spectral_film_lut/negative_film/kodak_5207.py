@@ -12,6 +12,7 @@ class Kodak5207(FilmSpectral):
         self.stage = 'camera'
         self.type = 'negative'
         self.medium = 'cine'
+        self.alias = 'VISION3 250D Color Negative Film 5207/7207'
 
         # spectral sensitivity
         red_log_sensitivity = {542.0752: 0.0346, 549.5994: 0.0930, 558.8793: 0.3000, #530.0364: 0.0532, 535.5542: 0.0346

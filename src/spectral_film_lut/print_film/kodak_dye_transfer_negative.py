@@ -13,6 +13,7 @@ class KodakDyeTransferNegative(FilmSpectral):
         self.type = 'negative'
         self.medium = 'photo'
         self.year = 1946
+        self.comment = 'Very experimental and unreliable results. Needs more testing and refinement.'
 
         sensitivity = Kodak5222().sensitivity
         filters = xp.stack([WRATTEN["29"], WRATTEN["99"], WRATTEN["98"]])
