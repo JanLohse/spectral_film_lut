@@ -155,6 +155,7 @@ class FilmStockSelectorWindow(QDialog):
         self.detail_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.detail_image.setFixedSize(QSize(150, 100))
         self.detail_name = QLabel()
+        self.detail_name.setWordWrap(True)
         self.detail_name.setStyleSheet("font-weight: bold; font-size: 16px;")
         self.detail_area = QVBoxLayout()
         self.detail_area.addWidget(self.detail_image)
@@ -167,7 +168,8 @@ class FilmStockSelectorWindow(QDialog):
 
         self.detail_widget = QWidget()
         self.detail_widget.setLayout(self.detail_area)
-        self.detail_widget.setFixedWidth(200)
+        # self.detail_widget.setFixedWidth(200)
+        self.detail_label.setWordWrap(True)
 
         main_split = QSplitter()
         left_widget = QWidget()
