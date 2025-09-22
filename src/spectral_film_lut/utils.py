@@ -12,8 +12,6 @@ from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
 from matplotlib import pyplot as plt
 from numba import njit, prange, cuda
-import imageio.v3 as iio
-import scipy
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -48,9 +46,11 @@ def create_lut(negative_film, print_film=None, lut_size=33, name="test", cube=Tr
     lut = colour.LUT3D(size=lut_size, name="test")
     transform, _ = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
-    lut.table = transform(lut.table)
-    if not cube:
-        return lut.table
+    table = transform(lut.table)
+    if cube:
+        lut.table = to_numpy(table)
+    else:
+        return table
     if lut.table.shape[-1] == 1:
         lut.table = lut.table.repeat(3, -1)
     end = time.time()

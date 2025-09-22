@@ -1,4 +1,5 @@
 import colour.plotting
+import scipy
 from colour import SpectralDistribution
 
 from spectral_film_lut import densiometry

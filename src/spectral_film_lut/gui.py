@@ -2,6 +2,7 @@ from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWidgets import QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
+import imageio.v3 as iio
 
 from spectral_film_lut.film_loader import load_ui
 from spectral_film_lut.filmstock_selector import FilmStockSelector
@@ -285,6 +286,7 @@ class MainWindow(QMainWindow):
         image = image[::scale_factor, ::scale_factor, :]
         height, width, _ = image.shape
         lut = (lut * (2 ** 16 - 1)).astype(np.uint16)
+        lut = to_numpy(lut)
         image = apply_lut_tetrahedral_int(image, lut)
 
         image = QImage(image, width, height, 3 * width, QImage.Format.Format_RGB888)
