@@ -40,13 +40,17 @@ class FilmStockSelector(QWidget):
         if dialog.exec():
             selected_stock = dialog.get_selected_film_stock()
             self.film_combo.setCurrentText(selected_stock)
+        self.kwargs["default_sort"] = dialog.get_sort_key()
+        self.kwargs["default_group"] = dialog.get_group_key()
+        self.kwargs["default_filter"] = dialog.get_filter_key()
 
 
 class FilmStockSelectorWindow(QDialog):
     UNKNOWN_LABEL = "Unknown"
 
     def __init__(self, parent=None, film_stocks=None, sort_keys=None, group_keys=None, list_keys=None,
-                 sidebar_keys=None, default_sort=None, default_group=None, highlighted_stock=None, image_key=None):
+                 sidebar_keys=None, default_sort=None, default_group=None, default_filter=None, highlighted_stock=None,
+                 image_key=None):
         """
         Popup window which lets you choose a film stock with more detailed info.
         Has a tabular view with some details and a grid view with thumbnail color checkers.
@@ -100,6 +104,9 @@ class FilmStockSelectorWindow(QDialog):
         if default_sort is not None and default_sort in self.sort_keys:
             self.sort_combo.setCurrentText(default_sort)
         self.search_bar = QLineEdit()
+        self.search_bar.setClearButtonEnabled(True)
+        if default_filter is not None:
+            self.search_bar.setText(default_filter)
 
         self.sort_combo.currentTextChanged.connect(self.update_views)
         self.group_combo.currentTextChanged.connect(self.update_views)
@@ -407,6 +414,15 @@ class FilmStockSelectorWindow(QDialog):
 
     def get_selected_film_stock(self):
         return self.selected_film
+
+    def get_sort_key(self):
+        return self.sort_combo.currentText()
+
+    def get_group_key(self):
+        return self.group_combo.currentText()
+
+    def get_filter_key(self):
+        return self.search_bar.text()
 
     def ensure_highlighted_visible(self):
         if self.highlighted_stock is None:

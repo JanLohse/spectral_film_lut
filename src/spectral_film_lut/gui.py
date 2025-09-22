@@ -78,13 +78,13 @@ class MainWindow(QMainWindow):
                               'Chromaticity': 'BW' if filmstocks[x].density_measure == 'bw' else 'Color',
                               'image': QImage(np.require(filmstocks[x].color_checker, np.uint8, 'C'), 6, 4, 18, QImage.Format.Format_RGB888),
                               'Gamma': round(filmstocks[x].gamma, 3), 'Alias': filmstocks[x].alias,
-                              'Comment': filmstocks[x].comment} for x in filmstocks}
+                              'Comment': filmstocks[x].comment, 'D-max': f"{filmstocks[x].d_max.max():.2f}"} for x in filmstocks}
         negative_info = {x: y for x, y in filmstock_info.items() if y['stage'] == 'camera'}
-        sort_keys_negative = ["Name", "Year", "Resolution", "Granularity", "sensitivity", "Gamma"]
+        sort_keys_negative = ["Name", "Year", "Resolution", "Granularity", "sensitivity", "Gamma", "D-max"]
         group_keys_negative = ["Manufacturer", "Type", "Decade", "Medium"]
         list_keys_negative = ["Manufacturer", "Type", "Year", "Sensitivity", "Chromaticity"]
         sidebar_keys_negative = ["Manufacturer", "Type", "Year", "Sensitivity", "resolution", "Granularity", "Medium",
-                                 "Chromaticity", "Gamma", "Alias", "Comment"]
+                                 "Chromaticity", "Gamma", "Alias", "Comment", "D-max"]
         self.filmstocks["None"] = None
         self.negative_selector = FilmStockSelector(negative_info, sort_keys=sort_keys_negative,
                                                    group_keys=group_keys_negative, list_keys=list_keys_negative,
@@ -109,10 +109,11 @@ class MainWindow(QMainWindow):
 
         print_info = {x: y for x, y in filmstock_info.items() if y['stage'] == 'print'}
         print_info["None"] = {}
-        sort_keys_print = ["Name", "Year", "Gamma"]
+        sort_keys_print = ["Name", "Year", "Gamma", "D-max"]
         group_keys_print = ["Manufacturer", "Type", "Decade", "Medium"]
         list_keys_print = ["Manufacturer", "Type", "Year", "Chromaticity"]
-        sidebar_keys_print = ["Alias", "Manufacturer", "Type", "Year", "Medium", "Chromaticity", "Gamma", "Comment"]
+        sidebar_keys_print = ["Alias", "Manufacturer", "Type", "Year", "Medium", "Chromaticity", "Gamma", "Comment",
+                              "D-max"]
         self.print_selector = FilmStockSelector(print_info, sort_keys=sort_keys_print, group_keys=group_keys_print,
                                                 list_keys=list_keys_print, sidebar_keys=sidebar_keys_print,
                                                 default_group="Manufacturer", image_key="image")

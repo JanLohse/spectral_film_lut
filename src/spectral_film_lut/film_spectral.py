@@ -145,6 +145,7 @@ class FilmSpectral:
                     self.d_min - DENSIOMETRY[self.density_measure].T @ self.d_min_sd)
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
 
+        self.d_max = xp.array([xp.max(x) for x in self.density_curve])
         self.XYZ_to_exp = self.sensitivity.T @ densiometry.xyz_dual
 
         if self.rms_curve is not None and self.rms_density is not None:
