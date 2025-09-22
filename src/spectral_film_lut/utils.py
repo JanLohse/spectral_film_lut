@@ -47,12 +47,12 @@ def create_lut(negative_film, print_film=None, lut_size=33, name="test", cube=Tr
     transform, _ = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
     table = transform(lut.table)
+    if table.shape[-1] == 1:
+        table = table.repeat(3, -1)
     if cube:
         lut.table = to_numpy(table)
     else:
         return table
-    if lut.table.shape[-1] == 1:
-        lut.table = lut.table.repeat(3, -1)
     end = time.time()
     path = f"{name}.cube"
     if not os.path.exists("../../LUTs"):
