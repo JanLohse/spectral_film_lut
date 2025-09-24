@@ -1,9 +1,10 @@
 from PyQt6.QtCore import QSize, QThreadPool
-from PyQt6.QtGui import QPixmap, QImage
-from PyQt6.QtWidgets import QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox
+from PyQt6.QtGui import QPixmap, QImage, QIntValidator
+from PyQt6.QtWidgets import QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox, QDialog, QVBoxLayout
 from colour.models import RGB_COLOURSPACES
 import imageio.v3 as iio
 
+from spectral_film_lut.file_formats import FILE_FORMATS
 from spectral_film_lut.film_loader import load_ui
 from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.reversal_film.technicolor_iv import *
@@ -145,12 +146,16 @@ class MainWindow(QMainWindow):
         add_option(self.color_masking, "Color masking:", 1, self.color_masking.setValue)
 
         self.mode = QComboBox()
-        self.mode.addItems(['full', 'negative', 'print'])
+        self.mode.addItems(['full', 'negative', 'print', 'grain'])
         add_option(self.mode, "Mode:", "full", self.mode.setCurrentText)
 
         self.save_lut_button = QPushButton("Save LUT")
         self.save_lut_button.released.connect(self.save_lut)
         add_option(self.save_lut_button)
+
+        self.noise_button = QPushButton("Export Noise")
+        self.noise_button.released.connect(self.export_noise)
+        add_option(self.noise_button)
 
         self.input_colourspace_selector.currentTextChanged.connect(self.parameter_changed)
         self.negative_selector.currentTextChanged.connect(self.negative_changed)
@@ -302,6 +307,100 @@ class MainWindow(QMainWindow):
 
         if ok:
             self.generate_lut(filename)
+
+    def export_noise(self):
+        ok, args = self.export_noise_dialog()
+        if not ok:
+            return
+
+        width, height, frames, channels, file_format = args
+        ext = FILE_FORMATS[file_format]["extension"]
+
+        filename, ok = QFileDialog.getSaveFileName(self, "Choose output file", "", "*" + ext)
+        if not filename.endswith(ext):
+            filename += ext
+
+        start = time.time()
+        noise = np.random.default_rng().standard_normal((frames, height, width, channels), dtype=np.float32)
+        print(f"{time.time() - start:.4f}s generate noise")
+
+        start = time.time()
+        noise = noise / 10 + 0.5
+        noise *= 255
+        noise = np.clip(noise, 0, 255).astype(np.uint8)
+        print(f"{time.time() - start:.4f}s process noise")
+
+        start = time.time()
+        kwargs = FILE_FORMATS[file_format]["kwargs"]
+
+        # --- check if this is an image sequence format ---
+        if file_format.endswith("Sequence"):
+            os.makedirs(filename, exist_ok=True)  # folder to store frames
+            for i, frame in enumerate(noise):
+                frame_filename = os.path.join(
+                    filename, f"{filename.split('.')[0]}_{i:04d}{ext}"
+                )
+                iio.imwrite(frame_filename, frame, **kwargs)
+        else:
+            # video formats
+            iio.imwrite(filename, noise, fps=24, **kwargs)
+
+        print(f"{time.time() - start:.4f}s output file")
+
+    def export_noise_dialog(self):
+        dialog = QDialog()
+        dialog.setWindowTitle("Export noise")
+
+        layout = QVBoxLayout()
+
+        layout.addWidget(QLabel("Width:"))
+        width_field = QLineEdit()
+        width_field.setValidator(QIntValidator())
+        width_field.setText("1920")
+        layout.addWidget(width_field)
+
+        layout.addWidget(QLabel("Height:"))
+        height_field = QLineEdit()
+        height_field.setValidator(QIntValidator())
+        height_field.setText("1080")
+        layout.addWidget(height_field)
+
+        layout.addWidget(QLabel("Frame count:"))
+        frame_field = QLineEdit()
+        frame_field.setValidator(QIntValidator())
+        frame_field.setText("1")
+        layout.addWidget(frame_field)
+
+        color_box = QCheckBox("Full color")
+        color_box.setChecked(True)
+        layout.addWidget(color_box)
+
+        layout.addWidget(QLabel("File format:"))
+        format_selector = QComboBox()
+        format_selector.addItems(list(FILE_FORMATS.keys()))
+        layout.addWidget(format_selector)
+
+        button_layout = QHBoxLayout()
+        ok_button = QPushButton("Export")
+        cancel_button = QPushButton("Cancel")
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+
+        layout.addLayout(button_layout)
+        dialog.setLayout(layout)
+
+        ok_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.reject)
+
+        if dialog.exec():
+            width = int(width_field.text()) if width_field.text() else 1920
+            height = int(height_field.text()) if height_field.text() else 1080
+            frames = int(frame_field.text()) if frame_field.text() else 1
+            channels = 3 if color_box.isChecked() else 1
+            file_format = format_selector.currentText()
+            return True, (width, height, frames, channels, file_format)
+        else:
+            return False, None
 
 
 def main():

@@ -523,6 +523,15 @@ class FilmSpectral:
         plt.tight_layout()
         plt.show()
 
+    def grain_transform(self, rgb, density_scale, scale=160, std_div=0.1):
+        # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm, default for 3840 / 24mm
+        # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay in [0, 1] range
+        std_factor = math.sqrt(math.pi) * 0.024 * scale / density_scale / std_div
+        xps = [(rms_density + 0.25) / density_scale for rms_density in self.rms_density]
+        fps = [rms * std_factor for rms in self.rms_curve]
+        noise_factors = multi_channel_interp(rgb, xps, fps)
+        return noise_factors
+
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
@@ -534,8 +543,6 @@ class FilmSpectral:
 
         if color_masking is None:
             color_masking = negative_film.color_masking
-
-        # negative_film.plot_data(print_film, color_masking)
 
         def add(func, name):
             pipeline.append((func, name))
@@ -682,6 +689,11 @@ class FilmSpectral:
 
             if output_transform is None:
                 add(lambda x: xp.clip(x, 0, 1), "clipping")
+
+        if mode == 'grain':
+            if cuda_available:
+                add(lambda x: xp.asarray(x), "cast to cuda")
+            add(lambda x: negative_film.grain_transform(x, density_scale), "grain_map")
 
         def convert(x):
             start = time.time()
