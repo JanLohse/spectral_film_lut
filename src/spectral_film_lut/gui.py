@@ -128,6 +128,10 @@ class MainWindow(QMainWindow):
         self.white_point.setMinMaxTicks(.5, 2., 1, 20)
         add_option(self.white_point, "White point:", 1., self.white_point.setValue)
 
+        self.sat_adjust = Slider()
+        self.sat_adjust.setMinMaxTicks(0, 2, 1, 100)
+        add_option(self.sat_adjust, "Sat:", 1, self.sat_adjust.setValue)
+
         self.black_offset = Slider()
         self.black_offset.setMinMaxTicks(-2, 2, 1, 10)
         add_option(self.black_offset, "Black offset", 0., self.black_offset.setValue)
@@ -174,6 +178,7 @@ class MainWindow(QMainWindow):
         self.color_masking.valueChanged.connect(self.parameter_changed)
         self.white_point.valueChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
+        self.sat_adjust.valueChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -215,11 +220,13 @@ class MainWindow(QMainWindow):
         mode = self.mode.currentText()
         exp_wb = self.exp_wb.getValue()
         tint = self.tint.getValue()
+        sat_adjust = self.sat_adjust.getValue()
         lut = create_lut(negative_film, print_film, name=name, matrix_method=False, lut_size=size, cube=cube,
                          input_colourspace=input_colourspace, output_colourspace=output_colourspace,
                          projector_kelvin=projector_kelvin, exp_comp=exp_comp, white_point=white_point,
                          exposure_kelvin=exp_wb, mode=mode, red_light=red_light, green_light=green_light,
-                         blue_light=blue_light, black_offset=black_offset, color_masking=color_masking, tint=tint)
+                         blue_light=blue_light, black_offset=black_offset, color_masking=color_masking, tint=tint,
+                         sat_adjust=sat_adjust)
         return lut
 
     def lights_changed(self, value):

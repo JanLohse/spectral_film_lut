@@ -538,7 +538,7 @@ class FilmSpectral:
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
                             output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=False,
-                            color_masking=None, tint=0, **kwargs):
+                            color_masking=None, tint=0, sat_adjust=2, **kwargs):
         pipeline = []
 
         if color_masking is None:
@@ -681,8 +681,18 @@ class FilmSpectral:
                     output_mat = xp.asarray(
                         colour.chromatic_adaptation(to_numpy(output_mat), mid_gray, to_numpy(out_gray)))
 
+
                 add_black_offset(True)
-                add_output_transform()
+                if sat_adjust != 1:
+                    add(lambda x: colour.XYZ_to_RGB(to_numpy(x), output_colourspace, apply_cctf_encoding=False),
+                        "output matrix")
+                    luminance_factors = colour.RGB_COLOURSPACES[output_colourspace].matrix_RGB_to_XYZ[1]
+                    add(lambda x: saturation_adjust_simple(x, sat_adjust, luminance_factors=luminance_factors),
+                        "saturation")
+                    add(lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(to_numpy(x)),
+                        "output cctf")
+                else:
+                    add_output_transform()
             else:
                 FilmSpectral.add_status_inversion(add, negative_film, add_black_offset, add_output_transform,
                                                   color_masking)

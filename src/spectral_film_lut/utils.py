@@ -776,3 +776,250 @@ def CCT_to_illuminant_D(CCT, spectral_shape=None):
     xy = CCT_to_xy(CCT)
     illuminant = xy_to_illuminant_D(xy, spectral_shape)
     return illuminant
+
+@njit
+def _rgb_to_hsv_pixel(r, g, b):
+    """Convert one RGB pixel to HSV (all values in [0,1])."""
+    c_max = max(r, g, b)
+    c_min = min(r, g, b)
+    diff = c_max - c_min
+
+    # Value
+    v = c_max
+
+    # Saturation
+    if c_max == 0.0:
+        s = 0.0
+    else:
+        s = diff / c_max
+
+    # Hue
+    if diff == 0.0:
+        h = 0.0
+    elif c_max == r:
+        h = (g - b) / diff % 6.0
+    elif c_max == g:
+        h = (b - r) / diff + 2.0
+    else:  # mx == b
+        h = (r - g) / diff + 4.0
+
+    h /= 6.0  # normalize to [0,1]
+
+    return h, s, v
+
+@njit
+def _hsv_to_rgb_pixel(h, s, v):
+    """Convert one HSV pixel to RGB (all values in [0,1])."""
+    c = v * s
+    x = c * (1 - abs(h * 6 % 2 - 1))
+    m = v - c
+
+    # rgb temp
+    if 0 <= h < 1/6:
+        r, g, b = c, x, 0
+    elif 1/6 <= h < 2/6:
+        r, g, b = x, c, 0
+    elif 2/6 <= h < 3/6:
+        r, g, b = 0, c, x
+    elif 3/6 <= h < 4/6:
+        r, g, b = 0, x, c
+    elif 4/6 <= h < 5/6:
+        r, g, b = x, 0, c
+    else:
+        r, g, b = c, 0, x
+
+    # rgb
+    r += m
+    g += m
+    b += m
+
+    return r, g, b
+
+@njit
+def _rgb_to_hsl_pixel(r, g, b):
+    """Convert one RGB pixel to HSL (all values in [0,1])."""
+    c_max = max(r, g, b)
+    c_min = min(r, g, b)
+    diff = c_max - c_min
+
+    # Value
+    l = (c_max + c_min) / 2
+
+    # Saturation
+    if c_max == 0.0 or l == 1.0:
+        s = 0.0
+    else:
+        s = diff / (1 - abs(2 * l - 1))
+
+    # Hue
+    if diff == 0.0:
+        h = 0.0
+    elif c_max == r:
+        h = (g - b) / diff % 6.0
+    elif c_max == g:
+        h = (b - r) / diff + 2.0
+    else:  # mx == b
+        h = (r - g) / diff + 4.0
+
+    h /= 6.0  # normalize to [0,1]
+
+    return h, s, l
+
+@njit
+def _hsl_to_rgb_pixel(h, s, l):
+    """Convert one HSL pixel to RGB (all values in [0,1])."""
+    c = (1 - abs(2 * l - 1)) * s
+    x = c * (1 - abs(h * 6 % 2 - 1))
+    m = l - c / 2
+
+    # rgb temp
+    if 0 <= h < 1/6:
+        r, g, b = c, x, 0
+    elif 1/6 <= h < 2/6:
+        r, g, b = x, c, 0
+    elif 2/6 <= h < 3/6:
+        r, g, b = 0, c, x
+    elif 3/6 <= h < 4/6:
+        r, g, b = 0, x, c
+    elif 4/6 <= h < 5/6:
+        r, g, b = x, 0, c
+    else:
+        r, g, b = c, 0, x
+
+    # rgb
+    r += m
+    g += m
+    b += m
+
+    return r, g, b
+
+# Reference white (D65)
+REF_X = 0.95047
+REF_Y = 1.00000
+REF_Z = 1.08883
+
+@njit
+def _f(t):
+    delta = 6/29
+    if t > delta**3:
+        return t ** (1/3)
+    else:
+        return (t / (3 * delta**2)) + (4/29)
+
+@njit
+def apply_per_pixel(rgb, function):
+    """
+    Convert a 3D (H, W, 3) or 4D (N, H, W, 3) RGB array to HSV.
+    RGB values are expected in range [0, 1].
+    Returns array of same shape with HSV values.
+
+    H in [0, 1], S in [0, 1], V in [0, 1].
+    """
+    shape = rgb.shape
+    ndim = rgb.ndim
+
+    if ndim == 2:
+        out = np.empty_like(rgb)
+        for i in range(shape[0]):
+            r, g, b = rgb[i]
+            out[i] = np.array(function(r, g, b), dtype=np.float32)
+        return out
+
+    elif ndim == 3:  # (H, W, 3)
+        out = np.empty_like(rgb)
+        for i in range(shape[0]):
+            for j in range(shape[1]):
+                r, g, b = rgb[i, j]
+                out[i, j] = np.array(function(r, g, b), dtype=np.float32)
+        return out
+
+    elif ndim == 4:  # (N, H, W, 3)
+        out = np.empty_like(rgb)
+        for n in range(shape[0]):
+            for i in range(shape[1]):
+                for j in range(shape[2]):
+                    r, g, b = rgb[n, i, j]
+                    out[n, i, j] = np.array(function(r, g, b), dtype=np.float32)
+        return out
+
+    else:
+        raise ValueError("Input must be 3D or 4D with last dimension == 3")
+
+@njit
+def rgb_to_hsv(rgb):
+    return apply_per_pixel(rgb, _rgb_to_hsv_pixel)
+
+@njit
+def hsv_to_rgb(hsv):
+    return apply_per_pixel(hsv, _hsv_to_rgb_pixel)
+
+@njit
+def rgb_to_hsl(rgb):
+    return apply_per_pixel(rgb, _rgb_to_hsl_pixel)
+
+@njit
+def hsl_to_rgb(hsl):
+    return apply_per_pixel(hsl, _hsl_to_rgb_pixel)
+
+
+@njit
+def saturation_adjust_hsv_linear(rgb, sat_adjust, density=1):
+    hsv = rgb_to_hsv(rgb)
+    hsv[..., 1] *= sat_adjust
+    hsv[..., 1] = np.clip(hsv[..., 1], 0, 1)
+    rgb = hsv_to_rgb(hsv)
+    return rgb
+
+@njit
+def saturation_adjust_hsv_density(rgb, sat_adjust, density=1):
+    hsv = rgb_to_hsv(rgb)
+    if sat_adjust < 1:
+        hsv[..., 1] *= sat_adjust
+    else:
+        hsv[..., 2] *= density * (1 - sat_adjust) *  hsv[..., 1] ** 2 + 1
+        hsv[..., 1] = (1 - sat_adjust) * hsv[..., 1] ** 2 + sat_adjust * hsv[..., 1]
+
+    rgb = hsv_to_rgb(hsv)
+    return rgb
+
+
+@njit
+def saturation_adjust_hsl_linear(rgb, sat_adjust, density=1):
+    hsl = rgb_to_hsl(rgb)
+    hsl[..., 1] = np.clip(hsl[..., 1] * sat_adjust, 0, 1)
+    rgb = hsl_to_rgb(hsl)
+    return rgb
+
+@njit
+def saturation_adjust_hsl_density(rgb, sat_adjust, density=1):
+    hsl = rgb_to_hsl(rgb)
+
+    if sat_adjust < 1:
+        hsl[..., 1] *= sat_adjust
+    else:
+        hsl[..., 2] *= density * (1 - sat_adjust) *  hsl[..., 1] ** 2 + 1
+        hsl[..., 1] = (1 - sat_adjust) * hsl[..., 1] ** 2 + sat_adjust * hsl[..., 1]
+
+    rgb = hsl_to_rgb(hsl)
+    return rgb
+
+def linear_gamut_compression(rgb, gamut_compression=0):
+    A = xp.identity(3, rgb.dtype) * (1 - gamut_compression) + gamut_compression / 3
+    A_inv = xp.linalg.inv(A)
+    rgb = xp.clip(rgb @ A_inv, -0.1, None) @ A
+    return rgb
+
+def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=None):
+    if luminance_factors is None:
+        luminance_factors = np.ones(3) / 3
+    Y = rgb @ luminance_factors.reshape(-1, 1)
+    if sat_adjust <= 1:
+        rgb = (1 - sat_adjust) * Y + sat_adjust * rgb
+    else:
+        rgb_saturated = (1 - sat_adjust) * Y + sat_adjust * rgb
+        achromaticity = (np.divide(-rgb_saturated.min(axis=-1, keepdims=True), Y, where=(Y != 0)) + 1)
+        achromaticity /= sat_adjust
+        achromaticity = np.clip(achromaticity, 0, 1)
+        rgb = (rgb * achromaticity + rgb_saturated * (1 - achromaticity)) * (1 - achromaticity * density * (sat_adjust - 1))
+
+    return rgb
