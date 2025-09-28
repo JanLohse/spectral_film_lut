@@ -538,7 +538,7 @@ class FilmSpectral:
                             white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
                             halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
                             output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=False,
-                            color_masking=None, tint=0, sat_adjust=2, **kwargs):
+                            color_masking=None, tint=0, sat_adjust=1, **kwargs):
         pipeline = []
 
         if color_masking is None:
