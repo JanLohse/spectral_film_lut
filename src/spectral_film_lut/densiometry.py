@@ -2,7 +2,7 @@ from spectral_film_lut.utils import *
 
 
 def compute_xyz_dual(CCT=7000, spectral_shape=spectral_shape):
-    xyz_cmfs = xp.asarray(colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].align(spectral_shape).values)
+    xyz_cmfs = xp.asarray(colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].align(spectral_shape).values, dtype=np.float32)
     reference_sds = xp.asarray(colour.characterisation.read_training_data_rawtoaces_v1().align(spectral_shape).values)
     illuminant = xp.asarray(CCT_to_illuminant_D(CCT, spectral_shape).values)
     reference_sds *= illuminant.reshape(-1, 1)
@@ -138,7 +138,7 @@ def compute_printer_lights():
          680: 1.4771, 682: 1.4631, 684: 1.4480, 686: 1.4332, 688: 1.4197, 690: 1.4088, 692: 1.4015, 694: 1.3965,
          696: 1.3926, 698: 1.3880, 700: 1.3813, 702: 1.3714, 704: 1.3590, 706: 1.3450, 708: 1.3305, 710: 1.3163,
          712: 1.3030, 714: 1.2904, 716: 1.2781, 718: 1.2656, 720: 1.2526, 722: 1.2387, 724: 1.2242, 726: 1.2091,
-         728: 1.1937, 730: 1.1782})
+         728: 1.1937, 730: 1.1782}, dtype=np.float32)
 
     printer_light.align(spectral_shape, extrapolator_kwargs={'method': 'linear'})
 

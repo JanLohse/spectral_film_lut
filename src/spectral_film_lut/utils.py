@@ -1011,7 +1011,9 @@ def linear_gamut_compression(rgb, gamut_compression=0):
 
 def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=None):
     if luminance_factors is None:
-        luminance_factors = np.ones(3) / 3
+        luminance_factors = np.ones(3, dtype=np.float32) / 3
+    else:
+        luminance_factors = luminance_factors.astype(np.float32)
     Y = rgb @ luminance_factors.reshape(-1, 1)
     if sat_adjust <= 1:
         rgb = (1 - sat_adjust) * Y + sat_adjust * rgb
@@ -1021,5 +1023,4 @@ def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=Non
         achromaticity /= sat_adjust
         achromaticity = np.clip(achromaticity, 0, 1)
         rgb = (rgb * achromaticity + rgb_saturated * (1 - achromaticity)) * (1 - achromaticity * density * (sat_adjust - 1))
-
     return rgb
