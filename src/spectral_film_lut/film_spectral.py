@@ -173,6 +173,23 @@ class FilmSpectral:
             mtf = self.mtf[0] if len(self.mtf) == 1 else self.mtf[1]
             self.resolution = round(np.interp(0.5, np.array(sorted(mtf.values())), np.array(sorted(mtf.keys()))[::-1]))
 
+            mtf = []
+            for mtf_dict in self.mtf:
+                freqs = np.array(sorted(mtf_dict.keys()))
+                vals = np.array([mtf_dict[f] for f in freqs])
+                f_tail = freqs[-1] * 2
+                freqs = np.append(freqs, f_tail)
+                vals = np.append(vals, 0.0)
+
+                # Interpolation axis in log space
+                lowest_log = np.log1p(0)
+                logf = np.log1p(freqs)
+                logf = np.insert(logf, 0, lowest_log)
+                vals = np.insert(vals, 0, 1.0)
+                mtf.append((tuple(logf), tuple(vals)))
+            self.mtf = list(mtf)
+
+
         for key, value in self.__dict__.items():
             if type(value) is xp.ndarray and value.dtype is not default_dtype:
                 self.__dict__[key] = value.astype(default_dtype)
