@@ -324,6 +324,8 @@ class FilmSpectral:
         """
         def extrapolate(a_x, a_y, b_x, b_y, wavelengths, d_1=30, d_2=0.75):
             m = (a_y - b_y) / (a_x - b_x)
+            if abs(a_y) < 0.001:
+                a_y = a_y / abs(a_y) * 0.001
             d = d_1 * m / np.absolute(a_y) ** d_2
             a = a_y / np.exp(-d ** 2)
             c = to_numpy(a / m * -2 * d * np.exp(-d ** 2))
@@ -540,7 +542,7 @@ class FilmSpectral:
         plt.tight_layout()
         plt.show()
 
-    def grain_transform(self, rgb, density_scale, scale=160, std_div=0.1):
+    def grain_transform(self, rgb, density_scale, scale=1., std_div=1.):
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm, default for 3840 / 24mm
         # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay in [0, 1] range
         std_factor = math.sqrt(math.pi) * 0.024 * scale / density_scale / std_div
@@ -720,7 +722,7 @@ class FilmSpectral:
         if mode == 'grain':
             if cuda_available:
                 add(lambda x: xp.asarray(x), "cast to cuda")
-            add(lambda x: negative_film.grain_transform(x, density_scale), "grain_map")
+            add(lambda x: negative_film.grain_transform(x, density_scale, std_div=0.001), "grain_map")
 
         def convert(x):
             start = time.time()
@@ -789,11 +791,12 @@ class FilmSpectral:
         output_gamma = 2.6
 
         projection_to_XYZ = xp.array(
-            [[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750], [0.0193339, 0.1191920, 0.9503041]])
+            [[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750], [0.0193339, 0.1191920, 0.9503041]],
+        dtype=default_dtype)
 
         # calculated from Kodak Duraflex Plus:
         gray = output_gamma * -negative_film.get_d_ref(color_masking) @ status_m_to_apd.T
-        output_scale = 0.8 * xp.ones(3) - gray
+        output_scale = 0.8 * xp.ones(3, dtype=default_dtype) - gray
 
         def softmax(x, a=2.5):
             return xp.log(1 + xp.exp(x * a)) / a

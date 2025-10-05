@@ -7,6 +7,7 @@ import warnings
 from pathlib import Path
 
 import colour
+import cv2
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
 from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
@@ -166,7 +167,7 @@ class Slider(QWidget):
 
         self.text = QLabel()
         self.text.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.text.setFixedWidth(27)
+        self.text.setFixedWidth(30)
 
         layout.addWidget(self.slider)
         layout.addWidget(self.text)
@@ -1024,3 +1025,19 @@ def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=Non
         achromaticity = np.clip(achromaticity, 0, 1)
         rgb = (rgb * achromaticity + rgb_saturated * (1 - achromaticity)) * (1 - achromaticity * density * (sat_adjust - 1))
     return rgb
+
+
+
+def convolution_filter(rgb, kernel, padding=False):
+    if not cuda_available:
+        return cv2.filter2D(rgb, -1, kernel)
+    else:
+        if len(kernel.shape) == 2:
+            kernel = kernel[..., xp.newaxis]
+        if padding:
+            pad_h = kernel.shape[0] // 2
+            pad_w = kernel.shape[1] // 2
+            rgb = xp.pad(rgb, ((pad_h, pad_h), (pad_w, pad_w), (0, 0)), 'reflect')
+            return signal.oaconvolve(rgb, kernel, mode='valid', axes=(0, 1))
+        else:
+            return signal.oaconvolve(rgb, kernel, mode='same', axes=(0, 1))

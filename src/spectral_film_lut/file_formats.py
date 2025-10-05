@@ -50,7 +50,7 @@ FILE_FORMATS = {
     },
     "TIFF Sequence": {
         "extension": ".tif",
-        "kwargs": {"format": "tiff"},
+        "kwargs": {},
     },
 
     # --- Lossless archival ---
