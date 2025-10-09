@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
 
         self.image = QLabel("Select a reference image for the preview")
         self.image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding))
         self.image.setMinimumSize(QSize(256, 256))
         self.pixmap = QPixmap()
 
@@ -304,9 +305,16 @@ class MainWindow(QMainWindow):
         image = apply_lut_tetrahedral_int(image, lut)
 
         image = QImage(image, width, height, 3 * width, QImage.Format.Format_RGB888)
-        self.pixmap = QPixmap.fromImage(image)
-        self.image.setPixmap(self.pixmap)
-        self.scale_pixmap()
+        pixmap = QPixmap.fromImage(image)
+
+        scaled_pixmap = pixmap.scaled(
+            self.image.size(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+
+        self.image.setPixmap(scaled_pixmap)
+        self.pixmap = pixmap
         if verbose:
             print(f"applied lut in {time.time() - start:.2f} seconds")
 
