@@ -1,5 +1,4 @@
 import math
-import os
 import sys
 import time
 import traceback
@@ -8,8 +7,9 @@ from pathlib import Path
 
 import colour
 import cv2
-from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot, QRectF, QRect, QPoint
-from PyQt6.QtGui import QWheelEvent, QFontMetrics, QPainterPath, QRegion, QPainter, QColor, QPen
+from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot, QRectF, QRect, QPoint, pyqtProperty, \
+    QPropertyAnimation, QPointF
+from PyQt6.QtGui import QWheelEvent, QFontMetrics, QPainterPath, QRegion, QPainter, QColor, QLinearGradient, QBrush
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider, QComboBox, \
     QScrollArea, QFrame
 from matplotlib import pyplot as plt
@@ -200,28 +200,62 @@ class FileSelector(QWidget):
 
 
 class CenteredSlider(QSlider):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.reference_value = 0
-        self.setStyleSheet("""
-            QSlider {
-                background: transparent;
-            }
-        """)
+    def __init__(self, *args, reference_value=0, start_color=None, end_color=None, middle_color=None, **kwargs):
+        self.start_color = start_color if start_color is not None else "#636363"
+        self.end_color = end_color if end_color is not None else "#aeaeae"
+        self.middle_color = middle_color if middle_color is not None else None
 
-    def setReferenceValue(self, value: int):
-        """Update the reference (neutral) value dynamically."""
-        self.reference_value = value
+        super().__init__(*args, **kwargs)
+        self.setRange(-100, 100)
+        self.setValue(0)
+        self.reference_value = reference_value
+        self._hover = False
+        self._hoverProgress = 0.0  # property for animation
+        self.anim = QPropertyAnimation(self, b"hoverProgress", self)
+        self.anim.setDuration(150)
+        self.setMouseTracking(True)
+        self.setFixedHeight(30)
+        self.setStyleSheet("QSlider { background: transparent; }")
+
+    # --- animated property for smooth scaling ---
+    def get_hover_progress(self):
+        return self._hoverProgress
+
+    def set_hover_progress(self, value):
+        self._hoverProgress = value
         self.update()
+
+    def set_color_gradient(self, start_color=None, end_color=None, middle_color=None):
+        self.start_color = start_color if start_color is not None else self.start_color
+        self.end_color = end_color if end_color is not None else self.end_color
+        self.middle_color = middle_color if middle_color is not None else self.middle_color
+        self.repaint()
+
+    hoverProgress = pyqtProperty(float, fget=get_hover_progress, fset=set_hover_progress)
+
+    # --- hover detection ---
+    def enterEvent(self, event):
+        self._hover = True
+        self.anim.stop()
+        self.anim.setStartValue(self._hoverProgress)
+        self.anim.setEndValue(1.0)
+        self.anim.start()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hover = False
+        self.anim.stop()
+        self.anim.setStartValue(self._hoverProgress)
+        self.anim.setEndValue(0.0)
+        self.anim.start()
+        super().leaveEvent(event)
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # --- groove geometry
         groove_rect = QRect(10, self.height() // 2 - 3, self.width() - 20, 4)
 
-        # map values to pixel positions
         min_val, max_val = self.minimum(), self.maximum()
         total_range = max_val - min_val
 
@@ -231,31 +265,45 @@ class CenteredSlider(QSlider):
         handle_x = int(value_to_x(self.value()))
         ref_x = int(value_to_x(self.reference_value))
 
-        # --- draw background groove
+        # background groove with gradient
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(PRESSED_COLOR))
+
+        gradient = QLinearGradient(QPointF(groove_rect.topLeft()), QPointF(groove_rect.topRight()))
+        gradient.setColorAt(0.0, QColor(self.start_color))  # left color
+        gradient.setColorAt(1.0, QColor(self.end_color))  # right color
+        if self.middle_color is not None:
+            gradient.setColorAt(0.5, QColor(self.middle_color))
+
+        painter.setBrush(QBrush(gradient))
         painter.drawRoundedRect(groove_rect, 3, 3)
 
-        # --- draw active segment (between ref_x and handle_x)
-        painter.setBrush(QColor(HOVER_COLOR))
+        # active segment (ref -> handle)
+        color = ACCENT_COLOR if self.value() >= self.reference_value else ACCENT_COLOR
+        painter.setBrush(QColor(color))
         if handle_x > ref_x:
             active_rect = QRect(ref_x, groove_rect.top(), handle_x - ref_x, groove_rect.height())
         else:
             active_rect = QRect(handle_x, groove_rect.top(), ref_x - handle_x, groove_rect.height())
         painter.drawRoundedRect(active_rect, 3, 3)
 
-        # --- draw handle (white circle with gray center)
+        # handle
         handle_center = QPoint(handle_x, groove_rect.center().y())
-        outer_radius, inner_radius = 7, 3
+        hover_radius = 7
+        inner_radius = round(2 + self._hoverProgress * 2)  # grow inner slightly too
 
-        painter.setBrush(QColor(TEXT_PRIMARY))
-        painter.drawEllipse(handle_center, outer_radius, outer_radius)
+        painter.setBrush(QColor(HOVER_COLOR))
+        painter.drawEllipse(handle_center, hover_radius, hover_radius)
 
-        painter.setBrush(QColor(BACKGROUND_COLOR))
+        painter.setBrush(QColor(ACCENT_COLOR))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(handle_center, inner_radius, inner_radius)
 
         painter.end()
+
+    def set_reference_value(self, value: int):
+        """Update the reference (neutral) value dynamically."""
+        self.reference_value = value
+        self.update()
 
 
 class Slider(QWidget):
@@ -284,6 +332,8 @@ class Slider(QWidget):
 
         self.slider.wheelEvent = self.customWheelEvent
 
+        self.set_color_gradient = self.slider.set_color_gradient
+
         self.big_increment = 5
         self.small_increment = 2
 
@@ -297,7 +347,7 @@ class Slider(QWidget):
         self.big_increment = math.ceil(number_of_steps / 10)
         self.small_increment = math.ceil(number_of_steps / 30)
         self.setValue(default)
-        self.slider.setReferenceValue(self.getPosition())
+        self.slider.set_reference_value(self.getPosition())
 
     def sliderValueChanged(self):
         value = self.getValue()

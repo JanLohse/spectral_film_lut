@@ -2,6 +2,7 @@ import os
 
 BASE_COLOR = "#191a1c"
 BACKGROUND_COLOR = "#26282b"
+ACCENT_COLOR = "#426dc3"
 BORDER_RADIUS = 12
 BUTTON_RADIUS = 6
 HOVER_COLOR = "#46484b"
@@ -12,8 +13,9 @@ TEXT_PRIMARY = "white"
 SCROLLBAR_HOVER_COLOR = "#232426"
 SCROLLBAR_THICKNESS = 11
 SCROLLBAR_MARGIN = 2
-SCROLLBAR_HANDLE_COLOR = "#46484b"
+SCROLLBAR_HANDLE_COLOR = "#3d3e3f"
 SCROLLBAR_HANDLE_HOVER = "#565657"
+HIGHLIGHT_COLOR = "#b0b5bd"
 
 base_dir = os.path.dirname(__file__)
 icon_path = os.path.join(base_dir, "resources").replace("\\", "/")

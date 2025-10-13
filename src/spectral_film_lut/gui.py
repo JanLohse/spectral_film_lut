@@ -1,10 +1,8 @@
-from PyQt6.QtCore import QSize, QThreadPool
-from PyQt6.QtGui import QPixmap, QImage, QIntValidator
-from PyQt6.QtWidgets import QMainWindow, QComboBox, QGridLayout, QSizePolicy, QCheckBox, QDialog, QVBoxLayout
-from colour.models import RGB_COLOURSPACES
 import imageio.v3 as iio
-
-from spectral_film_lut.file_formats import FILE_FORMATS
+from PyQt6.QtCore import QSize, QThreadPool
+from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtWidgets import QMainWindow, QGridLayout, QSizePolicy, QCheckBox
+from colour.models import RGB_COLOURSPACES
 from spectral_film_lut.film_loader import load_ui
 from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.grain_generation import ExportGrainDialog
@@ -24,6 +22,8 @@ class MainWindow(QMainWindow):
         widget.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed))
         sidelayout = QGridLayout()
         widget.setLayout(sidelayout)
+        widget.setObjectName("sidelayout")
+        widget.setStyleSheet(f"#sidelayout {{background-color: {BASE_COLOR}; border-radius: {BORDER_RADIUS};}}")
         sidelayout.setAlignment(Qt.AlignmentFlag.AlignBottom)
 
         self.image = QLabel("Select a reference image for the preview")
@@ -61,10 +61,13 @@ class MainWindow(QMainWindow):
 
         self.exp_wb = Slider()
         self.exp_wb.setMinMaxTicks(2000, 15000, 100, default=6500)
+        self.exp_wb.set_color_gradient("#2b8ccd", "#c76353", "#858585")
         add_option(self.exp_wb, "WB:", 6500, self.exp_wb.setValue)
 
         self.tint = Slider()
         self.tint.setMinMaxTicks(-1, 1, 1, 100)
+
+        self.tint.set_color_gradient("#b8639d", "#2f9b61", "#858585")
         add_option(self.tint, "Tint:", 0, self.tint.setValue)
 
         filmstock_info = {x: {'Year': filmstocks[x].year, 'Manufacturer': filmstocks[x].manufacturer, 'Type':
@@ -124,6 +127,7 @@ class MainWindow(QMainWindow):
 
         self.projector_kelvin = Slider()
         self.projector_kelvin.setMinMaxTicks(2700, 10000, 100, default=6500)
+        self.projector_kelvin.set_color_gradient("#2b8ccd", "#c76353", "#858585")
         add_option(self.projector_kelvin, "Projector wb:", 6500, self.projector_kelvin.setValue)
 
         self.white_point = Slider()
