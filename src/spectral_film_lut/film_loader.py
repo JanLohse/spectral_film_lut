@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QApplication, QProgressBar, QVBoxLayout
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
 from spectral_film_lut.bw_print_film.kodak_polymax_fine_art import *
+from spectral_film_lut.css_theme import THEME, BACKGROUND_COLOR
 from spectral_film_lut.negative_film.agfa_vista_100 import AgfaVista100
 from spectral_film_lut.negative_film.fuji_c200 import FujiC200
 from spectral_film_lut.negative_film.fuji_eterna_500 import FujiEterna500
@@ -106,6 +107,8 @@ class SplashScreen(QWidget):
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.CoverWindow)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
 
+        self.setStyleSheet(f"background-color: {BACKGROUND_COLOR};")
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(10)
@@ -135,6 +138,8 @@ class SplashScreen(QWidget):
 
 def load_ui(main_window, name="Spectral Film LUT"):
     app = QApplication(sys.argv)
+
+    app.setStyleSheet(THEME)
 
     splash = SplashScreen(total_items=len(filmstocks), name=name)
 

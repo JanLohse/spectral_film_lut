@@ -50,7 +50,7 @@ class MainWindow(QMainWindow):
         add_option(self.image_selector, "Reference image:")
 
         colourspaces = ["CIE XYZ 1931"] + list(RGB_COLOURSPACES.data.keys())
-        self.input_colourspace_selector = QComboBox()
+        self.input_colourspace_selector = WideComboBox()
         self.input_colourspace_selector.addItems(colourspaces)
         add_option(self.input_colourspace_selector, "Input colourspace:", "ARRI Wide Gamut 4",
                    self.input_colourspace_selector.setCurrentText)
@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         add_option(self.exp_comp, "Exposure:", 0, self.exp_comp.setValue)
 
         self.exp_wb = Slider()
-        self.exp_wb.setMinMaxTicks(2000, 15000, 100)
+        self.exp_wb.setMinMaxTicks(2000, 15000, 100, default=6500)
         add_option(self.exp_wb, "WB:", 6500, self.exp_wb.setValue)
 
         self.tint = Slider()
@@ -123,35 +123,35 @@ class MainWindow(QMainWindow):
         add_option(self.print_selector, "Print stock:", "Kodak2383", self.print_selector.setCurrentText)
 
         self.projector_kelvin = Slider()
-        self.projector_kelvin.setMinMaxTicks(2700, 10000, 100)
+        self.projector_kelvin.setMinMaxTicks(2700, 10000, 100, default=6500)
         add_option(self.projector_kelvin, "Projector wb:", 6500, self.projector_kelvin.setValue)
 
         self.white_point = Slider()
-        self.white_point.setMinMaxTicks(.5, 2., 1, 20)
+        self.white_point.setMinMaxTicks(.5, 2., 1, 20, 1.)
         add_option(self.white_point, "White point:", 1., self.white_point.setValue)
 
         self.sat_adjust = Slider()
-        self.sat_adjust.setMinMaxTicks(0, 2, 1, 100)
+        self.sat_adjust.setMinMaxTicks(0, 2, 1, 100, 1)
         add_option(self.sat_adjust, "Sat:", 1, self.sat_adjust.setValue)
 
         self.black_offset = Slider()
         self.black_offset.setMinMaxTicks(-2, 2, 1, 10)
         add_option(self.black_offset, "Black offset", 0., self.black_offset.setValue)
 
-        self.output_colourspace_selector = QComboBox()
+        self.output_colourspace_selector = WideComboBox()
         self.output_colourspace_selector.addItems(colourspaces)
         add_option(self.output_colourspace_selector, "Output colourspace:", "sRGB",
                    self.output_colourspace_selector.setCurrentText)
 
         self.lut_size = Slider()
-        self.lut_size.setMinMaxTicks(2, 67)
+        self.lut_size.setMinMaxTicks(2, 67, default=33)
         add_option(self.lut_size, "LUT size:", 33, self.lut_size.setValue)
 
         self.color_masking = Slider()
-        self.color_masking.setMinMaxTicks(0, 1, 1, 10)
+        self.color_masking.setMinMaxTicks(0, 1, 1, 10, 1)
         add_option(self.color_masking, "Color masking:", 1, self.color_masking.setValue)
 
-        self.mode = QComboBox()
+        self.mode = WideComboBox()
         self.mode.addItems(['full', 'negative', 'print', 'grain'])
         add_option(self.mode, "Mode:", "full", self.mode.setCurrentText)
 

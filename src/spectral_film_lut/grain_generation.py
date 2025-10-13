@@ -132,7 +132,7 @@ class ExportGrainDialog(QDialog):
 
         # Format selector
         layout.addWidget(QLabel("File format:"))
-        self.format_selector = QComboBox()
+        self.format_selector = WideComboBox()
         self.format_selector.addItems(list(FILE_FORMATS.keys()))
         self.format_selector.setCurrentText("TIFF Sequence")
         layout.addWidget(self.format_selector)
@@ -140,7 +140,7 @@ class ExportGrainDialog(QDialog):
         regex = QRegularExpression(r"[0-9]*|[0-9]+\.[0-9]*")
         double_validator = QRegularExpressionValidator(regex)
         layout.addWidget(QLabel("Frame rate:"))
-        self.frame_rate = QComboBox()
+        self.frame_rate = WideComboBox()
         self.frame_rate.setEditable(True)
         self.frame_rate.addItems(["23.976", "24", "25", "29.97", "30", "50", "59.94", "60"])
         self.frame_rate.setValidator(double_validator)
@@ -148,7 +148,7 @@ class ExportGrainDialog(QDialog):
         layout.addWidget(self.frame_rate)
 
         layout.addWidget(QLabel("Frame width (mm):"))
-        self.frame_width_field = QComboBox()
+        self.frame_width_field = WideComboBox()
         self.frame_width_field.setEditable(True)
         self.frame_width_field.addItems(["5.79", "6.30", "12.42", "24.90", "36", "52.15", "70.41"])
         self.frame_width_field.setValidator(double_validator)

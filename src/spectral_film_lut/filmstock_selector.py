@@ -1,7 +1,16 @@
+import os
+
 from PyQt6.QtCore import Qt, QSize, QEvent, QTimer
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QStackedWidget, QScrollArea, QWidget, QGridLayout,
+from PyQt6.QtGui import QPixmap, QIcon
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QStackedWidget, QScrollArea, QWidget, QGridLayout,
                              QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter, QLineEdit, QFrame)
+from spectral_film_lut.utils import WideComboBox, RoundedScrollArea
+
+from spectral_film_lut.css_theme import *
+
+base_dir = os.path.dirname(__file__)
+icon_path = os.path.join(base_dir, "resources", "search.svg").replace("\\", "/")
+
 
 class FilmStockSelector(QWidget):
     def __init__(self, film_stocks, **kwargs):
@@ -16,9 +25,11 @@ class FilmStockSelector(QWidget):
         self.film_stocks = film_stocks
         self.kwargs = kwargs
 
-        self.film_combo = QComboBox()
+        self.film_combo = WideComboBox()
         self.film_combo.addItems(self.film_stocks.keys())
-        self.select_button = QPushButton("🔍")
+        self.film_combo.setStyleSheet(f"QComboBox QAbstractItemView {{background-color: {MENU_COLOR};}}")
+        self.select_button = QPushButton()
+        self.select_button.setIcon(QIcon(icon_path))
         self.select_button.setFixedWidth(25)
         layout = QHBoxLayout()
         self.setLayout(layout)
@@ -72,6 +83,47 @@ class FilmStockSelectorWindow(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Select Film Stock")
         self.resize(800, 500)
+        self.setStyleSheet(f"""
+QDialog {{
+    background-color: {BACKGROUND_COLOR};
+}}
+
+QPushButton, QComboBox, QToolButton {{
+    border-radius: {BUTTON_RADIUS}px;
+    background-color: transparent;
+}}
+
+QLineEdit {{
+    background-color: {PRESSED_COLOR};
+    border-radius: {BUTTON_RADIUS}px;
+    padding: 2px;
+}}
+
+QLineEdit:hover {{
+    background-color: {HOVER_COLOR};
+}}
+
+QPushButton:hover, QComboBox:hover, QToolButton:hover {{
+    background-color: {HOVER_COLOR};
+}}
+
+QPushButton:pressed, QComboBox:pressed, QToolButton:pressed {{
+    background-color: {PRESSED_COLOR};
+}}
+
+QToolButton:checked {{
+    background-color: {MENU_COLOR};
+}}
+
+QFrame {{
+    background-color: {BASE_COLOR};
+    border-radius: {BORDER_RADIUS}px;
+}}
+
+QLabel {{
+    background-color: transparent;
+}}
+""")
 
         self.selected_film = None
         self.highlighted_stock = None
@@ -95,8 +147,8 @@ class FilmStockSelectorWindow(QDialog):
 
         self.current_max_cols = None
 
-        self.sort_combo = QComboBox()
-        self.group_combo = QComboBox()
+        self.sort_combo = WideComboBox()
+        self.group_combo = WideComboBox()
         self.sort_combo.addItems(self.sort_keys)
         self.group_combo.addItems(['none'] + self.group_keys)
         if default_group is not None and default_group in self.group_keys:
@@ -268,17 +320,17 @@ class FilmStockSelectorWindow(QDialog):
                 return
             if self.highlighted_stock is not None:
                 if self.highlighted_stock in self.grid_widgets:
-                    self.grid_widgets[self.highlighted_stock].setStyleSheet("")
+                    self.grid_widgets[self.highlighted_stock].setStyleSheet("background-color: transparent;")
                 if self.highlighted_stock in self.list_widgets:
-                    self.list_widgets[self.highlighted_stock].setStyleSheet("")
+                    self.list_widgets[self.highlighted_stock].setStyleSheet("background-color: transparent;")
             self.highlighted_stock = stock
         elif self.highlighted_stock is not None and self.highlighted_stock in self.grid_widgets and self.highlighted_stock in self.list_widgets:
             grid_widget = self.grid_widgets[self.highlighted_stock]
             list_widget = self.list_widgets[self.highlighted_stock]
         else:
             return
-        grid_widget.setStyleSheet("background-color: lightblue;")
-        list_widget.setStyleSheet("background-color: lightblue;")
+        grid_widget.setStyleSheet(f"background-color: {PRESSED_COLOR};")
+        list_widget.setStyleSheet(f"background-color: {PRESSED_COLOR};")
         if stock is not None:
             self.update_sidebar(stock)
 

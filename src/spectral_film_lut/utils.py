@@ -8,15 +8,18 @@ from pathlib import Path
 
 import colour
 import cv2
-from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot
-from PyQt6.QtGui import QWheelEvent
-from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider
+from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot, QRectF, QRect, QPoint
+from PyQt6.QtGui import QWheelEvent, QFontMetrics, QPainterPath, QRegion, QPainter, QColor, QPen
+from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider, QComboBox, \
+    QScrollArea, QFrame
 from matplotlib import pyplot as plt
 from numba import njit, prange, cuda
+from spectral_film_lut.css_theme import *
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
+    raise ImportError
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
@@ -62,6 +65,50 @@ def create_lut(negative_film, print_film=None, lut_size=33, name="test", cube=Tr
     if verbose:
         print(f"created {path} in {end - start:.2f} seconds")
     return path
+
+
+class RoundedScrollArea(QScrollArea):
+    def __init__(self, radius=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if radius is None:
+            radius = BORDER_RADIUS
+        self.radius = radius
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setWidgetResizable(True)
+        self.setStyleSheet(f"""
+            QScrollArea {{
+                border-radius: {self.radius}px;
+            }}
+        """)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.applyRoundedMask()
+
+    def applyRoundedMask(self):
+        r = self.radius
+        rect = QRectF(self.rect())  # ✅ Convert QRect -> QRectF
+        path = QPainterPath()
+        path.addRoundedRect(rect, r, r)
+        region = QRegion(path.toFillPolygon().toPolygon())
+        self.setMask(region)
+
+
+class WideComboBox(QComboBox):
+    def __init__(self, parent=None):
+        super(WideComboBox, self).__init__(parent)
+        self.setStyleSheet(f"QComboBox QAbstractItemView {{background-color: {MENU_COLOR};}}")
+
+    def showPopup(self):
+        # Measure the widest item text
+        fm = QFontMetrics(self.view().font())
+        max_width = max(fm.horizontalAdvance(self.itemText(i)) for i in range(self.count()))
+        # Add some padding
+        max_width += 30
+
+        # Resize the popup view
+        self.view().setMinimumWidth(max(self.width(), max_width))
+        super().showPopup()
 
 
 class WorkerSignals(QObject):
@@ -152,6 +199,65 @@ class FileSelector(QWidget):
         return self.filename_edit.text()
 
 
+class CenteredSlider(QSlider):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reference_value = 0
+        self.setStyleSheet("""
+            QSlider {
+                background: transparent;
+            }
+        """)
+
+    def setReferenceValue(self, value: int):
+        """Update the reference (neutral) value dynamically."""
+        self.reference_value = value
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # --- groove geometry
+        groove_rect = QRect(10, self.height() // 2 - 3, self.width() - 20, 4)
+
+        # map values to pixel positions
+        min_val, max_val = self.minimum(), self.maximum()
+        total_range = max_val - min_val
+
+        def value_to_x(val):
+            return groove_rect.left() + (val - min_val) / total_range * groove_rect.width()
+
+        handle_x = int(value_to_x(self.value()))
+        ref_x = int(value_to_x(self.reference_value))
+
+        # --- draw background groove
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(PRESSED_COLOR))
+        painter.drawRoundedRect(groove_rect, 3, 3)
+
+        # --- draw active segment (between ref_x and handle_x)
+        painter.setBrush(QColor(HOVER_COLOR))
+        if handle_x > ref_x:
+            active_rect = QRect(ref_x, groove_rect.top(), handle_x - ref_x, groove_rect.height())
+        else:
+            active_rect = QRect(handle_x, groove_rect.top(), ref_x - handle_x, groove_rect.height())
+        painter.drawRoundedRect(active_rect, 3, 3)
+
+        # --- draw handle (white circle with gray center)
+        handle_center = QPoint(handle_x, groove_rect.center().y())
+        outer_radius, inner_radius = 7, 3
+
+        painter.setBrush(QColor(TEXT_PRIMARY))
+        painter.drawEllipse(handle_center, outer_radius, outer_radius)
+
+        painter.setBrush(QColor(BACKGROUND_COLOR))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(handle_center, inner_radius, inner_radius)
+
+        painter.end()
+
+
 class Slider(QWidget):
     valueChanged = pyqtSignal(float)
 
@@ -161,7 +267,7 @@ class Slider(QWidget):
         self.setLayout(layout)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.slider = QSlider()
+        self.slider = CenteredSlider()
         self.slider.setOrientation(Qt.Orientation.Horizontal)
         self.setMinMaxTicks(0, 1, 1)
 
@@ -181,7 +287,7 @@ class Slider(QWidget):
         self.big_increment = 5
         self.small_increment = 2
 
-    def setMinMaxTicks(self, min, max, enumerator=1, denominator=1):
+    def setMinMaxTicks(self, min, max, enumerator=1, denominator=1, default=0):
         self.slider.setMinimum(0)
         number_of_steps = int(((max - min) * denominator) / enumerator)
         self.slider.setMaximum(number_of_steps)
@@ -190,6 +296,8 @@ class Slider(QWidget):
         self.denominator = denominator
         self.big_increment = math.ceil(number_of_steps / 10)
         self.small_increment = math.ceil(number_of_steps / 30)
+        self.setValue(default)
+        self.slider.setReferenceValue(self.getPosition())
 
     def sliderValueChanged(self):
         value = self.getValue()
