@@ -1,21 +1,26 @@
 import os
+import colour
 
-BASE_COLOR = "#191a1c"
-BACKGROUND_COLOR = "#26282b"
-ACCENT_COLOR = "#426dc3"
+
+def oklch_to_hex(l, c=0., h=0.):
+    return colour.convert((l, c, h), "Oklch", "Hexadecimal")
+
+BASE_COLOR = oklch_to_hex(0.2175)
+BACKGROUND_COLOR = oklch_to_hex(0.276)
+ACCENT_COLOR = oklch_to_hex(0.55)
 BORDER_RADIUS = 12
 BUTTON_RADIUS = 6
-HOVER_COLOR = "#46484b"
-OUTLINE_COLOR = "#46484b"
-PRESSED_COLOR = "#393b3d"
-MENU_COLOR = "#202225"
-TEXT_PRIMARY = "white"
-SCROLLBAR_HOVER_COLOR = "#232426"
+HOVER_COLOR = oklch_to_hex(0.4)
+OUTLINE_COLOR = oklch_to_hex(0.4)
+PRESSED_COLOR = oklch_to_hex(0.35)
+MENU_COLOR = oklch_to_hex(0.25)
+TEXT_PRIMARY = oklch_to_hex(0.9)
+SCROLLBAR_HOVER_COLOR = oklch_to_hex(0.275)
 SCROLLBAR_THICKNESS = 11
 SCROLLBAR_MARGIN = 2
-SCROLLBAR_HANDLE_COLOR = "#3d3e3f"
-SCROLLBAR_HANDLE_HOVER = "#565657"
-HIGHLIGHT_COLOR = "#b0b5bd"
+SCROLLBAR_HANDLE_COLOR = oklch_to_hex(0.3633)
+SCROLLBAR_HANDLE_HOVER = oklch_to_hex(0.4535)
+HIGHLIGHT_COLOR = oklch_to_hex(0.75)
 
 base_dir = os.path.dirname(__file__)
 icon_path = os.path.join(base_dir, "resources").replace("\\", "/")
@@ -84,7 +89,7 @@ QComboBox::drop-down {{
 
 /* LineEdit */
 QLineEdit {{
-    background-color: {PRESSED_COLOR};
+    background-color: {SCROLLBAR_HOVER_COLOR};
     border-radius: {BUTTON_RADIUS}px;
     padding: 2px;
 }}
