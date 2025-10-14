@@ -578,8 +578,8 @@ class FilmSpectral:
             else:
                 offset = black_offset * 0.0005
             func = lambda x: np.clip(np.where(x >= black_pivot, x,
-                                              black_pivot * ((x - offset) / (black_pivot - offset)) ** (
-                                                      (black_pivot - offset) / black_pivot)), 0, None)
+                                              black_pivot * ((x + offset) / (black_pivot + offset)) ** (
+                                                      (black_pivot + offset) / black_pivot)), 0, None)
             add(func, "black_offset")
 
         if mode == 'negative' or mode == 'full':

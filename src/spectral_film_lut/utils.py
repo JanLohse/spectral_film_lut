@@ -14,12 +14,12 @@ from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDial
     QScrollArea, QFrame
 from matplotlib import pyplot as plt
 from numba import njit, prange, cuda
+
 from spectral_film_lut.css_theme import *
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
-    raise ImportError
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
@@ -199,11 +199,10 @@ class FileSelector(QWidget):
         return self.filename_edit.text()
 
 
-class CenteredSlider(QSlider):
-    def __init__(self, *args, reference_value=0, start_color=None, end_color=None, middle_color=None, **kwargs):
-        self.start_color = start_color if start_color is not None else "#636363"
-        self.end_color = end_color if end_color is not None else "#aeaeae"
-        self.middle_color = middle_color if middle_color is not None else None
+class GradientSlider(QSlider):
+    def __init__(self, *args, reference_value=0, **kwargs):
+        self.gradient = None
+        self.set_color_gradient((0.2, 0., 0.), (0.8, 0., 0.))
 
         super().__init__(*args, **kwargs)
         self.setRange(-100, 100)
@@ -225,11 +224,13 @@ class CenteredSlider(QSlider):
         self._hoverProgress = value
         self.update()
 
-    def set_color_gradient(self, start_color=None, end_color=None, middle_color=None):
-        self.start_color = start_color if start_color is not None else self.start_color
-        self.end_color = end_color if end_color is not None else self.end_color
-        self.middle_color = middle_color if middle_color is not None else self.middle_color
-        self.repaint()
+    def set_color_gradient(self, start_color, end_color, steps=10, blend_in_lab=True):
+        if blend_in_lab:
+            start_color = colour.convert(start_color, "Oklch", "Oklab")
+            end_color = colour.convert(end_color, "Oklch", "Oklab")
+        source = "Oklab" if blend_in_lab else "Oklch"
+        self.gradient = [(x, QColor(colour.convert(start_color * (1 - x) + end_color * x, source, "Hexadecimal"))) for
+                         x in np.linspace(0, 1, steps)]
 
     hoverProgress = pyqtProperty(float, fget=get_hover_progress, fset=set_hover_progress)
 
@@ -269,32 +270,29 @@ class CenteredSlider(QSlider):
         painter.setPen(Qt.PenStyle.NoPen)
 
         gradient = QLinearGradient(QPointF(groove_rect.topLeft()), QPointF(groove_rect.topRight()))
-        gradient.setColorAt(0.0, QColor(self.start_color))  # left color
-        gradient.setColorAt(1.0, QColor(self.end_color))  # right color
-        if self.middle_color is not None:
-            gradient.setColorAt(0.5, QColor(self.middle_color))
+        for pos, color in self.gradient:
+            gradient.setColorAt(pos, color)  # left color
 
         painter.setBrush(QBrush(gradient))
         painter.drawRoundedRect(groove_rect, 3, 3)
 
         # active segment (ref -> handle)
-        color = ACCENT_COLOR if self.value() >= self.reference_value else ACCENT_COLOR
-        painter.setBrush(QColor(color))
+        painter.setBrush(QColor(TEXT_PRIMARY))
         if handle_x > ref_x:
             active_rect = QRect(ref_x, groove_rect.top(), handle_x - ref_x, groove_rect.height())
         else:
             active_rect = QRect(handle_x, groove_rect.top(), ref_x - handle_x, groove_rect.height())
-        painter.drawRoundedRect(active_rect, 3, 3)
+        painter.drawRect(active_rect)
 
         # handle
         handle_center = QPoint(handle_x, groove_rect.center().y())
         hover_radius = 7
         inner_radius = round(2 + self._hoverProgress * 2)  # grow inner slightly too
 
-        painter.setBrush(QColor(HOVER_COLOR))
+        painter.setBrush(QColor(TEXT_PRIMARY))
         painter.drawEllipse(handle_center, hover_radius, hover_radius)
 
-        painter.setBrush(QColor(ACCENT_COLOR))
+        painter.setBrush(QColor(BASE_COLOR))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(handle_center, inner_radius, inner_radius)
 
@@ -315,7 +313,7 @@ class Slider(QWidget):
         self.setLayout(layout)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.slider = CenteredSlider()
+        self.slider = GradientSlider()
         self.slider.setOrientation(Qt.Orientation.Horizontal)
         self.setMinMaxTicks(0, 1, 1)
 

@@ -3,6 +3,7 @@ from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWidgets import QMainWindow, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
+
 from spectral_film_lut.film_loader import load_ui
 from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.grain_generation import ExportGrainDialog
@@ -61,13 +62,12 @@ class MainWindow(QMainWindow):
 
         self.exp_wb = Slider()
         self.exp_wb.setMinMaxTicks(2000, 15000, 100, default=6500)
-        self.exp_wb.set_color_gradient("#2b8ccd", "#c76353", "#858585")
+        self.exp_wb.set_color_gradient(np.array([2 / 3, 0.14, 0.65277]), np.array([2 / 3, 0.14, 0.15277]))
         add_option(self.exp_wb, "WB:", 6500, self.exp_wb.setValue)
 
         self.tint = Slider()
         self.tint.setMinMaxTicks(-1, 1, 1, 100)
-
-        self.tint.set_color_gradient("#b8639d", "#2f9b61", "#858585")
+        self.tint.set_color_gradient(np.array([2 / 3, 0.14, 0.90277]), np.array([2 / 3, 0.14, 0.40277]))
         add_option(self.tint, "Tint:", 0, self.tint.setValue)
 
         filmstock_info = {x: {'Year': filmstocks[x].year, 'Manufacturer': filmstocks[x].manufacturer, 'Type':
@@ -98,14 +98,24 @@ class MainWindow(QMainWindow):
                                                    image_key="image")
         add_option(self.negative_selector, "Negativ stock:", "Kodak5207", self.negative_selector.setCurrentText)
 
+        luma_bright = 0.8
+        luma_dark = 0.4
+        chroma = 0.2
+        hue_offset = 0.06111111
         self.red_light = Slider()
         self.red_light.setMinMaxTicks(-1, 1, 1, 20)
+        self.red_light.set_color_gradient(np.array([luma_bright, chroma, hue_offset + 0 / 6]),
+                                          np.array([luma_dark, chroma, hue_offset + 3 / 6]))
         add_option(self.red_light, "Red printer light:", 0, self.red_light.setValue)
         self.green_light = Slider()
         self.green_light.setMinMaxTicks(-1, 1, 1, 20)
+        self.green_light.set_color_gradient(np.array([luma_bright, chroma, hue_offset + 2 / 6]),
+                                            np.array([luma_dark, chroma, hue_offset + 5 / 6]))
         add_option(self.green_light, "Green printer light:", 0, self.green_light.setValue)
         self.blue_light = Slider()
         self.blue_light.setMinMaxTicks(-1, 1, 1, 20)
+        self.blue_light.set_color_gradient(np.array([luma_bright, chroma, hue_offset + 4 / 6]),
+                                           np.array([luma_dark, chroma, hue_offset + 1 / 6]))
         add_option(self.blue_light, "Blue printer light:", 0, self.blue_light.setValue)
 
         self.link_lights = QCheckBox()
@@ -127,7 +137,7 @@ class MainWindow(QMainWindow):
 
         self.projector_kelvin = Slider()
         self.projector_kelvin.setMinMaxTicks(2700, 10000, 100, default=6500)
-        self.projector_kelvin.set_color_gradient("#2b8ccd", "#c76353", "#858585")
+        self.projector_kelvin.set_color_gradient(np.array([2 / 3, 0.14, 0.15277]), np.array([2 / 3, 0.14, 0.65277]))
         add_option(self.projector_kelvin, "Projector wb:", 6500, self.projector_kelvin.setValue)
 
         self.white_point = Slider()
@@ -135,11 +145,12 @@ class MainWindow(QMainWindow):
         add_option(self.white_point, "White point:", 1., self.white_point.setValue)
 
         self.sat_adjust = Slider()
+        self.sat_adjust.set_color_gradient(np.array([0.666, 0., 0., ]), np.array([0.666, 0.25, 2.]), 20, False)
         self.sat_adjust.setMinMaxTicks(0, 2, 1, 100, 1)
         add_option(self.sat_adjust, "Sat:", 1, self.sat_adjust.setValue)
 
         self.black_offset = Slider()
-        self.black_offset.setMinMaxTicks(-2, 2, 1, 10)
+        self.black_offset.setMinMaxTicks(-2, 2, 1, 50)
         add_option(self.black_offset, "Black offset", 0., self.black_offset.setValue)
 
         self.output_colourspace_selector = WideComboBox()
