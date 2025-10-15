@@ -87,6 +87,21 @@ QComboBox::drop-down {{
     background: transparent;
 }}
 
+/* Button icons */
+
+#plus {{
+    image: url("{icon_path}/plus.svg");
+}}
+#right {{
+    image: url("{icon_path}/right.svg");
+}}
+#left {{
+    image: url("{icon_path}/left.svg");
+}}
+#flip {{
+    image: url("{icon_path}/flip.svg");
+}}
+
 /* LineEdit */
 QLineEdit {{
     background-color: {SCROLLBAR_HOVER_COLOR};
