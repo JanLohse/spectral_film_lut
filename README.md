@@ -40,9 +40,10 @@ You can also export the LUT in a negative and print stage.
 In your image editing pipeline this gives you the option to add grain to the negative stage.
 
 ### Main GUI
-<img width="1026" height="606" alt="main gui" src="https://github.com/user-attachments/assets/d4117797-6140-45d9-a35b-6337fdd9c403" />
+<img width="1075" height="840" alt="main gui" src="https://github.com/user-attachments/assets/da02d533-d828-4f7b-87f8-4e646413446c" />
+
 
 ### Filmstock Selector
 When clicking on the magnifying glass a window opens to search and browse through the available film stocks.
 
-<img width="866" height="585" alt="filmstock selector" src="https://github.com/user-attachments/assets/1a651ba2-cd53-4484-92ef-ed4cbcc0971b" /> 
+<img width="854" height="604" alt="filmstock selector" src="https://github.com/user-attachments/assets/c10af392-a531-40e4-8f4c-8a564807a9d3" />
