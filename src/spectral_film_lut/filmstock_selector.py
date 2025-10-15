@@ -1,9 +1,9 @@
 from PyQt6.QtCore import Qt, QSize, QEvent, QTimer
 from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QStackedWidget, QScrollArea, QWidget, QGridLayout,
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QStackedWidget, QWidget, QGridLayout,
                              QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter, QLineEdit, QFrame)
-
 from spectral_film_lut.css_theme import *
+from spectral_film_lut.utils import RoundedScrollArea
 from spectral_film_lut.utils import WideComboBox
 
 base_dir = os.path.dirname(__file__)
@@ -115,6 +115,10 @@ QToolButton:checked {{
 }}
 
 QFrame {{
+    background-color: transparent;
+}}
+
+#scroll {{
     background-color: {BASE_COLOR};
     border-radius: {BORDER_RADIUS}px;
 }}
@@ -175,7 +179,8 @@ QLabel {{
 
         self.stacked_view = QStackedWidget()
 
-        self.list_scroll = QScrollArea()
+        self.list_scroll = RoundedScrollArea()
+        self.list_scroll.setObjectName("scroll")
         self.list_container = QWidget()
         self.list_layout = QVBoxLayout()
         self.list_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -183,7 +188,8 @@ QLabel {{
         self.list_scroll.setWidget(self.list_container)
         self.list_scroll.setWidgetResizable(True)
 
-        self.grid_scroll = QScrollArea()
+        self.grid_scroll = RoundedScrollArea()
+        self.grid_scroll.setObjectName("scroll")
         self.grid_container = QWidget()
         self.grid_layout = QGridLayout()
         self.grid_layout.setSpacing(0)

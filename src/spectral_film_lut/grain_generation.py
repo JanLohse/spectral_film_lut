@@ -3,12 +3,10 @@ from functools import cache
 import imageio
 import imageio.v3 as iio
 from PyQt6.QtCore import QRegularExpression
-from PyQt6.QtGui import QIntValidator, QDoubleValidator, QRegularExpressionValidator
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QCheckBox, QComboBox, QProgressDialog, QApplication)
-
+from PyQt6.QtGui import QIntValidator, QRegularExpressionValidator
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QCheckBox, QProgressDialog, QApplication)
 from spectral_film_lut.file_formats import FILE_FORMATS
 from spectral_film_lut.utils import *
-
 
 
 @cache
@@ -103,6 +101,20 @@ class ExportGrainDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Export Noise")
+        self.setStyleSheet(f"""
+        QWidget {{
+            border-radius: {BUTTON_RADIUS}px; 
+            background-color: {BASE_COLOR};
+        }}
+        
+        QLineEdit {{
+            background-color: {SCROLLBAR_HOVER_COLOR};
+        }}
+        
+        QPushButton::hover, QComboBox::hover, QLineEdit::hover {{
+            background-color: {HOVER_COLOR};
+        }}
+        """)
 
         # --- UI Elements ---
         layout = QVBoxLayout()

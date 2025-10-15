@@ -8,17 +8,17 @@ from pathlib import Path
 import cv2
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot, QRectF, QRect, QPoint, pyqtProperty, \
     QPropertyAnimation, QPointF
-from PyQt6.QtGui import QWheelEvent, QFontMetrics, QPainterPath, QRegion, QPainter, QColor, QLinearGradient, QBrush
+from PyQt6.QtGui import QWheelEvent, QFontMetrics, QPainter, QColor, QLinearGradient, QBrush
 from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider, QComboBox, \
     QScrollArea, QFrame
 from matplotlib import pyplot as plt
 from numba import njit, prange, cuda
-
 from spectral_film_lut.css_theme import *
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
+    raise ImportError
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
@@ -74,23 +74,7 @@ class RoundedScrollArea(QScrollArea):
         self.radius = radius
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setWidgetResizable(True)
-        self.setStyleSheet(f"""
-            QScrollArea {{
-                border-radius: {self.radius}px;
-            }}
-        """)
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.applyRoundedMask()
-
-    def applyRoundedMask(self):
-        r = self.radius
-        rect = QRectF(self.rect())  # ✅ Convert QRect -> QRectF
-        path = QPainterPath()
-        path.addRoundedRect(rect, r, r)
-        region = QRegion(path.toFillPolygon().toPolygon())
-        self.setMask(region)
 
 
 class WideComboBox(QComboBox):
@@ -284,7 +268,10 @@ class GradientSlider(QSlider):
             active_rect = QRect(ref_x, groove_rect.top(), handle_x - ref_x, groove_rect.height())
         else:
             active_rect = QRect(handle_x, groove_rect.top(), ref_x - handle_x, groove_rect.height())
-        painter.drawRect(active_rect)
+        if self.reference_value in (self.minimum(), self.maximum()):
+            painter.drawRoundedRect(active_rect, 3, 3)
+        else:
+            painter.drawRect(active_rect)
 
         # handle
         if self.modern_design:
