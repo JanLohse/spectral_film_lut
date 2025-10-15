@@ -202,7 +202,7 @@ class FileSelector(QWidget):
 class GradientSlider(QSlider):
     def __init__(self, *args, reference_value=0, **kwargs):
         self.gradient = None
-        self.set_color_gradient((0.2, 0., 0.), (0.8, 0., 0.))
+        self.set_color_gradient((0.3, 0., 0.), (0.7, 0., 0.))
 
         super().__init__(*args, **kwargs)
         self.setRange(-100, 100)
