@@ -5,7 +5,6 @@ import traceback
 import warnings
 from pathlib import Path
 
-import colour
 import cv2
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot, QRectF, QRect, QPoint, pyqtProperty, \
     QPropertyAnimation, QPointF

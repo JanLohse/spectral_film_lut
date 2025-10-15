@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import QApplication, QProgressBar, QVBoxLayout
+
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
 from spectral_film_lut.bw_print_film.kodak_polymax_fine_art import *
-from spectral_film_lut.css_theme import THEME, BACKGROUND_COLOR
 from spectral_film_lut.negative_film.agfa_vista_100 import AgfaVista100
 from spectral_film_lut.negative_film.fuji_c200 import FujiC200
 from spectral_film_lut.negative_film.fuji_eterna_500 import FujiEterna500
@@ -99,6 +99,11 @@ def load_filmstocks(progress_callback):
     return {stock.__class__.__name__: stock for stock in result}
 
 
+PROGRESS_BACKGROUND = PRESSED_COLOR
+PROGRESS_COLOR = TEXT_PRIMARY
+TEXT_COLOR = TEXT_PRIMARY
+
+
 class SplashScreen(QWidget):
     def __init__(self, total_items, name):
         super().__init__()
@@ -107,31 +112,60 @@ class SplashScreen(QWidget):
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.CoverWindow)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
 
-        self.setStyleSheet(f"background-color: {BACKGROUND_COLOR};")
+        # Background color
+        self.setStyleSheet(f"background-color: {BACKGROUND_COLOR}; color: {TEXT_COLOR};")
 
+        # Layout
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(10)
+        layout.setSpacing(15)
 
+        # Heading label
         self.heading = QLabel(name)
         self.heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.heading.setStyleSheet("font-weight: bold; font-size: 16px;")
+        self.heading.setStyleSheet("font-weight: bold; font-size: 18px;")
 
+        # Sub-label
         self.label = QLabel("Starting up...")
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label.setStyleSheet("font-size: 13px;")
 
+        # Progress bar
+        self.total_items = total_items
         self.progress = QProgressBar()
         self.progress.setRange(0, total_items)
         self.progress.setValue(0)
+        self.progress.setTextVisible(True)
+
+        self.update_style_sheet(0)
 
         layout.addWidget(self.heading)
         layout.addWidget(self.label)
         layout.addWidget(self.progress)
 
         self.show()
+        QApplication.processEvents()
+
+    def update_style_sheet(self, progress):
+        # Style the progress bar
+        progress_color = colour.convert((0.5, 0.08, progress), "Oklch", "Hexadecimal")
+        self.progress.setStyleSheet(f"""
+            QProgressBar {{
+                border-radius: 6px;
+                text-align: center;
+                background-color: {PROGRESS_BACKGROUND};
+                height: 16px;  /* thicker bar */
+                color: {TEXT_COLOR};
+            }}
+            QProgressBar::chunk {{
+                background-color: {progress_color};
+                border-radius: 6px;
+            }}
+        """)
 
     def update(self, current, total, name):
         self.progress.setValue(current)
+        self.update_style_sheet(current / self.total_items)
         self.label.setText(f"Loading {name} ({current}/{total})")
         QApplication.processEvents()
 

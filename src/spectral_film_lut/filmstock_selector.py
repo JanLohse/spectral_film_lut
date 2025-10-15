@@ -1,12 +1,10 @@
-import os
-
 from PyQt6.QtCore import Qt, QSize, QEvent, QTimer
 from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QStackedWidget, QScrollArea, QWidget, QGridLayout,
                              QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter, QLineEdit, QFrame)
-from spectral_film_lut.utils import WideComboBox, RoundedScrollArea
 
 from spectral_film_lut.css_theme import *
+from spectral_film_lut.utils import WideComboBox
 
 base_dir = os.path.dirname(__file__)
 icon_path = os.path.join(base_dir, "resources", "search.svg").replace("\\", "/")
@@ -54,6 +52,7 @@ class FilmStockSelector(QWidget):
         self.kwargs["default_sort"] = dialog.get_sort_key()
         self.kwargs["default_group"] = dialog.get_group_key()
         self.kwargs["default_filter"] = dialog.get_filter_key()
+        self.kwargs["view_state"] = dialog.view_toggle.isChecked()
 
 
 class FilmStockSelectorWindow(QDialog):
@@ -61,7 +60,7 @@ class FilmStockSelectorWindow(QDialog):
 
     def __init__(self, parent=None, film_stocks=None, sort_keys=None, group_keys=None, list_keys=None,
                  sidebar_keys=None, default_sort=None, default_group=None, default_filter=None, highlighted_stock=None,
-                 image_key=None):
+                 image_key=None, view_state=None):
         """
         Popup window which lets you choose a film stock with more detailed info.
         Has a tabular view with some details and a grid view with thumbnail color checkers.
@@ -167,6 +166,8 @@ QLabel {{
         self.view_toggle = QToolButton()
         self.view_toggle.setText("Toggle View")
         self.view_toggle.setCheckable(True)
+        if view_state is not None:
+            self.view_toggle.setChecked(view_state)
         self.view_toggle.toggled.connect(self.toggle_view)
 
         self.ok_button = QPushButton("OK")
@@ -197,6 +198,7 @@ QLabel {{
 
         self.stacked_view.addWidget(self.list_scroll)
         self.stacked_view.addWidget(self.grid_scroll)
+        self.stacked_view.setCurrentIndex(1 if self.view_toggle.isChecked() else 0)
 
         control_layout = QHBoxLayout()
         control_layout.addWidget(QLabel("Sort:"))
@@ -227,7 +229,6 @@ QLabel {{
 
         self.detail_widget = QWidget()
         self.detail_widget.setLayout(self.detail_area)
-        # self.detail_widget.setFixedWidth(200)
         self.detail_label.setWordWrap(True)
 
         main_split = QSplitter()
