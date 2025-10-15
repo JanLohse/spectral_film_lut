@@ -200,11 +200,11 @@ class FileSelector(QWidget):
 
 
 class GradientSlider(QSlider):
-    def __init__(self, *args, reference_value=0, **kwargs):
+    def __init__(self, *args, reference_value=0, modern_design=True, **kwargs):
+        super().__init__(*args, **kwargs)
         self.gradient = None
         self.set_color_gradient((0.3, 0., 0.), (0.7, 0., 0.))
-
-        super().__init__(*args, **kwargs)
+        self.modern_design = modern_design
         self.setRange(-100, 100)
         self.setValue(0)
         self.reference_value = reference_value
@@ -255,7 +255,8 @@ class GradientSlider(QSlider):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        groove_rect = QRect(10, self.height() // 2 - 3, self.width() - 20, 4)
+        groove_thickness = 10 if self.modern_design else 4
+        groove_rect = QRect(10, self.height() // 2 - 3, self.width() - 20, groove_thickness)
 
         min_val, max_val = self.minimum(), self.maximum()
         total_range = max_val - min_val
@@ -277,7 +278,7 @@ class GradientSlider(QSlider):
         painter.drawRoundedRect(groove_rect, 3, 3)
 
         # active segment (ref -> handle)
-        painter.setBrush(QColor(TEXT_PRIMARY))
+        painter.setBrush(QColor(255, 255, 255, 85))
         if handle_x > ref_x:
             active_rect = QRect(ref_x, groove_rect.top(), handle_x - ref_x, groove_rect.height())
         else:
@@ -285,16 +286,28 @@ class GradientSlider(QSlider):
         painter.drawRect(active_rect)
 
         # handle
-        handle_center = QPoint(handle_x, groove_rect.center().y())
-        hover_radius = 7
-        inner_radius = round(2 + self._hoverProgress * 2)  # grow inner slightly too
+        if self.modern_design:
+            handle_bg_width = 6 + self._hoverProgress * 1
+            handle_bg_rect = QRectF(handle_x - handle_bg_width, groove_rect.center().y() - groove_thickness, handle_bg_width * 2, groove_thickness * 2)
+            painter.setBrush(QColor(BASE_COLOR))
+            painter.drawRect(handle_bg_rect)
 
-        painter.setBrush(QColor(TEXT_PRIMARY))
-        painter.drawEllipse(handle_center, hover_radius, hover_radius)
+            handle_width = 1.25 + self._hoverProgress * 1
+            handle_length = groove_thickness / 2 + 4
+            handle_rect = QRectF(handle_x - handle_width, groove_rect.center().y() - handle_length, handle_width * 2, handle_length * 2)
+            painter.setBrush(QColor(TEXT_PRIMARY))
+            painter.drawRoundedRect(handle_rect, handle_width, handle_width)
+        else:
+            handle_center = QPoint(handle_x, groove_rect.center().y())
+            hover_radius = 7
+            inner_radius = round(2 + self._hoverProgress * 2)  # grow inner slightly too
 
-        painter.setBrush(QColor(BASE_COLOR))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawEllipse(handle_center, inner_radius, inner_radius)
+            painter.setBrush(QColor(TEXT_PRIMARY))
+            painter.drawEllipse(handle_center, hover_radius, hover_radius)
+
+            painter.setBrush(QColor(BASE_COLOR))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(handle_center, inner_radius, inner_radius)
 
         painter.end()
 
