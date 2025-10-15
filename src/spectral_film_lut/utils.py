@@ -255,8 +255,10 @@ class GradientSlider(QSlider):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        horizontal_padding = 7
         groove_thickness = 10 if self.modern_design else 4
-        groove_rect = QRect(10, self.height() // 2 - 3, self.width() - 20, groove_thickness)
+        groove_rect = QRect(horizontal_padding, self.height() // 2 - groove_thickness // 2,
+                            self.width() - horizontal_padding * 2, groove_thickness)
 
         min_val, max_val = self.minimum(), self.maximum()
         total_range = max_val - min_val
@@ -325,13 +327,14 @@ class Slider(QWidget):
         layout = QHBoxLayout()
         self.setLayout(layout)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         self.slider = GradientSlider()
         self.slider.setOrientation(Qt.Orientation.Horizontal)
         self.setMinMaxTicks(0, 1, 1)
 
         self.text = QLabel()
-        self.text.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.text.setAlignment((Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter))
         self.text.setFixedWidth(30)
 
         layout.addWidget(self.slider)
