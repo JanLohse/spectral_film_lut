@@ -8,6 +8,8 @@ To emulate the look of a film stock its datasheet was digitized and a multi-step
 - Options include still photography, motion picture, color, black and white, Kodak, Fuji, contemporary, and vintage.  
 - The accuracy is limited by the precision of the published data, which can be especially poor for long discontinued formats, and simplified assumptions in the color pipeline.  
 - There is especially little data available about the inter-layer interaction, e.g., how aggressive the color masking couplers in a negative film are.  
+<img width="1087" height="837" alt="main gui" src="https://github.com/user-attachments/assets/2eb00673-ac03-4fc3-a877-31e02372211b#gh-light-mode-only" />
+<img width="1072" height="823" alt="main gui" src="https://github.com/user-attachments/assets/9a4b7a74-5d87-487a-8bd5-1ea7361384fc#gh-dark-mode-only" />
 
 ## Installation
 
@@ -38,10 +40,6 @@ If CuPy
 Be sure to set the correct LUT size.
 You can also export the LUT in a negative and print stage.
 In your image editing pipeline this gives you the option to add grain to the negative stage.
-
-### Main GUI
-<img width="1087" height="837" alt="main gui" src="https://github.com/user-attachments/assets/2eb00673-ac03-4fc3-a877-31e02372211b#gh-light-mode-only" />
-<img width="1072" height="823" alt="main gui" src="https://github.com/user-attachments/assets/9a4b7a74-5d87-487a-8bd5-1ea7361384fc#gh-dark-mode-only" />
 
 ### Filmstock Selector
 When clicking on the magnifying glass a window opens to search and browse through the available film stocks.
