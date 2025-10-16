@@ -8,6 +8,8 @@ To emulate the look of a film stock its datasheet was digitized and a multi-step
 - Options include still photography, motion picture, color, black and white, Kodak, Fuji, contemporary, and vintage.  
 - The accuracy is limited by the precision of the published data, which can be especially poor for long discontinued formats, and simplified assumptions in the color pipeline.  
 - There is especially little data available about the inter-layer interaction, e.g., how aggressive the color masking couplers in a negative film are.  
+<img width="1087" height="837" alt="main gui" src="https://github.com/user-attachments/assets/2eb00673-ac03-4fc3-a877-31e02372211b#gh-light-mode-only" />
+<img width="1072" height="823" alt="main gui" src="https://github.com/user-attachments/assets/9a4b7a74-5d87-487a-8bd5-1ea7361384fc#gh-dark-mode-only" />
 
 ## Installation
 
@@ -39,11 +41,7 @@ Be sure to set the correct LUT size.
 You can also export the LUT in a negative and print stage.
 In your image editing pipeline this gives you the option to add grain to the negative stage.
 
-### Main GUI
-<img width="1075" height="840" alt="main gui" src="https://github.com/user-attachments/assets/da02d533-d828-4f7b-87f8-4e646413446c" />
-
-
 ### Filmstock Selector
 When clicking on the magnifying glass a window opens to search and browse through the available film stocks.
-
-<img width="854" height="604" alt="filmstock selector" src="https://github.com/user-attachments/assets/c10af392-a531-40e4-8f4c-8a564807a9d3" />
+<img width="848" height="597" alt="filmstock selector" src="https://github.com/user-attachments/assets/3886eea0-f21f-43de-a319-f84105daae50#gh-dark-mode-only" />
+<img width="833" height="595" alt="filmstock selector" src="https://github.com/user-attachments/assets/54b82d41-9386-49e6-9d3e-b389e8f1585c#gh-light-mode-only" />
