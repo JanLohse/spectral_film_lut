@@ -704,13 +704,22 @@ class FilmSpectral:
                 add_black_offset(True)
                 if sat_adjust != 1:
                     luminance_factors = colour.RGB_COLOURSPACES[output_colourspace].matrix_RGB_to_XYZ[1]
-                    add(lambda x: saturation_adjust_oklch(x, sat_adjust, luminance_factors=luminance_factors), "saturation")
+                    add(lambda x: saturation_adjust_oklch(x, sat_adjust, luminance_factors=luminance_factors,
+                                                          color_space=output_colourspace), "saturation")
                     add(lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(to_numpy(x)), "output")
                 else:
                     add_output_transform()
             else:
-                FilmSpectral.add_status_inversion(add, negative_film, add_black_offset, add_output_transform,
-                                                  color_masking)
+                add_black_offset(True)
+                FilmSpectral.add_status_inversion(add, negative_film, color_masking)
+                if sat_adjust != 1:
+                    luminance_factors = colour.RGB_COLOURSPACES[output_colourspace].matrix_RGB_to_XYZ[1]
+                    add(lambda x: saturation_adjust_oklch(x, sat_adjust, luminance_factors=luminance_factors,
+                                                          color_space=output_colourspace), "saturation")
+                    add(lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(to_numpy(x)),
+                        "output")
+                else:
+                    add_output_transform()
 
             if output_transform is None:
                 add(lambda x: xp.clip(x, 0, 1), "clipping")
@@ -776,7 +785,7 @@ class FilmSpectral:
         add(lambda x: (x / (x + 1)) @ AP1_to_XYZ.T, "rolloff")
 
     @staticmethod
-    def add_status_inversion(add, negative_film, add_black_offset, add_output_transform, color_masking=None):
+    def add_status_inversion(add, negative_film, color_masking=None):
         status_m_to_apd = DENSIOMETRY["apd"].T @ negative_film.get_spectral_density(color_masking)
         output_gamma = 2.6
 
@@ -793,8 +802,6 @@ class FilmSpectral:
 
         add(lambda x: 10 ** -softmax(output_gamma * -x @ status_m_to_apd.T + output_scale) @ projection_to_XYZ.T,
             "output")
-        add_black_offset()
-        add_output_transform()
 
     @staticmethod
     def add_status_inversion_old(add, negative_film, add_black_offset, add_output_transform, color_masking=0):

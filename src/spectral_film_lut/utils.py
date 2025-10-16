@@ -20,7 +20,6 @@ from spectral_film_lut.css_theme import *
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
-    raise ImportError
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
@@ -1192,7 +1191,7 @@ def gamut_compression_matrices(matrix, gamut_compression=0.):
     return matrix @ A_inv, A
 
 
-def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors=None):
+def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors=None, color_space='sRGB'):
     if luminance_factors is None:
         luminance_factors = np.ones(3, dtype=np.float32) / 3
     else:
@@ -1212,12 +1211,11 @@ def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors
 
     samples_oklch_adj = samples_oklch.copy()
     samples_oklch_adj[:, 1] *= sat_adjust
-    samples_xyz_adj = colour.convert(samples_oklch_adj, 'Oklch', 'sRGB', apply_cctf_encoding=False)
+    samples_xyz_adj = colour.convert(samples_oklch_adj, 'Oklch', "RGB", colourspace=color_space, apply_cctf_encoding=False)
 
     S = samples_xyz.T
     T = samples_xyz_adj.T
     M = T @ np.linalg.inv(S)
-
     W_mapped = M @ white_point
     M = np.diag(white_point / W_mapped) @ M
 
@@ -1231,15 +1229,15 @@ def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors
 
         # Apply gamut compression (your existing steps)
         a = rgb.max(axis=-1, keepdims=True)
-        d = np.where(a != 0, (a - rgb) / np.abs(a), 0)
+        d = xp.where(a != 0, (a - rgb) / xp.abs(a), 0)
         d = gamut_compression * d / (d + 1) + (1 - gamut_compression) * d
         rgb_compressed = a - d * np.abs(a)
 
         # Compute new luminance
-        Y_new = rgb_compressed @ luminance_factors.reshape(-1, 1)
+        Y_new = rgb_compressed @ xp.asarray(luminance_factors.reshape(-1, 1), dtype=xp.float32)
 
         # Avoid division by zero
-        scale = np.where(Y_new != 0, Y / Y_new, 1.0)
+        scale = xp.where(Y_new != 0, Y / Y_new, 1.0) ** 2
 
         # Rescale to preserve luminance
         rgb = rgb_compressed * scale
