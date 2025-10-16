@@ -602,7 +602,7 @@ class FilmSpectral:
             XYZ_to_exp = (negative_film.XYZ_to_exp.T * correction_factors).T * exp_comp
 
             if gamut_compression and negative_film.density_measure != 'bw':
-                XYZ_to_exp, compression_inv = FilmSpectral.gamut_compression_matrices(XYZ_to_exp, gamut_compression)
+                XYZ_to_exp, compression_inv = gamut_compression_matrices(XYZ_to_exp, gamut_compression)
             add(lambda x: x @ XYZ_to_exp.T, "linear exposure")
 
             if gamut_compression and negative_film.density_measure != 'bw':
@@ -703,13 +703,9 @@ class FilmSpectral:
 
                 add_black_offset(True)
                 if sat_adjust != 1:
-                    add(lambda x: colour.XYZ_to_RGB(to_numpy(x), output_colourspace, apply_cctf_encoding=False),
-                        "output matrix")
                     luminance_factors = colour.RGB_COLOURSPACES[output_colourspace].matrix_RGB_to_XYZ[1]
-                    add(lambda x: saturation_adjust_simple(x, sat_adjust, luminance_factors=luminance_factors),
-                        "saturation")
-                    add(lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(to_numpy(x)),
-                        "output cctf")
+                    add(lambda x: saturation_adjust_oklch(x, sat_adjust, luminance_factors=luminance_factors), "saturation")
+                    add(lambda x: colour.models.RGB_COLOURSPACES[output_colourspace].cctf_encoding(to_numpy(x)), "output")
                 else:
                     add_output_transform()
             else:
@@ -755,12 +751,6 @@ class FilmSpectral:
         A_inv = xp.linalg.inv(A)
         rgb = xp.clip(rgb @ A_inv, 0, None) @ A
         return rgb
-
-    @staticmethod
-    def gamut_compression_matrices(matrix, gamut_compression=0.):
-        A = xp.identity(3, dtype=default_dtype) * (1 - gamut_compression) + gamut_compression / 3
-        A_inv = xp.linalg.inv(A)
-        return matrix @ A_inv, A
 
     @staticmethod
     def add_photographic_inversion(add, negative_film, projector_kelvin, pipeline):

@@ -13,11 +13,14 @@ from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDial
     QScrollArea, QFrame
 from matplotlib import pyplot as plt
 from numba import njit, prange, cuda
+from scipy.linalg import fractional_matrix_power
+
 from spectral_film_lut.css_theme import *
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
+    raise ImportError
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
@@ -1181,6 +1184,68 @@ def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=Non
         achromaticity /= sat_adjust
         achromaticity = np.clip(achromaticity, 0, 1)
         rgb = (rgb * achromaticity + rgb_saturated * (1 - achromaticity)) * (1 - achromaticity * density * (sat_adjust - 1))
+    return rgb
+
+def gamut_compression_matrices(matrix, gamut_compression=0.):
+    A = xp.identity(3, dtype=np.float32) * (1 - gamut_compression) + gamut_compression / 3
+    A_inv = xp.linalg.inv(A)
+    return matrix @ A_inv, A
+
+
+def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors=None):
+    if luminance_factors is None:
+        luminance_factors = np.ones(3, dtype=np.float32) / 3
+    else:
+        luminance_factors = luminance_factors.astype(np.float32)
+    if white_point is None:
+        white_point = np.array([0.95047, 1.00000, 1.08883], dtype=np.float32)
+
+    l, c, h = 0.54, 0.054, 0.137
+
+    samples_oklch = np.array([
+        [l, c, h],
+        [l, c, h + 1/3],
+        [l, c, h + 2/3]
+    ], dtype=np.float32)
+
+    samples_xyz = colour.convert(samples_oklch, 'Oklch', 'CIE XYZ')
+
+    samples_oklch_adj = samples_oklch.copy()
+    samples_oklch_adj[:, 1] *= sat_adjust
+    samples_xyz_adj = colour.convert(samples_oklch_adj, 'Oklch', 'sRGB', apply_cctf_encoding=False)
+
+    S = samples_xyz.T
+    T = samples_xyz_adj.T
+    M = T @ np.linalg.inv(S)
+
+    W_mapped = M @ white_point
+    M = np.diag(white_point / W_mapped) @ M
+
+    M = xp.asarray(M)
+
+    if sat_adjust > 1:
+        gamut_compression = (sat_adjust - 1) / 4
+        # Compute original luminance
+        Y = rgb[..., 1:2]
+        rgb = rgb @ M.T
+
+        # Apply gamut compression (your existing steps)
+        a = rgb.max(axis=-1, keepdims=True)
+        d = np.where(a != 0, (a - rgb) / np.abs(a), 0)
+        d = gamut_compression * d / (d + 1) + (1 - gamut_compression) * d
+        rgb_compressed = a - d * np.abs(a)
+
+        # Compute new luminance
+        Y_new = rgb_compressed @ luminance_factors.reshape(-1, 1)
+
+        # Avoid division by zero
+        scale = np.where(Y_new != 0, Y / Y_new, 1.0)
+
+        # Rescale to preserve luminance
+        rgb = rgb_compressed * scale
+    else:
+        rgb = rgb @ M.T
+
     return rgb
 
 
