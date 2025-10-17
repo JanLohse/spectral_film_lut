@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDial
     QScrollArea, QFrame
 from matplotlib import pyplot as plt
 from numba import njit, prange, cuda
-from scipy.linalg import fractional_matrix_power
 
 from spectral_film_lut.css_theme import *
 
@@ -1191,38 +1190,49 @@ def gamut_compression_matrices(matrix, gamut_compression=0.):
     return matrix @ A_inv, A
 
 
+COLORCHECKER_2005 = np.array(
+    [[0.3457, 0.3585, 100.], [0.4316, 0.3777, 10.08], [0.4197, 0.3744, 34.95], [0.2760, 0.3016, 18.36],
+     [0.3703, 0.4499, 13.25], [0.2999, 0.2856, 23.04], [0.2848, 0.3911, 41.78], [0.5295, 0.4055, 31.18],
+     [0.2305, 0.2106, 11.26], [0.5012, 0.3273, 19.38], [0.3319, 0.2482, 6.37], [0.3984, 0.5008, 44.46],
+     [0.4957, 0.4427, 43.57], [0.2018, 0.1692, 5.75], [0.3253, 0.5032, 23.18], [0.5686, 0.3303, 12.57],
+     [0.4697, 0.4734, 59.81], [0.4159, 0.2688, 20.09], [0.2131, 0.3023, 19.30], [0.3469, 0.3608, 91.31],
+     [0.3440, 0.3584, 58.94], [0.3432, 0.3581, 36.32], [0.3446, 0.3579, 19.15], [0.3401, 0.3548, 8.83],
+     [0.3406, 0.3537, 3.11]], np.float32)
+COLORCHECKER_2005 = colour.xyY_to_XYZ(COLORCHECKER_2005)
+COLORCHECKER_2005 *= np.array([0.95047, 1.00000, 1.08883]) / COLORCHECKER_2005[0]
+COLORCHECKER_2005 = COLORCHECKER_2005[1:]
+COLORCHECKER_OKLAB = colour.convert(COLORCHECKER_2005, "CIE XYZ", "Oklab")
+COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005, xp.float32)
+
+
+def smooth_piecewise(x, threshold, max_value):
+    k = 1 / (max_value - threshold)
+
+    x = xp.where(x < threshold, x, max_value - (max_value - threshold) * np.exp(-k * (x - threshold)))
+
+    return x
+
+
 def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors=None, color_space='sRGB'):
     if luminance_factors is None:
         luminance_factors = np.ones(3, dtype=np.float32) / 3
     else:
         luminance_factors = luminance_factors.astype(np.float32)
     if white_point is None:
-        white_point = np.array([0.95047, 1.00000, 1.08883], dtype=np.float32)
+        white_point = xp.array([0.95047, 1.00000, 1.08883], dtype=np.float32)
+    else:
+        white_point = xp.asarray(white_point, xp.float32)
 
-    l, c, h = 0.54, 0.054, 0.137
+    samples_lab = COLORCHECKER_OKLAB.copy()
+    samples_lab[..., 1:3] *= sat_adjust
+    samples_rgb = colour.convert(samples_lab, "Oklab", "RGB", colourspace=color_space, apply_cctf_encoding=False)
+    samples_rgb = xp.asarray(samples_rgb, xp.float32)
 
-    samples_oklch = np.array([
-        [l, c, h],
-        [l, c, h + 1/3],
-        [l, c, h + 2/3]
-    ], dtype=np.float32)
-
-    samples_xyz = colour.convert(samples_oklch, 'Oklch', 'CIE XYZ')
-
-    samples_oklch_adj = samples_oklch.copy()
-    samples_oklch_adj[:, 1] *= sat_adjust
-    samples_xyz_adj = colour.convert(samples_oklch_adj, 'Oklch', "RGB", colourspace=color_space, apply_cctf_encoding=False)
-
-    S = samples_xyz.T
-    T = samples_xyz_adj.T
-    M = T @ np.linalg.inv(S)
-    W_mapped = M @ white_point
-    M = np.diag(white_point / W_mapped) @ M
-
-    M = xp.asarray(M)
+    M = xp.linalg.lstsq(COLORCHECKER_2005, samples_rgb, rcond=None)[0].T
+    white = M @ white_point
+    M = (M.T / white).T
 
     if sat_adjust > 1:
-        gamut_compression = (sat_adjust - 1) / 4
         # Compute original luminance
         Y = rgb[..., 1:2]
         rgb = rgb @ M.T
@@ -1230,7 +1240,7 @@ def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors
         # Apply gamut compression (your existing steps)
         a = rgb.max(axis=-1, keepdims=True)
         d = xp.where(a != 0, (a - rgb) / xp.abs(a), 0)
-        d = gamut_compression * d / (d + 1) + (1 - gamut_compression) * d
+        d = smooth_piecewise(d, 0.8, 1.35)
         rgb_compressed = a - d * np.abs(a)
 
         # Compute new luminance
