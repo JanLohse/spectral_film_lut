@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDial
     QScrollArea, QFrame
 from matplotlib import pyplot as plt
 from numba import njit, prange, cuda
-
 from spectral_film_lut.css_theme import *
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -361,6 +360,114 @@ class Slider(QWidget):
 
     def setValue(self, value):
         self.slider.setValue(round((value - self.min) * self.denominator / self.enumerator))
+
+    def setPosition(self, position):
+        self.slider.setValue(position)
+
+    def getPosition(self):
+        return self.slider.value()
+
+    def value_changed(self):
+        self.valueChanged.emit(self.getValue())
+
+    def increase(self, value=1):
+        self.slider.setValue(self.slider.value() + value)
+
+    def decrease(self, value=1):
+        self.slider.setValue(self.slider.value() - value)
+
+    def customWheelEvent(self, event: QWheelEvent):
+        # Get the current value
+        value = self.slider.value()
+
+        # Determine the direction (positive = scroll up, negative = down)
+        steps = event.angleDelta().y() // 120  # 120 per wheel step
+
+        # Check if Shift or Ctrl is held
+        modifiers = event.modifiers()
+        if modifiers & Qt.KeyboardModifier.ShiftModifier:
+            increment = self.big_increment
+        elif modifiers & Qt.KeyboardModifier.ControlModifier:
+            increment = 1
+        else:
+            increment = self.small_increment
+
+        # Set the new value with bounds checking
+        new_value = value + steps * increment
+        new_value = max(self.slider.minimum(), min(self.slider.maximum(), new_value))
+        self.slider.setValue(new_value)
+
+        # Accept the event so the default handler doesn't interfere
+        event.accept()
+
+
+class SliderLog(QWidget):
+    valueChanged = pyqtSignal(float)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max = None
+        self.steps = None
+        self.min = None
+        self.precision = None
+
+        layout = QHBoxLayout()
+        self.setLayout(layout)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
+        self.slider = GradientSlider()
+        self.slider.setOrientation(Qt.Orientation.Horizontal)
+        self.setMinMaxSteps(1, 10, 100, 3)
+
+        self.text = QLabel()
+        self.text.setAlignment((Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter))
+        self.text.setFixedWidth(30)
+
+        layout.addWidget(self.slider)
+        layout.addWidget(self.text)
+
+        self.slider.valueChanged.connect(self.sliderValueChanged)
+
+        self.slider.valueChanged.connect(self.value_changed)
+
+        self.slider.wheelEvent = self.customWheelEvent
+
+        self.set_color_gradient = self.slider.set_color_gradient
+
+        self.big_increment = 5
+        self.small_increment = 2
+
+    def setMinMaxSteps(self, min, max, steps=100, default=1, precision=None):
+        self.min = min
+        self.max = max
+        self.steps = steps
+        self.precision = precision
+
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(steps)
+        self.big_increment = math.ceil(steps / 10)
+        self.small_increment = math.ceil(steps / 30)
+
+        self.setValue(default)
+        self.slider.set_reference_value(self.getPosition())
+
+    def sliderValueChanged(self):
+        value = self.getValue()
+        if self.precision is not None:
+            value = round(value, self.precision)
+        if value.is_integer():
+            self.text.setText(str(int(value)))
+        else:
+            self.text.setText(f"{value:.2f}")
+
+    def getValue(self):
+        fraction = self.slider.value() / self.steps
+        return self.min * (self.max / self.min) ** fraction
+
+    def setValue(self, value):
+        fraction = math.log(value / self.min) / math.log(self.max / self.min)
+        self.slider.setValue(round(fraction * self.steps))
 
     def setPosition(self, position):
         self.slider.setValue(position)

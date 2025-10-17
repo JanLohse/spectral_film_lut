@@ -60,8 +60,8 @@ class MainWindow(QMainWindow):
         self.exp_comp.setMinMaxTicks(-2, 2, 1, 6)
         add_option(self.exp_comp, "Exposure:", 0, self.exp_comp.setValue)
 
-        self.exp_wb = Slider()
-        self.exp_wb.setMinMaxTicks(2000, 15000, 100, default=6500)
+        self.exp_wb = SliderLog()
+        self.exp_wb.setMinMaxSteps(2700, 16000, 120, 6500, -2)
         self.exp_wb.set_color_gradient(np.array([2 / 3, 0.14, 0.65277]), np.array([2 / 3, 0.14, 0.15277]))
         add_option(self.exp_wb, "WB:", 6500, self.exp_wb.setValue)
 
@@ -135,13 +135,13 @@ class MainWindow(QMainWindow):
                                                 default_group="Manufacturer", image_key="image")
         add_option(self.print_selector, "Print stock:", "Kodak2383", self.print_selector.setCurrentText)
 
-        self.projector_kelvin = Slider()
-        self.projector_kelvin.setMinMaxTicks(2700, 10000, 100, default=6500)
+        self.projector_kelvin = SliderLog()
+        self.projector_kelvin.setMinMaxSteps(2700, 16000, 120, 6500, -2)
         self.projector_kelvin.set_color_gradient(np.array([2 / 3, 0.14, 0.15277]), np.array([2 / 3, 0.14, 0.65277]))
         add_option(self.projector_kelvin, "Projector wb:", 6500, self.projector_kelvin.setValue)
 
-        self.white_point = Slider()
-        self.white_point.setMinMaxTicks(.5, 2., 1, 20, 1.)
+        self.white_point = SliderLog()
+        self.white_point.setMinMaxSteps(.5, 2., 100, 1.)
         add_option(self.white_point, "White point:", 1., self.white_point.setValue)
 
         self.sat_adjust = Slider()
