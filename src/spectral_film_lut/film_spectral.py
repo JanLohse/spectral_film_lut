@@ -745,14 +745,15 @@ class FilmSpectral:
             return convert, 0
 
     @staticmethod
-    def CCT_to_XYZ(CCT, Y=1., tint=0):
+    def CCT_to_XYZ(CCT, Y=1., tint=0.):
         xy = CCT_to_xy(CCT)
         xyY = (xy[0], xy[1], Y)
         XYZ = colour.xyY_to_XYZ(xyY)
-        Lab = colour.XYZ_to_Lab(XYZ)
-        Lab += np.array([0, 1, -0.5]) * 30 * tint
-        XYZ = colour.Lab_to_XYZ(Lab)
+        Lab = colour.XYZ_to_Oklab(XYZ)
+        Lab += np.array([0, 0.9849548, -0.17281227]) * tint / 15
+        XYZ = colour.Oklab_to_XYZ(Lab)
         return XYZ
+
 
     @staticmethod
     def linear_gamut_compression(rgb, gamut_compression=0):
