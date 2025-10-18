@@ -1,10 +1,9 @@
-from PyQt6.QtCore import Qt, QSize, QEvent, QTimer
+from PyQt6.QtCore import QSize, QEvent, QTimer
 from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QStackedWidget, QWidget, QGridLayout,
-                             QToolButton, QLabel, QHBoxLayout, QPushButton, QSizePolicy, QSplitter, QLineEdit, QFrame)
-from spectral_film_lut.css_theme import *
-from spectral_film_lut.utils import RoundedScrollArea
-from spectral_film_lut.utils import WideComboBox
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QStackedWidget, QGridLayout,
+                             QToolButton, QSizePolicy, QSplitter)
+
+from spectral_film_lut.gui_objects import *
 
 base_dir = os.path.dirname(__file__)
 icon_path = os.path.join(base_dir, "resources", "search.svg").replace("\\", "/")
@@ -26,7 +25,7 @@ class FilmStockSelector(QWidget):
         self.film_combo = WideComboBox()
         self.film_combo.addItems(self.film_stocks.keys())
         self.film_combo.setStyleSheet(f"QComboBox QAbstractItemView {{background-color: {MENU_COLOR};}}")
-        self.select_button = QPushButton()
+        self.select_button = AnimatedButton()
         self.select_button.setIcon(QIcon(icon_path))
         self.select_button.setFixedWidth(25)
         layout = QHBoxLayout()
@@ -87,26 +86,26 @@ QDialog {{
     background-color: {BACKGROUND_COLOR};
 }}
 
-QPushButton, QComboBox, QToolButton {{
+QComboBox, QToolButton {{
     border-radius: {BUTTON_RADIUS}px;
     background-color: transparent;
 }}
 
-QLineEdit {{
+HoverLineEdit {{
     background-color: {PRESSED_COLOR};
     border-radius: {BUTTON_RADIUS}px;
     padding: 2px;
 }}
 
-QLineEdit:hover {{
+HoverLineEdit:hover {{
     background-color: {HOVER_COLOR};
 }}
 
-QPushButton:hover, QComboBox:hover, QToolButton:hover {{
+QComboBox:hover, QToolButton:hover {{
     background-color: {HOVER_COLOR};
 }}
 
-QPushButton:pressed, QComboBox:pressed, QToolButton:pressed {{
+QComboBox:pressed, QToolButton:pressed {{
     background-color: {PRESSED_COLOR};
 }}
 
@@ -150,15 +149,15 @@ QLabel {{
 
         self.current_max_cols = None
 
-        self.sort_combo = WideComboBox()
-        self.group_combo = WideComboBox()
+        self.sort_combo = WideComboBox(base_color=BACKGROUND_COLOR)
+        self.group_combo = WideComboBox(base_color=BACKGROUND_COLOR)
         self.sort_combo.addItems(self.sort_keys)
         self.group_combo.addItems(['none'] + self.group_keys)
         if default_group is not None and default_group in self.group_keys:
             self.group_combo.setCurrentText(default_group)
         if default_sort is not None and default_sort in self.sort_keys:
             self.sort_combo.setCurrentText(default_sort)
-        self.search_bar = QLineEdit()
+        self.search_bar = HoverLineEdit()
         self.search_bar.setClearButtonEnabled(True)
         if default_filter is not None:
             self.search_bar.setText(default_filter)
@@ -174,7 +173,7 @@ QLabel {{
             self.view_toggle.setChecked(view_state)
         self.view_toggle.toggled.connect(self.toggle_view)
 
-        self.ok_button = QPushButton("OK")
+        self.ok_button = AnimatedButton("OK", BACKGROUND_COLOR)
         self.ok_button.clicked.connect(self.confirm_selection)
 
         self.stacked_view = QStackedWidget()

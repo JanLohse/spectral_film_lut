@@ -1,4 +1,7 @@
-from PyQt6.QtWidgets import QApplication, QProgressBar, QVBoxLayout
+import sys
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication, QProgressBar, QVBoxLayout, QWidget, QLabel
 
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *

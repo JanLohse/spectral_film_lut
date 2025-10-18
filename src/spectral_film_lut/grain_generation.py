@@ -5,18 +5,19 @@ import imageio.v3 as iio
 from PyQt6.QtCore import QRegularExpression
 from PyQt6.QtGui import QIntValidator, QRegularExpressionValidator
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QCheckBox, QProgressDialog, QApplication)
+
 from spectral_film_lut.file_formats import FILE_FORMATS
-from spectral_film_lut.utils import *
+from spectral_film_lut.gui_objects import *
 
 
 @cache
 def gaussian_noise_cache(shape):
-    return xp.random.default_rng().standard_normal(shape, dtype=xp.float32)
+    return xp.random.default_rng().standard_normal(shape, dtype=default_dtype)
 
 
 def gaussian_noise(shape, cached=False):
     if not cached:
-        return xp.random.default_rng().standard_normal(shape, dtype=xp.float32)
+        return xp.random.default_rng().standard_normal(shape, dtype=default_dtype)
     noise_size = ((max(shape[:2]) + 100) // 1024 + 1) * 1024
     noise_map = gaussian_noise_cache((noise_size, noise_size))
     if cuda_available:
@@ -107,11 +108,15 @@ class ExportGrainDialog(QDialog):
             background-color: {BASE_COLOR};
         }}
         
-        QLineEdit {{
+        HoverLineEdit {{
             background-color: {SCROLLBAR_HOVER_COLOR};
         }}
         
-        QPushButton::hover, QComboBox::hover, QLineEdit::hover {{
+        AnimatedButton, QComboBox, QToolButton {{
+            padding: 3px;
+        }}
+        
+        AnimatedButton::hover, QComboBox::hover, HoverLineEdit::hover {{
             background-color: {HOVER_COLOR};
         }}
         """)
@@ -121,19 +126,19 @@ class ExportGrainDialog(QDialog):
 
         # Width
         layout.addWidget(QLabel("Width:"))
-        self.width_field = QLineEdit("1920")
+        self.width_field = HoverLineEdit("1920")
         self.width_field.setValidator(QIntValidator())
         layout.addWidget(self.width_field)
 
         # Height
         layout.addWidget(QLabel("Height:"))
-        self.height_field = QLineEdit("1080")
+        self.height_field = HoverLineEdit("1080")
         self.height_field.setValidator(QIntValidator())
         layout.addWidget(self.height_field)
 
         # Frames
         layout.addWidget(QLabel("Frame count:"))
-        self.frame_field = QLineEdit("100")
+        self.frame_field = HoverLineEdit("100")
         self.frame_field.setValidator(QIntValidator())
         layout.addWidget(self.frame_field)
 
@@ -175,8 +180,8 @@ class ExportGrainDialog(QDialog):
 
         # Buttons
         button_layout = QHBoxLayout()
-        ok_button = QPushButton("Export")
-        cancel_button = QPushButton("Cancel")
+        ok_button = AnimatedButton("Export")
+        cancel_button = AnimatedButton("Cancel")
         button_layout.addWidget(ok_button)
         button_layout.addWidget(cancel_button)
         layout.addLayout(button_layout)

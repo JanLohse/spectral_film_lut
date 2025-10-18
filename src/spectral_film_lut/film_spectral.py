@@ -1,3 +1,5 @@
+import math
+
 import colour.plotting
 import scipy
 from colour import SpectralDistribution
@@ -5,9 +7,6 @@ from colour import SpectralDistribution
 from spectral_film_lut import densiometry
 from spectral_film_lut.densiometry import DENSIOMETRY, COLORCHECKER_2005
 from spectral_film_lut.utils import *
-
-default_dtype = np.float32
-colour.utilities.set_default_float_dtype(default_dtype)
 
 
 class FilmSpectral:
@@ -99,7 +98,7 @@ class FilmSpectral:
             self.extend_characteristic_curve()
         log_H_min = min([x.min() for x in self.log_exposure])
         log_H_max = max([x.max() for x in self.log_exposure])
-        x_new = np.linspace(log_H_min, log_H_max, 100, dtype=np.float32)
+        x_new = np.linspace(log_H_min, log_H_max, 100, dtype=default_dtype)
         self.density_curve = [PchipInterpolator(x, y)(x_new) for x, y in zip(self.log_exposure, self.density_curve)]
         self.log_exposure = [x_new] * len(self.log_exposure)
         self.d_min = xp.array([xp.min(x) for x in self.density_curve])
@@ -153,7 +152,7 @@ class FilmSpectral:
             self.rms_curve = [x[0] for x in rms_temp]
             self.rms_density = [x[1] for x in rms_temp]
             if len(self.rms_density) == 3:
-                rms_color_factors = xp.array([0.26, 0.57, 0.17], dtype=xp.float32)
+                rms_color_factors = xp.array([0.26, 0.57, 0.17], dtype=default_dtype)
                 scaling = 1.2375
                 rms_color_factors /= rms_color_factors.sum()
                 ref_rms = xp.sqrt(xp.sum((multi_channel_interp(xp.ones(3), self.rms_density,

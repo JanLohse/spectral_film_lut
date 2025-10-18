@@ -7,7 +7,7 @@ from colour.models import RGB_COLOURSPACES
 from spectral_film_lut.film_loader import load_ui
 from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.grain_generation import ExportGrainDialog
-from spectral_film_lut.reversal_film.technicolor_iv import *
+from spectral_film_lut.gui_objects import *
 
 
 class MainWindow(QMainWindow):
@@ -170,12 +170,12 @@ class MainWindow(QMainWindow):
         self.mode.addItems(['full', 'negative', 'print', 'grain'])
         add_option(self.mode, "Mode:", "full", self.mode.setCurrentText)
 
-        self.save_lut_button = QPushButton("Save LUT")
-        self.save_lut_button.released.connect(self.save_lut)
+        self.save_lut_button = AnimatedButton("Save LUT")
+        self.save_lut_button.clicked.connect(self.save_lut)
         add_option(self.save_lut_button)
 
-        self.noise_button = QPushButton("Export Noise")
-        self.noise_button.released.connect(self.export_noise)
+        self.noise_button = AnimatedButton("Export Noise")
+        self.noise_button.clicked.connect(self.export_noise)
         add_option(self.noise_button)
 
         self.input_colourspace_selector.currentTextChanged.connect(self.parameter_changed)

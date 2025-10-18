@@ -1,18 +1,10 @@
-import math
-import sys
 import time
-import traceback
 import warnings
-from pathlib import Path
 
 import cv2
-from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot, QRectF, QRect, QPoint, pyqtProperty, \
-    QPropertyAnimation, QPointF
-from PyQt6.QtGui import QWheelEvent, QFontMetrics, QPainter, QColor, QLinearGradient, QBrush
-from PyQt6.QtWidgets import QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider, QComboBox, \
-    QScrollArea, QFrame
 from matplotlib import pyplot as plt
 from numba import njit, prange, cuda
+
 from spectral_film_lut.css_theme import *
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -41,6 +33,8 @@ def to_numpy(x):
         return x
 
 
+default_dtype = xp.float32
+colour.utilities.set_default_float_dtype(default_dtype)
 spectral_shape = colour.SpectralShape(380, 780, 5)
 
 
@@ -65,458 +59,6 @@ def create_lut(negative_film, print_film=None, lut_size=33, name="test", cube=Tr
     return path
 
 
-class RoundedScrollArea(QScrollArea):
-    def __init__(self, radius=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if radius is None:
-            radius = BORDER_RADIUS
-        self.radius = radius
-        self.setFrameShape(QFrame.Shape.NoFrame)
-        self.setWidgetResizable(True)
-
-
-
-class WideComboBox(QComboBox):
-    def __init__(self, parent=None):
-        super(WideComboBox, self).__init__(parent)
-        self.setStyleSheet(f"QComboBox QAbstractItemView {{background-color: {MENU_COLOR};}}")
-
-    def showPopup(self):
-        # Measure the widest item text
-        fm = QFontMetrics(self.view().font())
-        max_width = max(fm.horizontalAdvance(self.itemText(i)) for i in range(self.count()))
-        # Add some padding
-        max_width += 30
-
-        # Resize the popup view
-        self.view().setMinimumWidth(max(self.width(), max_width))
-        super().showPopup()
-
-
-class WorkerSignals(QObject):
-    """Signals from a running worker thread.
-
-    finished
-        No data
-
-    error
-        tuple (exctype, value, traceback.format_exc())
-
-    result
-        object data returned from processing, anything
-
-    progress
-        float indicating % progress
-    """
-
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    result = pyqtSignal(object)
-    progress = pyqtSignal(float)
-
-
-class Worker(QRunnable):
-    """Worker thread.
-
-    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
-
-    :param callback: The function callback to run on this worker thread.
-                     Supplied args and
-                     kwargs will be passed through to the runner.
-    :type callback: function
-    :param args: Arguments to pass to the callback function
-    :param kwargs: Keywords to pass to the callback function
-    """
-
-    def __init__(self, fn, *args, **kwargs):
-        super().__init__()
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-        self.signals = WorkerSignals()
-        # Add the callback to our kwargs
-        self.kwargs["progress_callback"] = self.signals.progress
-
-    @pyqtSlot()
-    def run(self):
-        try:
-            result = self.fn(*self.args, **self.kwargs)
-        except Exception:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
-            self.signals.error.emit((exctype, value, traceback.format_exc()))
-        else:
-            self.signals.result.emit(result)
-        finally:
-            self.signals.finished.emit()
-
-
-class FileSelector(QWidget):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        layout = QHBoxLayout()
-        self.setLayout(layout)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        file_browse = QPushButton('Browse')
-        file_browse.setFixedWidth(55)
-        file_browse.clicked.connect(self.open_file_dialog)
-        self.filename_edit = QLineEdit()
-
-        layout.addWidget(self.filename_edit)
-        layout.addWidget(file_browse)
-
-        self.textChanged = self.filename_edit.textChanged
-        self.filetype = "Images (*.png *.jpg *)"
-
-        self.show()
-
-    def open_file_dialog(self):
-        filename, ok = QFileDialog.getOpenFileName(self, "Select a File", "", self.filetype)
-        if filename:
-            path = Path(filename)
-            self.filename_edit.setText(str(path))
-
-    def currentText(self):
-        return self.filename_edit.text()
-
-
-class GradientSlider(QSlider):
-    def __init__(self, *args, reference_value=0, modern_design=True, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.gradient = None
-        self.set_color_gradient((0.3, 0., 0.), (0.7, 0., 0.))
-        self.modern_design = modern_design
-        self.setRange(-100, 100)
-        self.setValue(0)
-        self.reference_value = reference_value
-        self._hover = False
-        self._hoverProgress = 0.0  # property for animation
-        self.anim = QPropertyAnimation(self, b"hoverProgress", self)
-        self.anim.setDuration(150)
-        self.setMouseTracking(True)
-        self.setFixedHeight(30)
-        self.setStyleSheet("QSlider { background: transparent; }")
-
-    # --- animated property for smooth scaling ---
-    def get_hover_progress(self):
-        return self._hoverProgress
-
-    def set_hover_progress(self, value):
-        self._hoverProgress = value
-        self.update()
-
-    def set_color_gradient(self, start_color, end_color, steps=10, blend_in_lab=True):
-        if blend_in_lab:
-            start_color = colour.convert(start_color, "Oklch", "Oklab")
-            end_color = colour.convert(end_color, "Oklch", "Oklab")
-        source = "Oklab" if blend_in_lab else "Oklch"
-        self.gradient = [(x, QColor(colour.convert(start_color * (1 - x) + end_color * x, source, "Hexadecimal"))) for
-                         x in np.linspace(0, 1, steps)]
-
-    hoverProgress = pyqtProperty(float, fget=get_hover_progress, fset=set_hover_progress)
-
-    # --- hover detection ---
-    def enterEvent(self, event):
-        self._hover = True
-        self.anim.stop()
-        self.anim.setStartValue(self._hoverProgress)
-        self.anim.setEndValue(1.0)
-        self.anim.start()
-        super().enterEvent(event)
-
-    def leaveEvent(self, event):
-        self._hover = False
-        self.anim.stop()
-        self.anim.setStartValue(self._hoverProgress)
-        self.anim.setEndValue(0.0)
-        self.anim.start()
-        super().leaveEvent(event)
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        horizontal_padding = 7
-        groove_thickness = 10 if self.modern_design else 4
-        groove_rect = QRect(horizontal_padding, self.height() // 2 - groove_thickness // 2,
-                            self.width() - horizontal_padding * 2, groove_thickness)
-
-        min_val, max_val = self.minimum(), self.maximum()
-        total_range = max_val - min_val
-
-        def value_to_x(val):
-            return groove_rect.left() + (val - min_val) / total_range * groove_rect.width()
-
-        handle_x = int(value_to_x(self.value()))
-        ref_x = int(value_to_x(self.reference_value))
-
-        # background groove with gradient
-        painter.setPen(Qt.PenStyle.NoPen)
-
-        gradient = QLinearGradient(QPointF(groove_rect.topLeft()), QPointF(groove_rect.topRight()))
-        for pos, color in self.gradient:
-            gradient.setColorAt(pos, color)  # left color
-
-        painter.setBrush(QBrush(gradient))
-        painter.drawRoundedRect(groove_rect, 3, 3)
-
-        # active segment (ref -> handle)
-        painter.setBrush(QColor(255, 255, 255, 85))
-        if handle_x > ref_x:
-            active_rect = QRect(ref_x, groove_rect.top(), handle_x - ref_x, groove_rect.height())
-        else:
-            active_rect = QRect(handle_x, groove_rect.top(), ref_x - handle_x, groove_rect.height())
-        if self.reference_value in (self.minimum(), self.maximum()):
-            painter.drawRoundedRect(active_rect, 3, 3)
-        else:
-            painter.drawRect(active_rect)
-
-        # handle
-        if self.modern_design:
-            handle_bg_width = 6 + self._hoverProgress * 1
-            handle_bg_rect = QRectF(handle_x - handle_bg_width, groove_rect.center().y() - groove_thickness, handle_bg_width * 2, groove_thickness * 2)
-            painter.setBrush(QColor(BASE_COLOR))
-            painter.drawRect(handle_bg_rect)
-
-            handle_width = 1.25 + self._hoverProgress * 1
-            handle_length = groove_thickness / 2 + 4
-            handle_rect = QRectF(handle_x - handle_width, groove_rect.center().y() - handle_length, handle_width * 2, handle_length * 2)
-            painter.setBrush(QColor(TEXT_PRIMARY))
-            painter.drawRoundedRect(handle_rect, handle_width, handle_width)
-        else:
-            handle_center = QPoint(handle_x, groove_rect.center().y())
-            hover_radius = 7
-            inner_radius = round(2 + self._hoverProgress * 2)  # grow inner slightly too
-
-            painter.setBrush(QColor(TEXT_PRIMARY))
-            painter.drawEllipse(handle_center, hover_radius, hover_radius)
-
-            painter.setBrush(QColor(BASE_COLOR))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawEllipse(handle_center, inner_radius, inner_radius)
-
-        painter.end()
-
-    def set_reference_value(self, value: int):
-        """Update the reference (neutral) value dynamically."""
-        self.reference_value = value
-        self.update()
-
-
-class Slider(QWidget):
-    valueChanged = pyqtSignal(float)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        layout = QHBoxLayout()
-        self.setLayout(layout)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-
-        self.slider = GradientSlider()
-        self.slider.setOrientation(Qt.Orientation.Horizontal)
-        self.setMinMaxTicks(0, 1, 1)
-
-        self.text = QLabel()
-        self.text.setAlignment((Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter))
-        self.text.setFixedWidth(30)
-
-        layout.addWidget(self.slider)
-        layout.addWidget(self.text)
-
-        self.slider.valueChanged.connect(self.sliderValueChanged)
-
-        self.slider.valueChanged.connect(self.value_changed)
-
-        self.slider.wheelEvent = self.customWheelEvent
-
-        self.set_color_gradient = self.slider.set_color_gradient
-
-        self.big_increment = 5
-        self.small_increment = 2
-
-    def setMinMaxTicks(self, min, max, enumerator=1, denominator=1, default=0):
-        self.slider.setMinimum(0)
-        number_of_steps = int(((max - min) * denominator) / enumerator)
-        self.slider.setMaximum(number_of_steps)
-        self.min = min
-        self.enumerator = enumerator
-        self.denominator = denominator
-        self.big_increment = math.ceil(number_of_steps / 10)
-        self.small_increment = math.ceil(number_of_steps / 30)
-        self.setValue(default)
-        self.slider.set_reference_value(self.getPosition())
-
-    def sliderValueChanged(self):
-        value = self.getValue()
-        if value.is_integer():
-            self.text.setText(str(int(value)))
-        else:
-            self.text.setText(f"{value:.2f}")
-
-    def getValue(self):
-        return self.slider.value() * self.enumerator / self.denominator + self.min
-
-    def setValue(self, value):
-        self.slider.setValue(round((value - self.min) * self.denominator / self.enumerator))
-
-    def setPosition(self, position):
-        self.slider.setValue(position)
-
-    def getPosition(self):
-        return self.slider.value()
-
-    def value_changed(self):
-        self.valueChanged.emit(self.getValue())
-
-    def increase(self, value=1):
-        self.slider.setValue(self.slider.value() + value)
-
-    def decrease(self, value=1):
-        self.slider.setValue(self.slider.value() - value)
-
-    def customWheelEvent(self, event: QWheelEvent):
-        # Get the current value
-        value = self.slider.value()
-
-        # Determine the direction (positive = scroll up, negative = down)
-        steps = event.angleDelta().y() // 120  # 120 per wheel step
-
-        # Check if Shift or Ctrl is held
-        modifiers = event.modifiers()
-        if modifiers & Qt.KeyboardModifier.ShiftModifier:
-            increment = self.big_increment
-        elif modifiers & Qt.KeyboardModifier.ControlModifier:
-            increment = 1
-        else:
-            increment = self.small_increment
-
-        # Set the new value with bounds checking
-        new_value = value + steps * increment
-        new_value = max(self.slider.minimum(), min(self.slider.maximum(), new_value))
-        self.slider.setValue(new_value)
-
-        # Accept the event so the default handler doesn't interfere
-        event.accept()
-
-
-class SliderLog(QWidget):
-    valueChanged = pyqtSignal(float)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.max = None
-        self.steps = None
-        self.min = None
-        self.precision = None
-
-        layout = QHBoxLayout()
-        self.setLayout(layout)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-
-        self.slider = GradientSlider()
-        self.slider.setOrientation(Qt.Orientation.Horizontal)
-        self.setMinMaxSteps(1, 10, 100, 3)
-
-        self.text = QLabel()
-        self.text.setAlignment((Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter))
-        self.text.setFixedWidth(30)
-
-        layout.addWidget(self.slider)
-        layout.addWidget(self.text)
-
-        self.slider.valueChanged.connect(self.sliderValueChanged)
-
-        self.slider.valueChanged.connect(self.value_changed)
-
-        self.slider.wheelEvent = self.customWheelEvent
-
-        self.set_color_gradient = self.slider.set_color_gradient
-
-        self.big_increment = 5
-        self.small_increment = 2
-
-    def setMinMaxSteps(self, min, max, steps=100, default=1, precision=None):
-        self.min = min
-        self.max = max
-        self.steps = steps
-        self.precision = precision
-
-        self.slider.setMinimum(0)
-        self.slider.setMaximum(steps)
-        self.big_increment = math.ceil(steps / 10)
-        self.small_increment = math.ceil(steps / 30)
-
-        self.setValue(default)
-        self.slider.set_reference_value(self.getPosition())
-
-    def sliderValueChanged(self):
-        value = self.getValue()
-        if self.precision is not None:
-            value = round(value, self.precision)
-        if value.is_integer():
-            self.text.setText(str(int(value)))
-        else:
-            self.text.setText(f"{value:.2f}")
-
-    def getValue(self):
-        fraction = self.slider.value() / self.steps
-        return self.min * (self.max / self.min) ** fraction
-
-    def setValue(self, value):
-        fraction = math.log(value / self.min) / math.log(self.max / self.min)
-        self.slider.setValue(round(fraction * self.steps))
-
-    def setPosition(self, position):
-        self.slider.setValue(position)
-
-    def getPosition(self):
-        return self.slider.value()
-
-    def value_changed(self):
-        self.valueChanged.emit(self.getValue())
-
-    def increase(self, value=1):
-        self.slider.setValue(self.slider.value() + value)
-
-    def decrease(self, value=1):
-        self.slider.setValue(self.slider.value() - value)
-
-    def customWheelEvent(self, event: QWheelEvent):
-        # Get the current value
-        value = self.slider.value()
-
-        # Determine the direction (positive = scroll up, negative = down)
-        steps = event.angleDelta().y() // 120  # 120 per wheel step
-
-        # Check if Shift or Ctrl is held
-        modifiers = event.modifiers()
-        if modifiers & Qt.KeyboardModifier.ShiftModifier:
-            increment = self.big_increment
-        elif modifiers & Qt.KeyboardModifier.ControlModifier:
-            increment = 1
-        else:
-            increment = self.small_increment
-
-        # Set the new value with bounds checking
-        new_value = value + steps * increment
-        new_value = max(self.slider.minimum(), min(self.slider.maximum(), new_value))
-        self.slider.setValue(new_value)
-
-        # Accept the event so the default handler doesn't interfere
-        event.accept()
-
-
-class Error(Exception):
-    def __init__(self, cmd, stdout, stderr):
-        super(Error, self).__init__(
-            '{} error (see stderr output for detail)'.format(cmd)
-        )
-        self.stdout = stdout
-        self.stderr = stderr
-
 def multi_channel_interp(x, xps, fps, num_bins=1024, interpolate=False, left_extrapolate=False, right_extrapolate=False):
     """
     Resamples each (xp, fp) pair to a uniform grid for fast lookup.
@@ -539,13 +81,13 @@ def multi_channel_interp(x, xps, fps, num_bins=1024, interpolate=False, left_ext
                    zip(fps, slopes)]
         return xp.stack(
             [xp.interp(xp.ascontiguousarray(x[..., i]), xp.ascontiguousarray(x_p), xp.ascontiguousarray(f_p)) for
-             i, (x_p, f_p) in enumerate(zip(xps, fps))], dtype=np.float32, axis=-1)
+             i, (x_p, f_p) in enumerate(zip(xps, fps))], dtype=default_dtype, axis=-1)
     n_channels = len(xps)
     xp_min = min(x[0] for x in xps)
     xp_max = max(x[-1] for x in xps)
-    xp_common = xp.linspace(xp_min, xp_max, num_bins).astype(xp.float32)
+    xp_common = xp.linspace(xp_min, xp_max, num_bins).astype(default_dtype)
 
-    fp_uniform = xp.empty((n_channels, num_bins), dtype=xp.float32)
+    fp_uniform = xp.empty((n_channels, num_bins), dtype=default_dtype)
     for ch in range(n_channels):
         fp_uniform[ch] = xp.interp(xp_common, xps[ch], fps[ch])
     return uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate, left_extrapolate, right_extrapolate)
@@ -588,7 +130,7 @@ def uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate=True, lef
     bin_width = (xp_max - xp_min) / (num_bins - 1)
 
     x_contig = np.ascontiguousarray(x)
-    result = np.empty_like(x_contig, dtype=np.float32)
+    result = np.empty_like(x_contig, dtype=default_dtype)
 
     x_flat = x_contig.reshape(flat_size, n_channels)
     r_flat = result.reshape(flat_size, n_channels)
@@ -770,7 +312,7 @@ if cuda_available:
         c011 = lut[r0, g1, b1]
         c111 = lut[r1, g1, b1]
 
-        c = cuda.local.array(3, dtype=np.float32)
+        c = cuda.local.array(3, dtype=default_dtype)
 
         # Tetrahedral interpolation in float
         for ch in range(3):
@@ -852,7 +394,7 @@ def construct_spectral_density(ref_density, sigma=25):
                         xp.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1., 0.),
                         xp.where(wavelengths <= bg_cutoff, 1., 0.)))
     factors = xdimage.gaussian_filter(factors, sigma=(0, sigma / spectral_shape.interval)).astype(
-        xp.float32)
+        default_dtype)
 
     out = (factors * xp.asarray(ref_density.values)).T
     return out
@@ -905,6 +447,7 @@ def plot_gamuts(rgb_to_xyz, labels=None):
     plt.legend()
     plt.title("RGB Gamut on CIE 1931 Chromaticity Diagram")
     plt.show()
+
 
 def plot_gamut(rgb_to_xyz, label=None):
     plot_gamuts([rgb_to_xyz], [label])
@@ -1188,7 +731,7 @@ def apply_per_pixel(rgb, function):
         out = np.empty_like(rgb)
         for i in range(shape[0]):
             r, g, b = rgb[i]
-            out[i] = np.array(function(r, g, b), dtype=np.float32)
+            out[i] = np.array(function(r, g, b), dtype=default_dtype)
         return out
 
     elif ndim == 3:  # (H, W, 3)
@@ -1196,7 +739,7 @@ def apply_per_pixel(rgb, function):
         for i in range(shape[0]):
             for j in range(shape[1]):
                 r, g, b = rgb[i, j]
-                out[i, j] = np.array(function(r, g, b), dtype=np.float32)
+                out[i, j] = np.array(function(r, g, b), dtype=default_dtype)
         return out
 
     elif ndim == 4:  # (N, H, W, 3)
@@ -1205,7 +748,7 @@ def apply_per_pixel(rgb, function):
             for i in range(shape[1]):
                 for j in range(shape[2]):
                     r, g, b = rgb[n, i, j]
-                    out[n, i, j] = np.array(function(r, g, b), dtype=np.float32)
+                    out[n, i, j] = np.array(function(r, g, b), dtype=default_dtype)
         return out
 
     else:
@@ -1277,9 +820,9 @@ def linear_gamut_compression(rgb, gamut_compression=0):
 
 def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=None):
     if luminance_factors is None:
-        luminance_factors = np.ones(3, dtype=np.float32) / 3
+        luminance_factors = np.ones(3, dtype=default_dtype) / 3
     else:
-        luminance_factors = luminance_factors.astype(np.float32)
+        luminance_factors = luminance_factors.astype(default_dtype)
     Y = rgb @ luminance_factors.reshape(-1, 1)
     if sat_adjust <= 1:
         rgb = (1 - sat_adjust) * Y + sat_adjust * rgb
@@ -1292,7 +835,7 @@ def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=Non
     return rgb
 
 def gamut_compression_matrices(matrix, gamut_compression=0.):
-    A = xp.identity(3, dtype=np.float32) * (1 - gamut_compression) + gamut_compression / 3
+    A = xp.identity(3, dtype=default_dtype) * (1 - gamut_compression) + gamut_compression / 3
     A_inv = xp.linalg.inv(A)
     return matrix @ A_inv, A
 
@@ -1304,12 +847,12 @@ COLORCHECKER_2005 = np.array(
      [0.4957, 0.4427, 43.57], [0.2018, 0.1692, 5.75], [0.3253, 0.5032, 23.18], [0.5686, 0.3303, 12.57],
      [0.4697, 0.4734, 59.81], [0.4159, 0.2688, 20.09], [0.2131, 0.3023, 19.30], [0.3469, 0.3608, 91.31],
      [0.3440, 0.3584, 58.94], [0.3432, 0.3581, 36.32], [0.3446, 0.3579, 19.15], [0.3401, 0.3548, 8.83],
-     [0.3406, 0.3537, 3.11]], np.float32)
+     [0.3406, 0.3537, 3.11]], default_dtype)
 COLORCHECKER_2005 = colour.xyY_to_XYZ(COLORCHECKER_2005)
 COLORCHECKER_2005 *= np.array([0.95047, 1.00000, 1.08883]) / COLORCHECKER_2005[0]
 COLORCHECKER_2005 = COLORCHECKER_2005[1:]
 COLORCHECKER_OKLAB = colour.convert(COLORCHECKER_2005, "CIE XYZ", "Oklab")
-COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005, xp.float32)
+COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005, default_dtype)
 
 
 def smooth_piecewise(x, threshold, max_value):
@@ -1322,18 +865,18 @@ def smooth_piecewise(x, threshold, max_value):
 
 def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors=None, color_space='sRGB'):
     if luminance_factors is None:
-        luminance_factors = np.ones(3, dtype=np.float32) / 3
+        luminance_factors = np.ones(3, dtype=default_dtype) / 3
     else:
-        luminance_factors = luminance_factors.astype(np.float32)
+        luminance_factors = luminance_factors.astype(default_dtype)
     if white_point is None:
-        white_point = xp.array([0.95047, 1.00000, 1.08883], dtype=np.float32)
+        white_point = xp.array([0.95047, 1.00000, 1.08883], dtype=default_dtype)
     else:
-        white_point = xp.asarray(white_point, xp.float32)
+        white_point = xp.asarray(white_point, default_dtype)
 
     samples_lab = COLORCHECKER_OKLAB.copy()
     samples_lab[..., 1:3] *= sat_adjust
     samples_rgb = colour.convert(samples_lab, "Oklab", "RGB", colourspace=color_space, apply_cctf_encoding=False)
-    samples_rgb = xp.asarray(samples_rgb, xp.float32)
+    samples_rgb = xp.asarray(samples_rgb, default_dtype)
 
     M = xp.linalg.lstsq(COLORCHECKER_2005, samples_rgb, rcond=None)[0].T
     white = M @ white_point
@@ -1351,7 +894,7 @@ def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors
         rgb_compressed = a - d * np.abs(a)
 
         # Compute new luminance
-        Y_new = rgb_compressed @ xp.asarray(luminance_factors.reshape(-1, 1), dtype=xp.float32)
+        Y_new = rgb_compressed @ xp.asarray(luminance_factors.reshape(-1, 1), dtype=default_dtype)
 
         # Avoid division by zero
         scale = xp.where(Y_new != 0, Y / Y_new, 1.0) ** 2
