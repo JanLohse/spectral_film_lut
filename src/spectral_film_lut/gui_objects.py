@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot, QRectF, Q
     QPropertyAnimation, QPointF, QEasingCurve
 from PyQt6.QtGui import QWheelEvent, QFontMetrics, QPainter, QColor, QLinearGradient, QBrush
 from PyQt6.QtWidgets import QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider, QComboBox, QScrollArea, \
-    QFrame, QPushButton
+    QFrame, QPushButton, QToolButton
 from spectral_film_lut.utils import *
 
 
@@ -44,8 +44,6 @@ class WideComboBox(QComboBox):
         # Background animation
         self._anim = QPropertyAnimation(self, b"color", self)
         self._anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
-        self._hover_duration = HOVER_DURATION  # slow hover fade
-        self._click_duration = PRESS_DURATION  # quick click animation
 
         self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
 
@@ -62,23 +60,23 @@ class WideComboBox(QComboBox):
 
     # ------------------- Events -------------------
     def enterEvent(self, event):
-        self._start_color_animation(self._hover_color, self._hover_duration)
+        self._start_color_animation(self._hover_color, HOVER_DURATION // 2)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
-        self._start_color_animation(self._base_color, self._hover_duration)
+        self._start_color_animation(self._base_color, HOVER_DURATION)
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):
         # Animate background quickly and change text color instantly
-        self._start_color_animation(self._pressed_color, self._click_duration)
+        self._start_color_animation(self._pressed_color, PRESS_DURATION)
         self._set_text_color(self._pressed_text_color)
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         # Restore background and text color depending on mouse position
         target_bg = self._hover_color if self.underMouse() else self._base_color
-        self._start_color_animation(target_bg, self._click_duration)
+        self._start_color_animation(target_bg, PRESS_DURATION)
         self._set_text_color(self._base_text_color)
         super().mouseReleaseEvent(event)
 
@@ -562,30 +560,28 @@ class AnimatedButton(QPushButton):
         # Background animation
         self._anim = QPropertyAnimation(self, b"color", self)
         self._anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
-        self._hover_duration = HOVER_DURATION  # slow hover fade
-        self._click_duration = PRESS_DURATION  # quick click animation
 
         self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
 
     # ------------------- Events -------------------
     def enterEvent(self, event):
-        self._start_color_animation(self._hover_color, self._hover_duration)
+        self._start_color_animation(self._hover_color, HOVER_DURATION // 2)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
-        self._start_color_animation(self._base_color, self._hover_duration)
+        self._start_color_animation(self._base_color, HOVER_DURATION)
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):
         # Animate background quickly and change text color instantly
-        self._start_color_animation(self._pressed_color, self._click_duration)
+        self._start_color_animation(self._pressed_color, PRESS_DURATION)
         self._set_text_color(self._pressed_text_color)
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         # Restore background and text color depending on mouse position
         target_bg = self._hover_color if self.underMouse() else self._base_color
-        self._start_color_animation(target_bg, self._click_duration)
+        self._start_color_animation(target_bg, PRESS_DURATION)
         self._set_text_color(self._base_text_color)
         super().mouseReleaseEvent(event)
 
@@ -625,36 +621,131 @@ class AnimatedButton(QPushButton):
         self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
 
 
+class AnimatedToolButton(QToolButton):
+    def __init__(self, text=None, base_color=None, *args, **kwargs):
+        super().__init__(text=text, *args, **kwargs)
+
+        if base_color is None:
+            base_color = BASE_COLOR
+
+        # Colors
+        self._base_color = QColor(base_color)
+        self._hover_color = QColor(HOVER_COLOR)
+        self._pressed_color = QColor(PRESSED_COLOR)
+        self._checked_color = QColor(CHECKED_COLOR)
+
+        # Text colors
+        self._base_text_color = QColor(TEXT_PRIMARY)
+        self._pressed_text_color = QColor(TEXT_SECONDARY)
+
+        # Current colors
+        self._color = QColor(self._base_color)
+        self._text_color = QColor(self._base_text_color)
+
+        # Animation
+        self._anim = QPropertyAnimation(self, b"color", self)
+        self._anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+
+        self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
+
+        # For toggled (checkable) buttons
+        self.toggled.connect(self._update_state_color)
+
+    # ------------------- Events -------------------
+    def enterEvent(self, event):
+        self._start_color_animation(self._hover_color, HOVER_DURATION // 2)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._start_color_animation(self._get_base_state_color(), HOVER_DURATION)
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        self._start_color_animation(self._pressed_color, PRESS_DURATION)
+        self._set_text_color(self._pressed_text_color)
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        # After releasing, go back depending on hover/toggle state
+        target_bg = self._hover_color if self.underMouse() else self._get_base_state_color()
+        self._start_color_animation(target_bg, PRESS_DURATION)
+        self._set_text_color(self._base_text_color)
+        super().mouseReleaseEvent(event)
+
+    # ------------------- Helpers -------------------
+    def _update_state_color(self, checked: bool):
+        """Immediately updates background when toggled."""
+        target = self._checked_color if checked else self._base_color
+        self._start_color_animation(target, HOVER_DURATION)
+
+    def _get_base_state_color(self):
+        """Returns the correct base color depending on state."""
+        if self.isCheckable() and self.isChecked():
+            return self._checked_color
+        return self._base_color
+
+    # ------------------- Animation Logic -------------------
+    def _start_color_animation(self, target: QColor, duration: int):
+        self._anim.stop()
+        self._anim.setDuration(duration)
+        self._anim.setStartValue(QColor(self._color))
+        self._anim.setEndValue(QColor(target))
+        self._anim.start()
+
+    def getColor(self):
+        return self._color
+
+    def setColor(self, color: QColor):
+        self._color = QColor(color)
+        self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
+
+    color = pyqtProperty(QColor, fget=getColor, fset=setColor)
+
+    @staticmethod
+    def _build_stylesheet(bg_color: QColor, text_color: QColor) -> str:
+        bg = qcolor_to_rgba_string(bg_color)
+        fg = qcolor_to_rgba_string(text_color)
+        return f"""
+            QToolButton {{
+                background-color: {bg};
+                color: {fg};
+            }}
+        """
+
+    def _set_text_color(self, color: QColor):
+        self._text_color = QColor(color)
+        self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
+
+
 class HoverLineEdit(QLineEdit):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Colors
-        self._base_color = QColor(LINEEDIT_COLOR)  # Normal background
-        self._hover_color = QColor(HOVER_COLOR)  # Light blue when hovered
-
+        self._base_color = QColor(LINEEDIT_COLOR)
+        self._hover_color = QColor(HOVER_COLOR)
         self._color = QColor(self._base_color)
 
-        # Animation
+        # Animation setup
         self._anim = QPropertyAnimation(self, b"color", self)
         self._anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
-        self._anim.setDuration(HOVER_DURATION)
 
         # Apply initial style
         self.setStyleSheet(self._build_stylesheet(self._color))
 
     # --- Hover events ---
     def enterEvent(self, event):
-        self._start_color_animation(self._hover_color)
+        self._start_color_animation(self._hover_color, HOVER_DURATION // 2)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
-        self._start_color_animation(self._base_color)
+        self._start_color_animation(self._base_color, HOVER_DURATION)
         super().leaveEvent(event)
 
     # --- Animation logic ---
-    def _start_color_animation(self, target: QColor):
+    def _start_color_animation(self, target: QColor, duration: int):
         self._anim.stop()
+        self._anim.setDuration(duration)
         self._anim.setStartValue(QColor(self._color))
         self._anim.setEndValue(QColor(target))
         self._anim.start()
@@ -675,7 +766,6 @@ class HoverLineEdit(QLineEdit):
                 background-color: {bg};
             }}
         """
-
 
 def qcolor_to_rgba_string(c: QColor) -> str:
     """Return a CSS rgba(...) string where alpha is 0..1 (Qt accepts that)."""

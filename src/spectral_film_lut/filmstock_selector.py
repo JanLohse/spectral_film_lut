@@ -166,7 +166,7 @@ QLabel {{
         self.group_combo.currentTextChanged.connect(self.update_views)
         self.search_bar.textChanged.connect(self.update_views)
 
-        self.view_toggle = QToolButton()
+        self.view_toggle = AnimatedToolButton(base_color=BACKGROUND_COLOR)
         self.view_toggle.setText("Toggle View")
         self.view_toggle.setCheckable(True)
         if view_state is not None:
