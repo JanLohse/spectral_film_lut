@@ -23,7 +23,8 @@ dependencies = [
     "numba",
     "imageio",
     "matplotlib",
-    "opencv-python"
+    "opencv-python",
+    "networkx"
 ]
 
 [project.urls]
