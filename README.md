@@ -16,6 +16,13 @@ To emulate the look of a film stock its datasheet was digitized and a multi-step
 ### Windows
 The easiest way to run Spectral Film LUT is to download the latest `.exe` from the [releases](../../releases) section.  
 
+### macOS
+Install UV using your favorite package manager beforehand.
+
+```bash
+uv run spectral_film_lut
+```
+
 ### Python Package
 You can also install the program using pip:  
 
