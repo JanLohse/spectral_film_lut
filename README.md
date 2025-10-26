@@ -18,6 +18,7 @@ The easiest way to run Spectral Film LUT is to download the latest `.exe` from t
 
 ### macOS
 Install UV using your favorite package manager beforehand.
+Git clone to your desired local location
 
 ```bash
 uv run spectral_film_lut
