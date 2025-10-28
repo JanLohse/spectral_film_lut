@@ -6,6 +6,7 @@ from PyQt6.QtCore import QRegularExpression
 from PyQt6.QtGui import QIntValidator, QRegularExpressionValidator
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QCheckBox, QProgressDialog, QApplication)
 
+from spectral_film_lut.css_theme import *
 from spectral_film_lut.file_formats import FILE_FORMATS
 from spectral_film_lut.gui_objects import *
 
@@ -77,7 +78,7 @@ def generate_grain(shape, scale, grain_size=1., bw_grain=False, cached=False, **
     return noise
 
 
-def generate_grain_frame(width, height, channels, scale, grain_size = 1., std_div=0.001):
+def generate_grain_frame(width, height, channels, scale, grain_size=1., std_div=0.001):
     noise = generate_grain((height, width, channels), scale, grain_size=grain_size) * scale
     noise = (xp.clip(noise * std_div + 0.5, 0, 1) * 255).astype(xp.uint8)
     noise = to_numpy(noise)
@@ -222,6 +223,22 @@ class ExportGrainDialog(QDialog):
         self.progress_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.progress_dialog.setMinimumDuration(0)
         self.progress_dialog.setValue(0)
+        self.progress_dialog.setStyleSheet(f"""
+QProgressDialog {{
+    background-color: {BASE_COLOR}; color: {TEXT_PRIMARY};
+}}
+QProgressBar {{
+    border-radius: {BUTTON_RADIUS}px;
+    text-align: center;
+    background-color: {PRESSED_COLOR};
+    height: 16px;  /* thicker bar */
+    color: {TEXT_PRIMARY};
+}}
+QProgressBar::chunk {{
+    background-color: {OUTLINE_COLOR};
+    border-radius: {BUTTON_RADIUS}px;
+}}
+""")
         # self.progress_dialog.canceled.connect(self.cancel_export)
         QApplication.processEvents()
 

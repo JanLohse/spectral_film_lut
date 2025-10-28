@@ -104,7 +104,6 @@ def load_filmstocks(progress_callback):
 
 PROGRESS_BACKGROUND = PRESSED_COLOR
 PROGRESS_COLOR = TEXT_PRIMARY
-TEXT_COLOR = TEXT_PRIMARY
 
 
 class SplashScreen(QWidget):
@@ -116,7 +115,7 @@ class SplashScreen(QWidget):
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
 
         # Background color
-        self.setStyleSheet(f"background-color: {BACKGROUND_COLOR}; color: {TEXT_COLOR};")
+        self.setStyleSheet(f"background-color: {BACKGROUND_COLOR}; color: {TEXT_PRIMARY};")
 
         # Layout
         layout = QVBoxLayout(self)
@@ -154,15 +153,15 @@ class SplashScreen(QWidget):
         progress_color = colour.convert((0.5, 0.08, progress), "Oklch", "Hexadecimal")
         self.progress.setStyleSheet(f"""
             QProgressBar {{
-                border-radius: 6px;
+                border-radius: {BUTTON_RADIUS}px;
                 text-align: center;
                 background-color: {PROGRESS_BACKGROUND};
                 height: 16px;  /* thicker bar */
-                color: {TEXT_COLOR};
+                color: {TEXT_PRIMARY};
             }}
             QProgressBar::chunk {{
                 background-color: {progress_color};
-                border-radius: 6px;
+                border-radius: {BUTTON_RADIUS}px;
             }}
         """)
 
