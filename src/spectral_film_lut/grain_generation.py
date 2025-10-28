@@ -63,12 +63,14 @@ def grain_kernel(pixel_size_mm, dye_size1_mm=0.0065, dye_size2_mm=0.015):
     return kernel
 
 
-def generate_grain(shape, scale, grain_size=1., bw_grain=False, cached=False, **kwargs):
+def generate_grain(shape, scale, grain_size=1., bw_grain=False, cached=False, dye_size1_mm=None, dye_size2_mm=None, **kwargs):
     # compute scaling factor of exposure rms in regard to measuring device size
     if bw_grain:
         shape = (shape[0], shape[1], 1)
     noise = gaussian_noise(shape, cached=cached)
-    kernel = grain_kernel(1 / scale, 6.5 * grain_size / 1000, 15 * grain_size / 1000)
+    dye_size1_mm = 6.5 * grain_size / 1000 if dye_size1_mm is None else dye_size1_mm
+    dye_size2_mm = 15 * grain_size / 1000 if dye_size2_mm is None else dye_size2_mm
+    kernel = grain_kernel(1 / scale, dye_size1_mm, dye_size2_mm)
     if kernel is not None:
         noise = convolution_filter(noise, kernel)
     if len(noise.shape) == 2:
