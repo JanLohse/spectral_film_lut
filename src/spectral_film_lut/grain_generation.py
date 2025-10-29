@@ -29,10 +29,37 @@ def gaussian_noise(shape, cached=False):
     noise = xp.stack([noise_map[x:shape[0] + x, y:shape[1] + y] for x, y in offsets], axis=-1)
     return noise
 
+def two_component_params(grain_size_mm, sigma, p=2):
+    """
+    Return D1, D2, W1, W2 for a 2-component approximation of a LogNormal(mu, sigma^2).
+    - D1 = exp(mu - sigma)
+    - D2 = exp(mu + sigma)
+    - Split point = geometric mean = exp(mu)
+    - Weights W1, W2 derived for weighting ~ D^p * pdf(D)
+      (p=0 -> number weighting, p=2 -> area weighting, p=3 -> volume/scattering)
+    All returned as floats: (D1, D2, W1, W2).
+    """
+    mu = np.log(grain_size_mm) - 0.5 * sigma ** 2
 
-def grain_kernel(pixel_size_mm, dye_size1_mm=0.0065, dye_size2_mm=0.015):
+    D1 = math.exp(mu - sigma)
+    D2 = math.exp(mu + sigma)
+
+    # Normal CDF using erf
+    def std_norm_cdf(x):
+        return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+    # Using closed-form: W1 = Phi( (ln(split) - (mu + p*sigma^2)) / sigma )
+    # with ln(split)=mu -> argument = -p*sigma
+    W1 = std_norm_cdf(-p * sigma)
+    W2 = 1.0 - W1
+
+    return D1, D2, W1, W2
+
+def grain_kernel(pixel_size_mm, grain_size_mm=0.01, grain_sigma=0.4):
     # based on the paper:
     # Simulating Film Grain using the Noise-Power Spectrum by Ian Stephenson and Arthur Saunders
+    dye_size1_mm, dye_size2_mm, w1, w2 = two_component_params(grain_size_mm, grain_sigma)
+
     kernel_size_mm = 4.24 * max(dye_size1_mm, dye_size2_mm)
     kernel_size = round(kernel_size_mm / pixel_size_mm)
     if kernel_size % 2 == 0:
@@ -47,8 +74,8 @@ def grain_kernel(pixel_size_mm, dye_size1_mm=0.0065, dye_size2_mm=0.015):
     f = xp.sqrt(FX ** 2 + FY ** 2)  # radial frequency
 
     # Gaussian model for dye NPS: exp(-(pi*f*D)^2)
-    nps1 = xp.exp(-(xp.pi * f * dye_size1_mm) ** 2)
-    nps2 = xp.exp(-(xp.pi * f * dye_size2_mm) ** 2)
+    nps1 = xp.exp(-(xp.pi * f * dye_size1_mm) ** 2) * w1
+    nps2 = xp.exp(-(xp.pi * f * dye_size2_mm) ** 2) * w2
 
     # Total NPS (weighted sum)
     nps = (nps1 + nps2)
@@ -63,14 +90,12 @@ def grain_kernel(pixel_size_mm, dye_size1_mm=0.0065, dye_size2_mm=0.015):
     return kernel
 
 
-def generate_grain(shape, scale, grain_size=1., bw_grain=False, cached=False, dye_size1_mm=None, dye_size2_mm=None, **kwargs):
+def generate_grain(shape, scale, grain_size_mm=0.01, bw_grain=False, cached=False, grain_sigma=0.4, **kwargs):
     # compute scaling factor of exposure rms in regard to measuring device size
     if bw_grain:
         shape = (shape[0], shape[1], 1)
     noise = gaussian_noise(shape, cached=cached)
-    dye_size1_mm = 6.5 * grain_size / 1000 if dye_size1_mm is None else dye_size1_mm
-    dye_size2_mm = 15 * grain_size / 1000 if dye_size2_mm is None else dye_size2_mm
-    kernel = grain_kernel(1 / scale, dye_size1_mm, dye_size2_mm)
+    kernel = grain_kernel(1 / scale, grain_size_mm=grain_size_mm, grain_sigma=grain_sigma)
     if kernel is not None:
         noise = convolution_filter(noise, kernel)
     if len(noise.shape) == 2:
@@ -80,8 +105,8 @@ def generate_grain(shape, scale, grain_size=1., bw_grain=False, cached=False, dy
     return noise
 
 
-def generate_grain_frame(width, height, channels, scale, grain_size=1., std_div=0.001):
-    noise = generate_grain((height, width, channels), scale, grain_size=grain_size) * scale
+def generate_grain_frame(width, height, channels, scale, grain_size_mm=1., std_div=0.001, grain_sigma=0.4):
+    noise = generate_grain((height, width, channels), scale, grain_size_mm=grain_size_mm, grain_sigma=grain_sigma) * scale
     noise = (xp.clip(noise * std_div + 0.5, 0, 1) * 255).astype(xp.uint8)
     noise = to_numpy(noise)
     return noise

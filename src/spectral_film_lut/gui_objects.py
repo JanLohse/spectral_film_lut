@@ -488,7 +488,7 @@ class SliderLog(QWidget):
         if value.is_integer():
             self.text.setText(str(int(value)))
         else:
-            self.text.setText(f"{value:.2f}")
+            self.text.setText(f"{value:.3f}")
 
     def getValue(self):
         fraction = self.slider.value() / self.steps
