@@ -55,7 +55,7 @@ def two_component_params(grain_size_mm, sigma, p=2):
 
     return D1, D2, W1, W2
 
-def grain_kernel(pixel_size_mm, grain_size_mm=0.01, grain_sigma=0.4):
+def grain_kernel(pixel_size_mm, grain_size_mm=0.006, grain_sigma=0.3):
     # based on the paper:
     # Simulating Film Grain using the Noise-Power Spectrum by Ian Stephenson and Arthur Saunders
     dye_size1_mm, dye_size2_mm, w1, w2 = two_component_params(grain_size_mm, grain_sigma)
@@ -90,7 +90,7 @@ def grain_kernel(pixel_size_mm, grain_size_mm=0.01, grain_sigma=0.4):
     return kernel
 
 
-def generate_grain(shape, scale, grain_size_mm=0.01, bw_grain=False, cached=False, grain_sigma=0.4, **kwargs):
+def generate_grain(shape, scale, grain_size_mm=0.006, bw_grain=False, cached=False, grain_sigma=0.3, **kwargs):
     # compute scaling factor of exposure rms in regard to measuring device size
     if bw_grain:
         shape = (shape[0], shape[1], 1)
@@ -105,7 +105,7 @@ def generate_grain(shape, scale, grain_size_mm=0.01, bw_grain=False, cached=Fals
     return noise
 
 
-def generate_grain_frame(width, height, channels, scale, grain_size_mm=1., std_div=0.001, grain_sigma=0.4):
+def generate_grain_frame(width, height, channels, scale, grain_size_mm=.06, std_div=0.001, grain_sigma=0.3):
     noise = generate_grain((height, width, channels), scale, grain_size_mm=grain_size_mm, grain_sigma=grain_sigma) * scale
     noise = (xp.clip(noise * std_div + 0.5, 0, 1) * 255).astype(xp.uint8)
     noise = to_numpy(noise)
@@ -200,10 +200,9 @@ class ExportGrainDialog(QDialog):
         self.frame_width_field.setCurrentText("36")
         layout.addWidget(self.frame_width_field)
 
-        layout.addWidget(QLabel("Grain scale:"))
-        self.grain_size_field = Slider()
-        self.grain_size_field.setMinMaxTicks(0.5, 2, 1, 10)
-        self.grain_size_field.setValue(1.)
+        layout.addWidget(QLabel("Grain size (microns):"))
+        self.grain_size_field = SliderLog()
+        self.grain_size_field.setMinMaxSteps(3, 12, 30, 6)
         layout.addWidget(self.grain_size_field)
 
         # Buttons
@@ -230,7 +229,7 @@ class ExportGrainDialog(QDialog):
         file_format = self.format_selector.currentText()
         frame_rate = float(self.frame_rate.currentText())
         scale = width / float(self.frame_width_field.currentText())
-        grain_size = float(self.grain_size_field.getValue())
+        grain_size = float(self.grain_size_field.getValue()) / 1000
         return width, height, frames, channels, file_format, frame_rate, scale, grain_size
 
     def export_noise(self):
