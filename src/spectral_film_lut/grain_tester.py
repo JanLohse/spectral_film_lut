@@ -1,14 +1,21 @@
+import math
+import os
+import time
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+
 from spectral_film_lut.grain_generation import *
 
 # --- Parameters ---
-size = 512
+image_size = 128
 scale_factor = 4
-grain_count = 1000000
+grain_count = 10000
 
-grain_size_mm = 0.01
-image_size_mm = 1
-image_pixels = 512  # 512 px image
-sigma = 0.4
+grain_size_mm = 0.006
+image_size_mm = 0.5
+sigma = 0.1
 
 
 @njit(parallel=True, fastmath=True)
@@ -30,13 +37,13 @@ def add_grains_numba(centers, radii_indices, offset_starts, offset_lengths, all_
 
 
 def compute_grain():
-    grain_size_px = grain_size_mm * (image_pixels / image_size_mm)
+    grain_size_px = grain_size_mm * (image_size / image_size_mm)
     print(f"Average grain size in pixels: {grain_size_px:.2f}")
 
     # Log-normal parameters for radius distribution
     meanlog = np.log(grain_size_px * scale_factor)
 
-    size_scaled = size * scale_factor
+    size_scaled = image_size * scale_factor
 
     # --- Generate random grain centers and radii ---
     rng = np.random.default_rng()
@@ -85,13 +92,13 @@ def compute_grain():
                            size_scaled)
 
     # --- Downscale and normalize ---
-    img = cv2.resize(img.astype(np.uint16), (size, size), interpolation=cv2.INTER_AREA)
+    img = cv2.resize(img.astype(np.uint16), (image_size, image_size), interpolation=cv2.INTER_AREA)
     img = img.astype(np.float32)
 
-    grain_size_crop = math.floor(grain_size_px)
-    img = img[grain_size_crop:-grain_size_crop, grain_size_crop:-grain_size_crop]
+    grain_size_crop = math.floor(grain_size_px * 2)
+    img_cropped = img[grain_size_crop:-grain_size_crop, grain_size_crop:-grain_size_crop]
 
-    img = (img - img.mean()) / (img.std() * 10) + 0.5
+    img = (img - img_cropped.mean()) / (img_cropped.std() * 10) + 0.5
 
     return img
 
@@ -111,8 +118,8 @@ def compute_power_spectrum(img):
     r = r.astype(np.int32)
     radial_ps = np.bincount(r.ravel(), PS.ravel()) / np.bincount(r.ravel())
 
-    pixel_size_mm = image_size_mm / image_pixels
-    freq_um = np.arange(len(radial_ps)) / (image_pixels * pixel_size_mm)
+    pixel_size_mm = image_size_mm / image_size
+    freq_um = np.arange(len(radial_ps)) / (image_size * pixel_size_mm)
 
     # --- Plot ---
     plt.figure(figsize=(6, 4))
@@ -124,28 +131,140 @@ def compute_power_spectrum(img):
     plt.show()
 
 
+simulate_algorithmically = False
+
+
 if __name__ == "__main__":
+    # --- Generate grain by first method ---
     start = time.time()
-    img = compute_grain()
-    print(f"Generation time: {time.time() - start:.2f}s")
+    pixel_size_mm = image_size_mm / image_size
+    if simulate_algorithmically:
+        img1 = compute_grain()
+        print(f"Generation time (method 1): {time.time() - start:.2f}s")
 
-    compute_power_spectrum(img)
+        # --- Power spectrum for img1 ---
+        F1 = np.fft.fft2(img1)
+        F1_shift = np.fft.fftshift(F1)
+        PS1 = np.abs(F1_shift) ** 2
+        y, x = np.indices(PS1.shape)
+        center = np.array(PS1.shape) // 2
+        r = np.sqrt((x - center[1]) ** 2 + (y - center[0]) ** 2)
+        r = r.astype(np.int32)
+        radial_ps1 = np.bincount(r.ravel(), PS1.ravel()) / np.bincount(r.ravel())
+        freq_um1 = np.arange(len(radial_ps1)) / (image_size * pixel_size_mm)
 
-    cv2.imshow('img', img)
-    cv2.waitKey(0)
-
+    # --- Generate grain by second method ---
     start = time.time()
-    real_size = img.shape[0]
+    if simulate_algorithmically:
+        real_size = img1.shape[0]
+    else:
+        real_size = image_size
     scale = real_size / image_size_mm
-    print(f"{scale=}")
     mu = np.log(grain_size_mm) - 0.5 * sigma ** 2
     x_low = np.exp(mu - sigma)
     x_high = np.exp(mu + sigma)
-    img = generate_grain((real_size, real_size), scale, dye_size1_mm=x_low, dye_size2_mm=x_high)
-    img = (img - img.mean()) / (img.std() * 10) + 0.5
-    print(f"Generation time: {time.time() - start:.2f}s")
+    print(x_low, x_high)
+    img2 = generate_grain((real_size, real_size), scale, dye_size1_mm=x_low, dye_size2_mm=x_high)
+    img2 = (img2 - img2.mean()) / (img2.std() * 10) + 0.5
+    print(f"Generation time (method 2): {time.time() - start:.2f}s")
 
-    compute_power_spectrum(img[..., 0])
+    # --- Power spectrum for img2 ---
+    F2 = np.fft.fft2(img2[..., 0])
+    F2_shift = np.fft.fftshift(F2)
+    PS2 = np.abs(F2_shift) ** 2
+    y, x = np.indices(PS2.shape)
+    center = np.array(PS2.shape) // 2
+    r = np.sqrt((x - center[1]) ** 2 + (y - center[0]) ** 2)
+    r = r.astype(np.int32)
+    radial_ps2 = np.bincount(r.ravel(), PS2.ravel()) / np.bincount(r.ravel())
+    freq_um2 = np.arange(len(radial_ps2)) / (image_size * pixel_size_mm)
 
-    cv2.imshow('alt_grain', img)
-    cv2.waitKey(0)
+    # --- Load real grain image ---
+    image_path = "grain_35mm_200T.png"  # <<< Replace with your file
+    width_mm_real = 24            # <<< physical width of your image (mm)
+    height_mm_real = width_mm_real * (9 / 16)   # <<< physical height of your image (mm)
+    crop_mm = image_size_mm         # physical side length of the crop (same as synthetic)
+
+    img_real = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+    if img_real is None:
+        raise ValueError(f"Could not read image from {image_path}")
+
+    img_real = img_real.astype(np.float32) / 255.0
+
+    # --- Extract green channel if RGB ---
+    if img_real.ndim == 3:
+        img_real = img_real[..., 1]
+
+    # --- Compute pixels per millimeter ---
+    h, w = img_real.shape
+    px_per_mm_x = w / width_mm_real
+    px_per_mm_y = h / height_mm_real
+    px_per_mm = (px_per_mm_x + px_per_mm_y) / 2.0  # average if slightly different
+
+    # --- Compute crop size in pixels for 1mm × 1mm ---
+    crop_px = int(round(px_per_mm * crop_mm))
+
+    # --- Center crop in physical space ---
+    cy, cx = h // 2, w // 2
+    half = crop_px // 2
+    img_crop = img_real[cy - half:cy + half, cx - half:cx + half]
+
+    if img_crop.shape[0] != crop_px or img_crop.shape[1] != crop_px:
+        raise ValueError("Crop region extends beyond image bounds. Adjust dimensions or crop size.")
+
+    # --- Rescale to same resolution as synthetic sample ---
+    img_crop_resized = cv2.resize(img_crop, (image_size, image_size), interpolation=cv2.INTER_AREA)
+
+    # --- Normalize the same way ---
+    img_crop_resized = (img_crop_resized - img_crop_resized.mean()) / (img_crop_resized.std() * 10) + 0.5
+
+    # --- Power spectrum for real grain crop ---
+    F3 = np.fft.fft2(img_crop_resized)
+    F3_shift = np.fft.fftshift(F3)
+    PS3 = np.abs(F3_shift) ** 2
+    y, x = np.indices(PS3.shape)
+    center = np.array(PS3.shape) // 2
+    r = np.sqrt((x - center[1]) ** 2 + (y - center[0]) ** 2)
+    r = r.astype(np.int32)
+    radial_ps3 = np.bincount(r.ravel(), PS3.ravel()) / np.bincount(r.ravel())
+    freq_um3 = np.arange(len(radial_ps3)) / (image_size * pixel_size_mm)
+
+    # --- Plot all three ---
+    fig, axes = plt.subplots(3 if simulate_algorithmically else 2, 2, figsize=(12, 14))
+
+    i = 0
+    if simulate_algorithmically:
+        # 1st method
+        axes[i, 0].imshow(img1, cmap='gray', vmin=0, vmax=1)
+        axes[i, 0].set_title("Generated Grain (Method 1)")
+        axes[i, 0].axis('off')
+        axes[i, 1].loglog(freq_um1, radial_ps1)
+        axes[i, 1].set_title("Power Spectrum 1")
+        axes[i, 1].set_xlabel("Spatial frequency (cycles/mm)")
+        axes[i, 1].set_ylabel("Power")
+        axes[i, 1].grid(True, which='both', ls='--', alpha=0.5)
+        i += 1
+
+    # 2nd method
+    axes[i, 0].imshow(img2[..., 0], cmap='gray', vmin=0, vmax=1)
+    axes[i, 0].set_title("Generated Grain (Method 2)")
+    axes[i, 0].axis('off')
+    axes[i, 1].loglog(freq_um2, radial_ps2)
+    axes[i, 1].set_title("Power Spectrum 2")
+    axes[i, 1].set_xlabel("Spatial frequency (cycles/mm)")
+    axes[i, 1].set_ylabel("Power")
+    axes[i, 1].grid(True, which='both', ls='--', alpha=0.5)
+    i += 1
+
+    # Real image
+    axes[i, 0].imshow(img_crop_resized, cmap='gray', vmin=0, vmax=1)
+    axes[i, 0].set_title(f"Real Grain (1mm×1mm center crop)")
+    axes[i, 0].axis('off')
+    axes[i, 1].loglog(freq_um3, radial_ps3)
+    axes[i, 1].set_title("Power Spectrum (Real Image)")
+    axes[i, 1].set_xlabel("Spatial frequency (cycles/mm)")
+    axes[i, 1].set_ylabel("Power")
+    axes[i, 1].grid(True, which='both', ls='--', alpha=0.5)
+
+    plt.tight_layout()
+    plt.show()
