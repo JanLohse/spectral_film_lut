@@ -1,8 +1,9 @@
+import ctypes
 import sys
+from ctypes import wintypes
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QProgressBar, QVBoxLayout, QWidget, QLabel
-
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
 from spectral_film_lut.bw_print_film.kodak_polymax_fine_art import *
@@ -172,8 +173,35 @@ class SplashScreen(QWidget):
         QApplication.processEvents()
 
 
+DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+
+
+def set_dark_title_bar(hwnd):
+    value = ctypes.c_int(1)
+    ctypes.windll.dwmapi.DwmSetWindowAttribute(
+        wintypes.HWND(hwnd),
+        wintypes.DWORD(DWMWA_USE_IMMERSIVE_DARK_MODE),
+        ctypes.byref(value),
+        ctypes.sizeof(value)
+    )
+
+
+class DarkApp(QApplication):
+    def notify(self, receiver, event):
+        result = super().notify(receiver, event)
+        if event.type() == event.Type.Show and isinstance(receiver, QWidget) and receiver.isWindow():
+            try:
+                hwnd = int(receiver.winId())
+                set_dark_title_bar(hwnd)
+            except Exception:
+                pass
+        return result
+
 def load_ui(main_window, name="Spectral Film LUT"):
-    app = QApplication(sys.argv)
+    if sys.platform == "win32":
+        app = DarkApp(sys.argv)
+    else:
+        app = QApplication(sys.argv)
 
     app.setStyleSheet(THEME)
 
@@ -185,6 +213,7 @@ def load_ui(main_window, name="Spectral Film LUT"):
     loaded_filmstocks = load_filmstocks(update_progress)
 
     window = main_window(loaded_filmstocks)
+
     window.show()
     splash.close()
 
