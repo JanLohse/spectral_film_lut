@@ -21,7 +21,10 @@ dependencies = [
     "scipy",
     "pyqt6",
     "numba",
-    "imageio"
+    "imageio",
+    "matplotlib",
+    "opencv-python",
+    "networkx"
 ]
 
 [project.urls]
