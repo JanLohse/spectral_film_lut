@@ -41,17 +41,11 @@ jobs:
       - name: Rename Windows EXE with version
         run: mv dist/SpectralFilmLUT.exe dist/SpectralFilmLUT-${VERSION}.exe
 
-      - name: Rename Python tar.gz with version
-        run: |
-          for f in dist/spectral_film_lut-*.tar.gz; do
-              mv "$f" "dist/spectral_film_lut-${VERSION}.tar.gz"
-          done
-
       - name: Upload Windows package to release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/spectral_film_lut-${VERSION}.tar.gz
+            dist/spectral_film_lut-*.tar.gz
             dist/SpectralFilmLUT-${VERSION}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,17 +90,11 @@ jobs:
           chmod +x dist/SpectralFilmLUT
           mv dist/SpectralFilmLUT dist/SpectralFilmLUT-${VERSION}.AppImage
 
-      - name: Rename Python tar.gz with version
-        run: |
-          for f in dist/spectral_film_lut-*.tar.gz; do
-              mv "$f" "dist/spectral_film_lut-${VERSION}.tar.gz"
-          done
-
       - name: Upload Linux AppImage to release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/spectral_film_lut-${VERSION}.tar.gz
+            dist/spectral_film_lut-*.tar.gz
             dist/SpectralFilmLUT-${VERSION}.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
