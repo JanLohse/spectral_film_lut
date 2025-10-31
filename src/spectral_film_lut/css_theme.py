@@ -1,4 +1,6 @@
 import os
+import sys
+
 import colour
 
 
@@ -27,9 +29,19 @@ HIGHLIGHT_COLOR = oklch_to_hex(0.75)
 HOVER_DURATION = 150
 PRESS_DURATION = 75
 
-base_dir = os.path.dirname(__file__)
-icon_path = os.path.join(base_dir, "resources").replace("\\", "/")
 
+def resource_path(relative_path):
+    """Get absolute path to resource (works for dev and PyInstaller)."""
+    if hasattr(sys, '_MEIPASS'):
+        # Running from the PyInstaller bundle
+        base_path = sys._MEIPASS
+    else:
+        # Running from source
+        base_path = os.path.dirname(__file__)
+    return os.path.join(base_path, relative_path).replace("\\", "/")
+
+
+icon_path = resource_path("resources")
 THEME = f"""
 QMainWindow > QWidget, QDialog > QWidget {{
     background-color: {BACKGROUND_COLOR};
