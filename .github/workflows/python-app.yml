@@ -8,11 +8,13 @@ jobs:
   build-windows:
     permissions: write-all
     runs-on: windows-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
@@ -33,31 +35,39 @@ jobs:
               f.write(f"rawtoaces={path}\n")
 
       - name: Set version
+        shell: bash
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
       - name: Build Windows executable
-        run: PyInstaller --noconfirm --onefile --noconsole --name="SpectralFilmLUT" --add-data "${{ steps.paths.outputs.rawtoaces }};colour/characterisation/datasets/rawtoaces" --add-data ".\src\spectral_film_lut\resources\;resources" src\spectral_film_lut\gui.py
+        shell: bash
+        run: |
+          pyinstaller --noconfirm --onefile --noconsole \
+            --name="SpectralFilmLUT" \
+            --add-data "${{ steps.paths.outputs.rawtoaces }};colour/characterisation/datasets/rawtoaces" \
+            --add-data "src/spectral_film_lut/resources;resources" \
+            src/spectral_film_lut/gui.py
 
       - name: Rename Windows EXE with version
+        shell: bash
         run: mv dist/SpectralFilmLUT.exe dist/SpectralFilmLUT-${VERSION}.exe
 
-      - name: Upload Windows package to release
+      - name: Upload Windows executable to release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/spectral_film_lut-*.tar.gz
-            dist/SpectralFilmLUT-${VERSION}.exe
+          files: dist/SpectralFilmLUT-${{ env.VERSION }}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-linux:
     permissions: write-all
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
@@ -79,6 +89,7 @@ jobs:
 
       - name: Set version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+        shell: bash
 
       - name: Build Linux AppImage
         run: |
@@ -89,12 +100,11 @@ jobs:
             src/spectral_film_lut/gui.py
           chmod +x dist/SpectralFilmLUT
           mv dist/SpectralFilmLUT dist/SpectralFilmLUT-${VERSION}.AppImage
+        shell: bash
 
       - name: Upload Linux AppImage to release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/spectral_film_lut-*.tar.gz
-            dist/SpectralFilmLUT-${VERSION}.AppImage
+          files: dist/SpectralFilmLUT-${{ env.VERSION }}.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
