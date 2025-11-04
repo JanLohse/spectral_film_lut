@@ -5,7 +5,6 @@ class KodakEnduraPremier(FilmSpectral):
     def __init__(self):
         super().__init__()
 
-        self.lad = [0.8, 0.8, 0.8]
         self.density_measure = 'status_a'
         self.manufacturer = 'Kodak'
         self.stage = 'print'
