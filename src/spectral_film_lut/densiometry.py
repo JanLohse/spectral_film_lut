@@ -162,3 +162,39 @@ COLORCHECKER_2005 = colour.xyY_to_XYZ(COLORCHECKER_2005)
 COLORCHECKER_2005 *= np.array([0.95047, 1.00000, 1.08883]) / COLORCHECKER_2005[0]
 COLORCHECKER_2005 = COLORCHECKER_2005[1:].reshape(4, 6, 3)
 COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005, default_dtype)
+
+
+def adx16_encode(apd, apd_min=None, scaling=1.):
+    if apd_min is None:
+        apd_min = xp.zeros(3, dtype=xp.float32)
+    # Scaling factors per channel: R, G, B
+    scale = xp.array([1.00, 0.92, 0.95], dtype=xp.float32)
+
+    if apd.shape[-1] != 3:
+        scale = 1
+        apd_min = apd_min[0]
+
+    # Perform vectorized computation
+    adx = scale * (8000. / 65535.) * (apd - apd_min) + (1520. / 65535.)
+
+    # Round to nearest integer and clip to 0–65535 range
+    adx = xp.clip(adx * scaling, 0, 1)
+
+    # Convert to uint16 to save space (fits ADX10 range)
+    return adx
+
+
+def adx16_decode(adx, apd_min=None, scaling=1.):
+    if apd_min is None:
+        apd_min = xp.zeros(3, dtype=xp.float32)
+    # Scaling factors per channel: R, G, B
+    scale = xp.array([1.00, 0.92, 0.95], dtype=xp.float32)
+
+    if adx.shape[-1] != 3:
+        scale = 1
+        apd_min = apd_min[0]
+
+    apd = ((adx.astype(np.float32) / scaling - 1520.0 / 65535.) / (scale * 8000.0 / 65535.)) + apd_min
+
+    return apd
+

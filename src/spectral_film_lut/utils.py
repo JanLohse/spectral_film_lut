@@ -40,7 +40,7 @@ spectral_shape = colour.SpectralShape(380, 780, 5)
 
 def create_lut(negative_film, print_film=None, lut_size=33, name="test", cube=True, verbose=False, **kwargs):
     lut = colour.LUT3D(size=lut_size, name="test")
-    transform, _ = negative_film.generate_conversion(negative_film, print_film, **kwargs)
+    transform = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
     table = transform(lut.table)
     if table.shape[-1] == 1:

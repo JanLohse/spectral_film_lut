@@ -5,7 +5,7 @@ import scipy
 from colour import SpectralDistribution
 
 from spectral_film_lut import densiometry
-from spectral_film_lut.densiometry import DENSIOMETRY, COLORCHECKER_2005
+from spectral_film_lut.densiometry import DENSIOMETRY, COLORCHECKER_2005, adx16_encode, adx16_decode
 from spectral_film_lut.utils import *
 
 
@@ -216,7 +216,7 @@ class FilmSpectral:
             negative = self
         elif print is None:
             print = self
-        self.color_checker = (self.generate_conversion(negative, print, input_colourspace=None)[0](
+        self.color_checker = (self.generate_conversion(negative, print, input_colourspace=None)(
             COLORCHECKER_2005) * 255).astype(np.uint8)
 
     def extend_characteristic_curve(self, height=3):
@@ -541,22 +541,23 @@ class FilmSpectral:
         plt.tight_layout()
         plt.show()
 
-    def grain_transform(self, rgb, density_scale, scale=1., std_div=1.):
+    def grain_transform(self, rgb, scale=1., std_div=1.):
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm, default for 3840 / 24mm
         # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay in [0, 1] range
-        std_factor = math.sqrt(math.pi) * 0.024 * scale / density_scale / std_div
-        xps = [(rms_density + 0.25) / density_scale for rms_density in self.rms_density]
-        fps = [rms * std_factor for rms in self.rms_curve]
+        adx_density_scale = xp.array([1.00, 0.92, 0.95], dtype=xp.float32) * (8000. / 65535.)
+        std_factor = math.sqrt(math.pi) * 0.024 * scale * adx_density_scale / std_div
+        xps = [rms_density * adx_density_scale[i] + 1520.0 / 65535. for i, rms_density in enumerate(self.rms_density)]
+        fps = [rms * std_factor[i] for i, rms in enumerate(self.rms_curve)]
         noise_factors = multi_channel_interp(rgb, xps, fps)
         return noise_factors
 
     @staticmethod
     def generate_conversion(negative_film, print_film=None, input_colourspace="ARRI Wide Gamut 4", measure_time=False,
                             output_colourspace="sRGB", projector_kelvin=6500, matrix_method=False, exp_comp=0,
-                            white_point=1., mode='full', exposure_kelvin=5500, d_buffer=0.5, gamma=1,
-                            halation_func=None, pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2,
-                            output_transform=None, black_offset=0, black_pivot=0.18, photo_inversion=False,
-                            color_masking=None, tint=0, sat_adjust=1, **kwargs):
+                            white_point=1., mode='full', exposure_kelvin=5500, gamma=1, halation_func=None,
+                            pre_flash_neg=-4, pre_flash_print=-4, gamut_compression=0.2, output_transform=None,
+                            black_offset=0, black_pivot=0.18, photo_inversion=False, color_masking=None, tint=0,
+                            sat_adjust=1, adx=True, adx_scaling=1., **kwargs):
         pipeline = []
 
         if color_masking is None:
@@ -572,6 +573,7 @@ class FilmSpectral:
                 add(output_transform, "output")
 
         def add_black_offset(compute_factor=False):
+            # TODO: fix add_black_offset
             if compute_factor:
                 offset = black_offset * max(pipeline[-1][0](output_film.d_max).min(), 0.0005)
             else:
@@ -616,15 +618,14 @@ class FilmSpectral:
 
             add(lambda x: negative_film.log_exposure_to_density(x, color_masking), "characteristic curve")
 
-        density_scale = (negative_film.d_max.max() + d_buffer) + 2
         if mode == 'negative':
-            add(lambda x: (x + d_buffer / 2) / density_scale, 'scale density')
+            add(lambda x: adx16_encode(x, scaling=adx_scaling), 'scale density')
         elif mode == 'print':
             if cuda_available:
                 add(lambda x: xp.asarray(x), "cast to cuda")
             if negative_film.density_measure == 'bw':
                 add(lambda x: x[..., 0][..., xp.newaxis], "reduce dim")
-            add(lambda x: x * density_scale - d_buffer / 2, 'scale density')
+            add(lambda x: adx16_decode(x, scaling=adx_scaling), 'scale density')
 
         if mode == 'print' or mode == 'full':
             if print_film is not None:
@@ -635,7 +636,7 @@ class FilmSpectral:
                     density_matrix, peak_exposure = negative_film.compute_print_matrix(print_film, **kwargs)
                     add(lambda x: peak_exposure - x @ density_matrix.T, "printing matrix")
                 else:
-                    density_neg = negative_film.get_spectral_density(color_masking).T
+                    density_neg = negative_film.get_spectral_density(color_masking)
 
                     printer_light = negative_film.compute_printer_light(print_film, **kwargs)
                     if print_film.density_measure == 'absolute':
@@ -643,7 +644,9 @@ class FilmSpectral:
                                                                                        xp.newaxis]
                     else:
                         printing_mat = (print_film.sensitivity.T * printer_light * 10 ** -negative_film.d_min_sd).T
-                    add(lambda x: xp.log10(xp.clip(10 ** -(x @ density_neg) @ printing_mat, 0.00001, None)), "printing")
+                    printing_mat = printing_mat.reshape(-1, 3, printing_mat.shape[-1]).sum(axis=1)
+                    density_neg = density_neg.reshape(-1, 3, density_neg.shape[-1]).mean(axis=1)
+                    add(lambda x: xp.log10(xp.clip(10 ** -(x @ density_neg.T) @ printing_mat, 0.00001, None)), "printing")
 
                 add(lambda x: print_film.log_exposure_to_density(x, pre_flash=pre_flash_print),
                     "characteristic curve print")
@@ -692,6 +695,8 @@ class FilmSpectral:
 
                 if print_film is None and negative_film.density_measure == "status_m":
                     FilmSpectral.add_photographic_inversion(add, negative_film, output_kelvin, pipeline)
+                output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
+                density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
                 add(lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix")
                 if output_film.density_measure == "status_a" and print_film is None:
                     mid_gray = to_numpy(pipeline[-1][0](output_film.get_d_ref(color_masking)))
@@ -726,7 +731,7 @@ class FilmSpectral:
         if mode == 'grain':
             if cuda_available:
                 add(lambda x: xp.asarray(x), "cast to cuda")
-            add(lambda x: negative_film.grain_transform(x, density_scale, std_div=0.001), "grain_map")
+            add(lambda x: negative_film.grain_transform(x, std_div=0.001), "grain_map")
 
         def convert(x):
             start = time.time()
@@ -738,10 +743,7 @@ class FilmSpectral:
                 start = time.time()
             return x
 
-        if mode == 'print' or mode == 'negative':
-            return convert, density_scale
-        else:
-            return convert, 0
+        return convert
 
     @staticmethod
     def CCT_to_XYZ(CCT, Y=1., tint=0.):
