@@ -64,14 +64,15 @@ class FilmSpectral:
         # normally use iso value, if not provided use target density of 1.0 on the green channel
         if self.iso is not None:
             self.log_H_ref = xp.ones(len(self.log_exposure)) * math.log10(12.5 / self.iso)
-        elif self.lad is not None:
+            self.H_ref = 10 ** self.log_H_ref
+        elif self.density_measure == 'absolute' or self.density_measure == 'bw':
             if self.density_measure == 'absolute':
                 self.lad = xp.linalg.inv(densiometry.status_a.T @ self.spectral_density) @ xp.array(self.lad)
             self.log_H_ref = xp.array(
                 [xp.interp(xp.asarray(a), xp.asarray(sorted_b), xp.asarray(sorted_c)) for a, b, c in
                  zip(self.lad, self.density_curve, self.log_exposure) for sorted_b, sorted_c in
                  [zip(*sorted(zip(b, c)))]])
-        self.H_ref = 10 ** self.log_H_ref
+            self.H_ref = 10 ** self.log_H_ref
 
         self.color = 'BW' if self.density_measure == 'bw' else 'Color'
 
@@ -103,7 +104,8 @@ class FilmSpectral:
         self.log_exposure = [x_new] * len(self.log_exposure)
         self.d_min = xp.array([xp.min(x) for x in self.density_curve])
         self.density_curve = [x - d for x, d in zip(self.density_curve, self.d_min)]
-        self.d_ref = self.log_exposure_to_density(self.log_H_ref).reshape(-1)
+        if self.log_H_ref is not None:
+            self.d_ref = self.log_exposure_to_density(self.log_H_ref).reshape(-1)
         self.d_max = xp.array([xp.max(x) for x in self.density_curve])
 
         # align spectral densities
@@ -138,10 +140,17 @@ class FilmSpectral:
             density_curve @= status_matrix.T
             self.density_curve_pure = self.density_curve
             self.density_curve = [density_curve[:, 0], density_curve[:, 1], density_curve[:, 2]]
-            self.d_ref = self.log_exposure_to_density(self.log_H_ref).reshape(-1)
 
             self.d_min_sd = self.d_min_sd + self.spectral_density @ status_matrix @ (
                     self.d_min - DENSIOMETRY[self.density_measure].T @ self.d_min_sd)
+            if self.H_ref is None:
+                self.lad = self.compute_lad()
+                self.log_H_ref = xp.array(
+                    [xp.interp(xp.asarray(a), xp.asarray(sorted_b), xp.asarray(sorted_c)) for a, b, c in
+                     zip(self.lad, self.density_curve, self.log_exposure) for sorted_b, sorted_c in
+                     [zip(*sorted(zip(b, c)))]])
+                self.H_ref = 10 ** self.log_H_ref
+            self.d_ref = self.log_exposure_to_density(self.log_H_ref).reshape(-1)
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
 
         self.d_max = xp.array([xp.max(x) for x in self.density_curve])
@@ -573,7 +582,6 @@ class FilmSpectral:
                 add(output_transform, "output")
 
         def add_black_offset(compute_factor=False):
-            # TODO: fix add_black_offset
             if compute_factor:
                 offset = black_offset * max(pipeline[-1][0](output_film.d_max).min(), 0.0005)
             else:
@@ -692,11 +700,12 @@ class FilmSpectral:
                 if matrix_method:
                     density_mat = density_mat.reshape(9, 9, 3).mean(axis=1)
                     output_mat = output_mat.reshape(9, 9, 3).sum(axis=1)
+                else:
+                    output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
+                    density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
 
                 if print_film is None and negative_film.density_measure == "status_m":
                     FilmSpectral.add_photographic_inversion(add, negative_film, output_kelvin, pipeline)
-                output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
-                density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
                 add(lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix")
                 if output_film.density_measure == "status_a" and print_film is None:
                     mid_gray = to_numpy(pipeline[-1][0](output_film.get_d_ref(color_masking)))
@@ -878,3 +887,53 @@ class FilmSpectral:
 
         # Apply scaling to columns
         return M * S
+
+    @staticmethod
+    def output_to_density(y, a, b, x0=None, method='lm'):
+        """
+        Numerically invert the mapping:
+            y = (10 ** -(x @ a.T)) @ b
+        to recover x.
+
+        Parameters
+        ----------
+        y : array-like, shape (p,)
+            Output vector.
+        a : array-like, shape (m, n)
+            Density matrix (used in forward map).
+        b : array-like, shape (m, p)
+            Output matrix (used in forward map).
+        x0 : array-like, shape (n,), optional
+            Initial guess for x. Defaults to zeros.
+        method : str, optional
+            Least-squares solver method: 'lm', 'trf', or 'dogbox'.
+
+        Returns
+        -------
+        x : ndarray, shape (n,)
+            Estimated vector such that (10 ** -(x @ a.T)) @ b ≈ y
+        """
+
+        a = xp.asarray(a)
+        b = xp.asarray(b)
+        y = xp.asarray(y)
+
+        n = a.shape[1]
+        if x0 is None:
+            x0 = xp.zeros(n)
+
+        def residual(x):
+            s = 10 ** -(x @ a.T)  # shape (m,)
+            y_pred = s @ b  # shape (p,)
+            return y_pred - y
+
+        res = least_squares(residual, x0, method=method)
+        return res.x
+
+    def compute_lad(self, luminance=0.1):
+        projection_light, xyz_cmfs = self.compute_projection_light(projector_kelvin=6504, white_point=1)
+        d_min_sd = self.d_min_sd
+        density_mat = self.get_spectral_density()
+        output_mat = (xyz_cmfs.T * projection_light * 10 ** -d_min_sd).T
+        lad = self.output_to_density(self.CCT_to_XYZ(6504, 0.1), density_mat, output_mat)
+        return lad
