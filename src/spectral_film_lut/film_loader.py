@@ -89,11 +89,11 @@ REVERSAL_FILM = [KodakEktachromeE100, Kodachrome64, FujiVelvia50, FujiProvia100F
 filmstocks = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM + REVERSAL_PRINT
 
 
-def load_filmstocks(progress_callback):
+def load_filmstocks(progress_callback, gray_value=None):
     result = []
     total = len(filmstocks)
     for i, film_cls in enumerate(filmstocks, start=1):
-        instance = film_cls()
+        instance = film_cls(gray_value=gray_value)
         if result and instance.stage == "print" and instance.density_measure == "status_a":
             instance.set_color_checker(negative=result[0])
         else:
@@ -197,7 +197,7 @@ class DarkApp(QApplication):
                 pass
         return result
 
-def load_ui(main_window, name="Spectral Film LUT"):
+def load_ui(main_window, name="Spectral Film LUT", gray_value=None):
     if sys.platform == "win32":
         app = DarkApp(sys.argv)
     else:
@@ -210,7 +210,7 @@ def load_ui(main_window, name="Spectral Film LUT"):
     def update_progress(current, total, name):
         splash.update(current, total, name)
 
-    loaded_filmstocks = load_filmstocks(update_progress)
+    loaded_filmstocks = load_filmstocks(update_progress, gray_value)
 
     window = main_window(loaded_filmstocks)
 

@@ -3,8 +3,8 @@ from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
 
 
 class FujiCrystalArchiveMaxima(FujiCrystalArchiveDPII):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.comment = 'No contrast curve available. Therefore just DPII with deeper blacks.'
 

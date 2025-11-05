@@ -5,8 +5,8 @@ from spectral_film_lut.wratten_filters import WRATTEN
 
 
 class TechnicolorIV(FilmSpectral):
-    def __init__(self, version=1):
-        super().__init__()
+    def __init__(self, version=1, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.lad = [1] * 3
         self.density_measure = 'status_a'
@@ -100,10 +100,10 @@ class TechnicolorIV(FilmSpectral):
 
 
 class TechnicolorIValt1(TechnicolorIV):
-    def __init__(self):
-        super().__init__(0)
+    def __init__(self, *args, **kwargs):
+        super().__init__(0, *args, **kwargs)
 
 
 class TechnicolorIValt2(TechnicolorIV):
-    def __init__(self):
-        super().__init__(2)
+    def __init__(self, *args, **kwargs):
+        super().__init__(2, *args, **kwargs)

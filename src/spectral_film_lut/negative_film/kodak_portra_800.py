@@ -2,8 +2,8 @@ from spectral_film_lut.film_spectral import *
 
 
 class KodakPortra800(FilmSpectral):
-    def __init__(self, iso=800):
-        super().__init__()
+    def __init__(self, iso=800, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.iso = iso
         self.density_measure = 'status_m'

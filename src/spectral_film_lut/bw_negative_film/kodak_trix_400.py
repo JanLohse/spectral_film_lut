@@ -2,8 +2,8 @@ from spectral_film_lut.film_spectral import *
 
 
 class KodakTriX400(FilmSpectral):
-    def __init__(self, dev_time=6):
-        super().__init__()
+    def __init__(self, dev_time=6, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.iso = 400
         self.density_measure = 'bw'

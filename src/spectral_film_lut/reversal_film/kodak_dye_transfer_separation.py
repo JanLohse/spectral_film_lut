@@ -5,8 +5,8 @@ from matplotlib import pyplot as plt
 
 
 class KodakDyeTransferSeparation(FilmSpectral):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.lad = [1] * 3
         self.density_measure = 'status_a'

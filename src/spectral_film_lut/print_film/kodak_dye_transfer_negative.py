@@ -3,8 +3,8 @@ from spectral_film_lut.wratten_filters import WRATTEN
 
 
 class KodakDyeTransferNegative(FilmSpectral):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.lad = [1., 1.05, 1.1]
         self.density_measure = 'absolute'

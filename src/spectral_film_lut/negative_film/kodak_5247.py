@@ -2,8 +2,8 @@ from spectral_film_lut.negative_film.kodak_5248 import *
 
 
 class Kodak5247(FilmSpectral):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.iso = 16
         self.density_measure = 'status_m'

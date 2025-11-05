@@ -5,8 +5,8 @@ from matplotlib import pyplot as plt
 
 
 class KodakDyeTransferSlide(FilmSpectral):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.lad = [0.95] * 3
         self.density_measure = 'absolute'

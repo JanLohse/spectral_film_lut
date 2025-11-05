@@ -2,8 +2,8 @@ from spectral_film_lut.film_spectral import *
 
 
 class FujiflexOld(FilmSpectral):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.density_measure = 'status_a'
         self.manufacturer = 'Fujifilm'
@@ -93,5 +93,3 @@ class FujiflexOld(FilmSpectral):
         self.spectral_density = [colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)]
 
         self.calibrate()
-
-FujiflexOld().plot_data()

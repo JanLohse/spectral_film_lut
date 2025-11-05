@@ -2,8 +2,8 @@ from spectral_film_lut.film_spectral import *
 
 
 class KodakAerocolor(FilmSpectral):
-    def __init__(self, contrast="mid"):
-        super().__init__()
+    def __init__(self, contrast="mid", *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.iso = 125
         self.density_measure = 'status_m'
@@ -185,10 +185,10 @@ class KodakAerocolor(FilmSpectral):
 
 
 class KodakAerocolorLow(KodakAerocolor):
-    def __init__(self):
-        super().__init__("low")
+    def __init__(self, *args, **kwargs):
+        super().__init__("low", *args, **kwargs)
 
 
 class KodakAerocolorHigh(KodakAerocolor):
-    def __init__(self):
-        super().__init__("high")
+    def __init__(self, *args, **kwargs):
+        super().__init__("high", *args, **kwargs)

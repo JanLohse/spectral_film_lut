@@ -10,12 +10,13 @@ from spectral_film_lut.utils import *
 
 
 class FilmSpectral:
-    def __init__(self):
+    def __init__(self, gray_value=None):
         """
         An object containing various spectral and sensiometric data for a film stock.
         Provides methods to simulate how the film responds to input colors and simulate the resulting look
         of that film.
         """
+        self.gray_value = 0.1 if gray_value is None else gray_value
         self.density_curve_pure = None
         self.spectral_density_pure = None
         self.color_masking = None
@@ -144,7 +145,7 @@ class FilmSpectral:
             self.d_min_sd = self.d_min_sd + self.spectral_density @ status_matrix @ (
                     self.d_min - DENSIOMETRY[self.density_measure].T @ self.d_min_sd)
             if self.H_ref is None:
-                self.lad = self.compute_lad()
+                self.lad = self.compute_lad(self.gray_value)
                 self.log_H_ref = xp.array(
                     [xp.interp(xp.asarray(a), xp.asarray(sorted_b), xp.asarray(sorted_c)) for a, b, c in
                      zip(self.lad, self.density_curve, self.log_exposure) for sorted_b, sorted_c in
@@ -627,12 +628,19 @@ class FilmSpectral:
             add(lambda x: negative_film.log_exposure_to_density(x, color_masking), "characteristic curve")
 
         if mode == 'negative':
+            if adx:
+                layer_activation_to_apd = densiometry.apd.T @ negative_film.get_spectral_density(color_masking)
+                add(lambda x: x @ layer_activation_to_apd.T, "encode APD")
             add(lambda x: adx16_encode(x, scaling=adx_scaling), 'scale density')
         elif mode == 'print':
             if cuda_available:
                 add(lambda x: xp.asarray(x), "cast to cuda")
             if negative_film.density_measure == 'bw':
                 add(lambda x: x[..., 0][..., xp.newaxis], "reduce dim")
+            if adx:
+                layer_activation_to_apd = densiometry.apd.T @ negative_film.get_spectral_density(color_masking)
+                apd_to_layer_activation = xp.linalg.inv(layer_activation_to_apd)
+                add(lambda x: x @ apd_to_layer_activation.T, "decode APD")
             add(lambda x: adx16_decode(x, scaling=adx_scaling), 'scale density')
 
         if mode == 'print' or mode == 'full':
@@ -740,6 +748,10 @@ class FilmSpectral:
         if mode == 'grain':
             if cuda_available:
                 add(lambda x: xp.asarray(x), "cast to cuda")
+            if adx:
+                layer_activation_to_apd = densiometry.apd.T @ negative_film.get_spectral_density(color_masking)
+                apd_to_layer_activation = xp.linalg.inv(layer_activation_to_apd)
+                add(lambda x: x @ apd_to_layer_activation.T, "decode APD")
             add(lambda x: negative_film.grain_transform(x, std_div=0.001), "grain_map")
 
         def convert(x):
@@ -935,5 +947,5 @@ class FilmSpectral:
         d_min_sd = self.d_min_sd
         density_mat = self.get_spectral_density()
         output_mat = (xyz_cmfs.T * projection_light * 10 ** -d_min_sd).T
-        lad = self.output_to_density(self.CCT_to_XYZ(6504, 0.1), density_mat, output_mat)
+        lad = self.output_to_density(self.CCT_to_XYZ(6504, luminance), density_mat, output_mat)
         return lad

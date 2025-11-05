@@ -4,8 +4,8 @@ from spectral_film_lut.print_film.kodak_5383 import *
 
 
 class Kodak5381(FilmSpectral):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.lad = [1.08, 1.04, 1.03]
         self.density_measure = 'status_a'
