@@ -466,8 +466,8 @@ class FilmSpectral:
         projector_light = xp.asarray(colour.sd_blackbody(projector_kelvin).align(spectral_shape).normalise().values)
         reference_white = xp.asarray(colour.xyY_to_XYZ([*colour.CCT_to_xy(reference_kelvin), 1.]))
         xyz_cmfs = densiometry.xyz_cmfs * (reference_white / (densiometry.xyz_cmfs.T @ reference_light))
-        peak_xyz = colour.XYZ_to_RGB(to_numpy(xyz_cmfs.T @ (projector_light * 10 ** -self.d_min_sd)), "sRGB")
-        projector_light /= xp.max(peak_xyz) / white_point
+        # peak_xyz = colour.XYZ_to_RGB(to_numpy(xyz_cmfs.T @ (projector_light * 10 ** -self.d_min_sd)), "sRGB")
+        projector_light *= white_point
         return projector_light, xyz_cmfs
 
     def plot_data(self, film_b=None, color_masking=None):

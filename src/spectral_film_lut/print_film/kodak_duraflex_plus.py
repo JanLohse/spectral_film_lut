@@ -101,5 +101,3 @@ class KodakDuraflexPlus(FilmSpectral):
 
         self.calibrate()
 
-if __name__ == "__main__":
-    KodakDuraflexPlus()

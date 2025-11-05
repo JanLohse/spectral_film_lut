@@ -93,3 +93,5 @@ class FujiflexOld(FilmSpectral):
         self.spectral_density = [colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)]
 
         self.calibrate()
+
+FujiflexOld().plot_data()
