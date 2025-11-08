@@ -3,6 +3,7 @@ import math
 import colour.plotting
 import scipy
 from colour import SpectralDistribution
+from scipy.optimize import least_squares
 
 from spectral_film_lut import densiometry
 from spectral_film_lut.densiometry import DENSIOMETRY, COLORCHECKER_2005, adx16_encode, adx16_decode
@@ -926,13 +927,13 @@ class FilmSpectral:
             Estimated vector such that (10 ** -(x @ a.T)) @ b ≈ y
         """
 
-        a = xp.asarray(a)
-        b = xp.asarray(b)
-        y = xp.asarray(y)
+        a = to_numpy(a)
+        b = to_numpy(b)
+        y = to_numpy(y)
 
         n = a.shape[1]
         if x0 is None:
-            x0 = xp.zeros(n)
+            x0 = np.zeros(n)
 
         def residual(x):
             s = 10 ** -(x @ a.T)  # shape (m,)
@@ -940,7 +941,7 @@ class FilmSpectral:
             return y_pred - y
 
         res = least_squares(residual, x0, method=method)
-        return res.x
+        return xp.asarray(res.x)
 
     def compute_lad(self, luminance=0.1):
         projection_light, xyz_cmfs = self.compute_projection_light(projector_kelvin=6504, white_point=1)
