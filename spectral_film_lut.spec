@@ -14,7 +14,7 @@ datas += copy_metadata("numpy")
 datas += copy_metadata("colour-science")
 
 # ---- resources ----
-datas += collect_data_files("spectral_film_lut/resources")
+datas += collect_data_files("spectral_film_lut", includes=["resources/*", "resources/**/*"])
 
 # rawtoaces dataset
 rawtoaces_path = rawtoaces.__path__[0]
