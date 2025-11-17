@@ -90,7 +90,7 @@ QComboBox QAbstractItemView::item:selected {{
 }}
 
 QComboBox::down-arrow {{
-    image: url("{resource_path("resources/down_arrow.svg")}");
+    image: url("{resource_path("resources/combo_arrow.svg")}");
     border: none;
     outline: none;
     background: transparent;
