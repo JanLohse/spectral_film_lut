@@ -14,7 +14,7 @@ datas += copy_metadata("numpy")
 datas += copy_metadata("colour-science")
 
 # ---- resources ----
-resource_datas += collect_data_files(
+resource_datas = collect_data_files(
     "spectral_film_lut",
     includes=["resources/*", "resources/**/*"]
 )
