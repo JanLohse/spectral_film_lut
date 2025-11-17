@@ -1,6 +1,6 @@
 # spectral_film_lut.spec
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata, collect_all
 import colour.characterisation.datasets.rawtoaces as rawtoaces
 import os
 
@@ -14,7 +14,8 @@ datas += copy_metadata("numpy")
 datas += copy_metadata("colour-science")
 
 # ---- resources ----
-datas += collect_data_files("spectral_film_lut", includes=["resources/*", "resources/**/*"])
+datas_pkg, _, _ += collect_all("spectral_film_lut")
+datas += datas_pkg
 
 # rawtoaces dataset
 rawtoaces_path = rawtoaces.__path__[0]
