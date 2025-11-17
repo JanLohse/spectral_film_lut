@@ -38,6 +38,7 @@ from spectral_film_lut.negative_film.kodak_ultramax_400 import KodakUltramax400
 from spectral_film_lut.negative_film.kodak_vericolor_iii import KodakVericolorIII
 from spectral_film_lut.print_film.fuji_3513di import Fuji3513DI
 from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
+from spectral_film_lut.print_film.fuji_ca_pdII import FujiCrystalArchiveProPDII
 from spectral_film_lut.print_film.fuji_ca_maxima import FujiCrystalArchiveMaxima
 from spectral_film_lut.print_film.fuji_ca_super_c import FujiCrystalArchiveSuperTypeC
 from spectral_film_lut.print_film.fujiflex_new import FujiflexNew
@@ -77,11 +78,12 @@ NEGATIVE_FILM = [KodakEktar100, KodakPortra160, KodakPortra400, KodakPortra800, 
                  AgfaVista100, Kodak5222Dev4, Kodak5222Dev5, Kodak5222Dev6, Kodak5222Dev9, Kodak5222Dev12,
                  KodakTriX400Dev6, KodakTriX400Dev7, KodakTriX400Dev9, KodakTriX400Dev11]
 PRINT_FILM = [KodakEnduraPremier, KodakDuraflexPlus, KodakPortraEndura, KodakSupraEndura, Kodak2383, Kodak2393,
-              KodakExr5386, Kodak5384, Kodak5383, Kodak5381, FujiCrystalArchiveDPII, FujiCrystalArchiveMaxima,
-              FujiCrystalArchiveSuperTypeC, FujiflexNew, FujiflexOld, Fuji3513DI, Kodak2303Dev2, Kodak2303Dev3,
-              Kodak2303Dev5, Kodak2303Dev7, Kodak2303Dev9, KodakPolymax, KodakPolymaxGradeNeg1, KodakPolymaxGrade0,
-              KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3, KodakPolymaxGrade4, KodakPolymaxGrade5,
-              KodakDyeTransferNegative, TechinicolorV, KodakDyeTransferKodachrome]
+              KodakExr5386, Kodak5384, Kodak5383, Kodak5381, FujiCrystalArchiveDPII, FujiCrystalArchiveProPDII,
+              FujiCrystalArchiveMaxima, FujiCrystalArchiveSuperTypeC, FujiflexNew, FujiflexOld, Fuji3513DI,
+              Kodak2303Dev2, Kodak2303Dev3, Kodak2303Dev5, Kodak2303Dev7, Kodak2303Dev9, KodakPolymax,
+              KodakPolymaxGradeNeg1, KodakPolymaxGrade0, KodakPolymaxGrade1, KodakPolymaxGrade2, KodakPolymaxGrade3,
+              KodakPolymaxGrade4, KodakPolymaxGrade5, KodakDyeTransferNegative, TechinicolorV,
+              KodakDyeTransferKodachrome]
 REVERSAL_PRINT = [KodakDyeTransferSlide, IlfochromeMicrographicP, IlfochromeMicrographicM,
                   KodakEktachromeRadianceIIIPaper, KodakAerochromeIII, FujiFP100C, FujiInstaxColor]
 REVERSAL_FILM = [KodakEktachromeE100, Kodachrome64, FujiVelvia50, FujiProvia100F, KodakDyeTransferSeparation,
