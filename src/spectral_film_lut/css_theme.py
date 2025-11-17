@@ -3,6 +3,8 @@ import sys
 
 import colour
 
+import spectral_film_lut.resources
+
 
 def oklch_to_hex(l, c=0., h=0.):
     return colour.convert((l, c, h), "Oklch", "Hexadecimal")
