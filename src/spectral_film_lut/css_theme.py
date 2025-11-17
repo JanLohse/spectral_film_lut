@@ -41,7 +41,6 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path).replace("\\", "/")
 
 
-icon_path = resource_path("resources")
 THEME = f"""
 QMainWindow > QWidget, QDialog > QWidget {{
     background-color: {BACKGROUND_COLOR};
@@ -91,7 +90,7 @@ QComboBox QAbstractItemView::item:selected {{
 }}
 
 QComboBox::down-arrow {{
-    image: url("{icon_path}/down_arrow.svg");
+    image: url("{resource_path("resources/down_arrow.svg")});
     border: none;
     outline: none;
     background: transparent;
@@ -107,16 +106,16 @@ QComboBox::drop-down {{
 /* Button icons */
 
 #plus {{
-    image: url("{icon_path}/plus.svg");
+    image: url("{resource_path("resources/plus.svg")});
 }}
 #right {{
-    image: url("{icon_path}/right.svg");
+    image: url("{resource_path("resources/right.svg")});
 }}
 #left {{
-    image: url("{icon_path}/left.svg");
+    image: url("{resource_path("resources/left.svg")});
 }}
 #flip {{
-    image: url("{icon_path}/flip.svg");
+    image: url(""{resource_path("resources/flip.svg")});
 }}
 
 /* LineEdit */
@@ -146,15 +145,15 @@ QCheckBox::indicator:pressed {{
 }}
 
 QCheckBox::indicator:unchecked {{
-    image: url("{icon_path}/checkbox_unchecked.svg");
+    image: url("{resource_path("resources/checkbox_unchecked.svg")});
 }}
 
 QCheckBox::indicator:checked {{
-    image: url("{icon_path}/checkbox_checked.svg");
+    image: url("{resource_path("resources/checkbox_checked.svg")});
 }}
 
 QCheckBox::indicator:indeterminate {{
-    image: url("{icon_path}/checkbox_halfway.svg");
+    image: url("{resource_path("resources/checkbox_halfway.svg")});
 }}
 
 /* MenuBar */
