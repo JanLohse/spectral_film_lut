@@ -4,7 +4,6 @@ import colour.plotting
 import scipy
 from colour import SpectralDistribution
 from scipy.optimize import least_squares
-
 from spectral_film_lut import densiometry
 from spectral_film_lut.densiometry import DENSIOMETRY, COLORCHECKER_2005, adx16_encode, adx16_decode
 from spectral_film_lut.utils import *
@@ -17,7 +16,7 @@ class FilmSpectral:
         Provides methods to simulate how the film responds to input colors and simulate the resulting look
         of that film.
         """
-        self.gray_value = 0.1 if gray_value is None else gray_value
+        self.gray_value = 0.18 if gray_value is None else gray_value
         self.density_curve_pure = None
         self.spectral_density_pure = None
         self.color_masking = None
@@ -468,8 +467,9 @@ class FilmSpectral:
         projector_light = xp.asarray(colour.sd_blackbody(projector_kelvin).align(spectral_shape).normalise().values)
         reference_white = xp.asarray(colour.xyY_to_XYZ([*colour.CCT_to_xy(reference_kelvin), 1.]))
         xyz_cmfs = densiometry.xyz_cmfs * (reference_white / (densiometry.xyz_cmfs.T @ reference_light))
-        # peak_xyz = colour.XYZ_to_RGB(to_numpy(xyz_cmfs.T @ (projector_light * 10 ** -self.d_min_sd)), "sRGB")
-        projector_light *= white_point
+        peak_rgb = colour.XYZ_to_RGB(to_numpy(xyz_cmfs.T @ (projector_light * 10 ** -self.d_min_sd)), "sRGB")
+        peak = peak_rgb.max()
+        projector_light *= white_point / peak
         return projector_light, xyz_cmfs
 
     def plot_data(self, film_b=None, color_masking=None):
@@ -584,13 +584,21 @@ class FilmSpectral:
                 add(output_transform, "output")
 
         def add_black_offset(compute_factor=False):
+            if print_film is not None and print_film.medium == "cine":
+                flare = xp.array((0.95, 1., 1.09), dtype=default_dtype) * 0.0035
+            else:
+                flare = 0
             if compute_factor:
-                offset = black_offset * max(pipeline[-1][0](output_film.d_max).min(), 0.0005)
+                offset = black_offset * max(xp.min(flare + pipeline[-1][0](output_film.d_max)), 0.0005)
             else:
                 offset = black_offset * 0.0005
-            func = lambda x: np.clip(np.where(x >= black_pivot, x,
-                                              black_pivot * ((x + offset) / (black_pivot + offset)) ** (
-                                                      (black_pivot + offset) / black_pivot)), 0, None)
+
+            func = lambda x: flare + np.nan_to_num(np.clip(np.where(x >= black_pivot, x,
+                                                                    black_pivot * ((x + offset) / (
+                                                                                black_pivot + offset)) ** (
+                                                                            (black_pivot + offset) / black_pivot)), 0,
+                                                           None),
+                                                   nan=0)
             add(func, "black_offset")
 
         if mode == 'negative' or mode == 'full':
@@ -722,7 +730,6 @@ class FilmSpectral:
                     output_mat = xp.asarray(
                         colour.chromatic_adaptation(to_numpy(output_mat), mid_gray, to_numpy(out_gray)))
 
-
                 add_black_offset(True)
                 if sat_adjust != 1:
                     luminance_factors = colour.RGB_COLOURSPACES[output_colourspace].matrix_RGB_to_XYZ[1]
@@ -761,7 +768,7 @@ class FilmSpectral:
                 x = transform(x)
                 if measure_time:
                     end = time.time()
-                    print(f"{title:28} {end - start:.4f}s {x.dtype} {x.shape} {type(x)}")
+                    print(f"{title:28} {end - start:.4f}s {x.dtype} {x.shape} {type(x)} {x.min()} {x.max()}")
                 start = time.time()
             return x
 
