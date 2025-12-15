@@ -585,7 +585,7 @@ class FilmSpectral:
 
         def add_black_offset(compute_factor=False):
             if print_film is not None and print_film.medium == "cine":
-                flare = xp.array((0.95, 1., 1.09), dtype=default_dtype) * 0.0035
+                flare = xp.array((0.95, 1., 1.09), dtype=default_dtype) * 0.0026
             else:
                 flare = 0
             if compute_factor:
