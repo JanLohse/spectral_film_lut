@@ -10,7 +10,7 @@ authors = [
 ]
 description = "GUI to create LUTs to emulate film from spectral datasheets."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.8, <3.14"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
