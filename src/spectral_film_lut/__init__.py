@@ -63,7 +63,7 @@ from spectral_film_lut.reversal_film.fuji_velvia_50 import FujiVelvia50
 from spectral_film_lut.reversal_film.kodachrome_64 import Kodachrome64
 from spectral_film_lut.reversal_film.kodak_ektachrome_e100 import KodakEktachromeE100
 from spectral_film_lut.reversal_print.kodak_ektachrome_radiance_iii import KodakEktachromeRadianceIIIPaper
-from spectral_film_lut.gui import main
+# from spectral_film_lut.gui import main
 
 NEGATIVE_FILM = [KodakEktar100, KodakPortra160, KodakPortra400, KodakPortra800, KodakPortra800At1600,
                  KodakPortra800At3200, KodakUltramax400, KodakGold200, KodakVericolorIII, Kodak5207, Kodak5219,
