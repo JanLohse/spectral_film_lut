@@ -10,6 +10,7 @@ from spectral_film_lut.css_theme import *
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
+    raise ImportError
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
@@ -172,7 +173,7 @@ def uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate=True, lef
     return result
 
 @njit(parallel=True)
-def apply_lut_tetrahedral_int(image, lut, exponent=16, out_exponent=8):
+def apply_lut_tetrahedral_int(image, lut, bit_depth=16, out_bit_depth=8):
     """
     Apply a 3D LUT with tetrahedral interpolation.
     Input: uint16 image in [0, 65535]
@@ -192,9 +193,9 @@ def apply_lut_tetrahedral_int(image, lut, exponent=16, out_exponent=8):
     """
     h, w, c = image.shape
     size = lut.shape[0]
-    max_value = 2 ** exponent - 1
+    max_value = 2 ** bit_depth - 1
     scale = max_value // (size - 1)
-    scale_out = scale * 2 ** (exponent - out_exponent)
+    scale_out = scale * 2 ** (bit_depth - out_bit_depth)
 
     out = np.empty((h, w, 3), dtype=np.uint8)
 
@@ -261,9 +262,14 @@ def apply_lut_tetrahedral_int(image, lut, exponent=16, out_exponent=8):
                          + db * (c111 - c110))
 
             # Convert back to uint8 safely
-            out[y, x, 0] = np.uint8(c[0] // scale_out)
-            out[y, x, 1] = np.uint8(c[1] // scale_out)
-            out[y, x, 2] = np.uint8(c[2] // scale_out)
+            if out_bit_depth == 8:
+                out[y, x, 0] = np.uint8(c[0] // scale_out)
+                out[y, x, 1] = np.uint8(c[1] // scale_out)
+                out[y, x, 2] = np.uint8(c[2] // scale_out)
+            else:
+                out[y, x, 0] = np.uint16(c[0] // scale_out)
+                out[y, x, 1] = np.uint16(c[1] // scale_out)
+                out[y, x, 2] = np.uint16(c[2] // scale_out)
 
     return out
 

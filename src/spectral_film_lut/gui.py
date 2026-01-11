@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import imageio.v3 as iio
 from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap, QImage
@@ -299,15 +301,24 @@ class MainWindow(QMainWindow):
         self.color_masking.setValue(self.filmstocks[negative_film].color_masking)
         self.parameter_changed()
 
+    @lru_cache(maxsize=8)
+    def load_image_data(self, src):
+        return iio.imread(src)
+
     def update_preview(self, verbose=False, *args, **kwargs):
-        start = time.time()
+        if verbose:
+            start = time.time()
         if self.image_selector.currentText() == "" or not os.path.isfile(self.image_selector.currentText()):
             return
 
         lut = self.generate_lut(cube=False)
 
         src = self.image_selector.currentText()
-        image = iio.imread(src)
+        image = self.load_image_data(src)
+        if image.dtype == np.uint8:
+            bit_depth = 8
+        else:
+            bit_depth = 16
         height, width, _ = image.shape
         height_target = self.image.height()
         width_target = self.image.width()
@@ -315,9 +326,9 @@ class MainWindow(QMainWindow):
         scale_factor = math.floor(1 / scale_factor)
         image = image[::scale_factor, ::scale_factor, :]
         height, width, _ = image.shape
-        lut = (lut * (2 ** 16 - 1)).astype(np.uint16)
+        lut = (lut * (2 ** bit_depth - 1)).astype(np.uint)
         lut = to_numpy(lut)
-        image = apply_lut_tetrahedral_int(image, lut)
+        image = apply_lut_tetrahedral_int(image, lut, bit_depth=bit_depth)
 
         image = QImage(image, width, height, 3 * width, QImage.Format.Format_RGB888)
         pixmap = QPixmap.fromImage(image)
