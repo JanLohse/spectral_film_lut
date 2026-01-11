@@ -9,30 +9,28 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-
-    runs-on: ${{ matrix.os }}
-
+  tag-and-release:
+    name: Tag and Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      TAG: ${{ steps.bump.outputs.new_tag }}
+      VERSION: ${{ steps.set_version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      # Only run tagging once (Ubuntu)
-      - name: Create initial tag (if none exist)
-        if: matrix.os == 'ubuntu-latest'
+      # Create initial tag if none exists
+      - name: Create initial tag
         run: |
           if [ -z "$(git tag -l 'v*')" ]; then
             git tag v0.0.0
             git push origin v0.0.0
           fi
 
-      - name: Bump version and push tag
-        if: matrix.os == 'ubuntu-latest'
+      # Bump version
+      - name: Bump version
         id: bump
         uses: anothrNick/github-tag-action@1.75.0
         env:
@@ -40,22 +38,34 @@ jobs:
           WITH_V: true
           DEFAULT_BUMP: patch
 
-      - name: Export version variables
-        if: matrix.os == 'ubuntu-latest'
+      # Export version without 'v'
+      - name: Set version output
+        id: set_version
         run: |
-          TAG="${{ steps.bump.outputs.new_tag }}"
-          echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "VERSION=${TAG#v}" >> $GITHUB_ENV
+          VERSION=${{ steps.bump.outputs.new_tag#v }}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # Make version available on Windows runner
-      - name: Sync version from tags (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: bash
-        run: |
-          git fetch --tags
-          TAG=$(git describe --tags --abbrev=0)
-          echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "VERSION=${TAG#v}" >> $GITHUB_ENV
+      # Create GitHub Release
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.bump.outputs.new_tag }}
+          name: Version ${{ steps.bump.outputs.new_tag }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Build Artifacts
+    needs: tag-and-release
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -71,28 +81,28 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller spectral_film_lut.spec
 
-      # Windows artifact
+      # Package Windows EXE
       - name: Package Windows EXE
         if: matrix.os == 'windows-latest'
         shell: bash
         run: |
-          mv dist/SpectralFilmLUT.exe SpectralFilmLUT-${VERSION}.exe
+          mv dist/SpectralFilmLUT.exe SpectralFilmLUT-${{ needs.tag-and-release.outputs.VERSION }}.exe
 
-      # Linux artifact
+      # Package Linux AppImage
       - name: Package Linux binary
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           chmod +x dist/SpectralFilmLUT
-          mv dist/SpectralFilmLUT SpectralFilmLUT-${VERSION}.AppImage
+          mv dist/SpectralFilmLUT SpectralFilmLUT-${{ needs.tag-and-release.outputs.VERSION }}.AppImage
 
-      - name: Create / Upload Release
+      # Upload artifacts to the release
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.TAG }}
-          name: Version ${{ env.TAG }}
+          tag_name: ${{ needs.tag-and-release.outputs.TAG }}
           files: |
-            SpectralFilmLUT-${{ env.VERSION }}.exe
-            SpectralFilmLUT-${{ env.VERSION }}.AppImage
+            SpectralFilmLUT-${{ needs.tag-and-release.outputs.VERSION }}.exe
+            SpectralFilmLUT-${{ needs.tag-and-release.outputs.VERSION }}.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
