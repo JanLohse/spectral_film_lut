@@ -1,8 +1,12 @@
-on:
-  release:
-    types: [published]
+name: Build and Release Artifacts
 
-name: Build Release Artifacts
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -12,12 +16,33 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
-    permissions:
-      contents: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # REQUIRED for tag actions
+
+      - name: Create initial tag (if none exist)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          if [ -z "$(git tag -l 'v*')" ]; then
+            git tag v0.0.0
+            git push origin v0.0.0
+          fi
+
+      - name: Bump version and push tag
+        if: matrix.os == 'ubuntu-latest'
+        id: bump
+        uses: anothrNick/github-tag-action@1.75.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
+
+      - name: Set VERSION env
+        shell: bash
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -30,13 +55,8 @@ jobs:
           pip install pyinstaller build
           pip install -e .
 
-      - name: Set version
-        shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
-
       - name: Build with PyInstaller
-        run: |
-          pyinstaller spectral_film_lut.spec
+        run: pyinstaller spectral_film_lut.spec
 
       # Windows artifact
       - name: Package Windows EXE
@@ -45,7 +65,7 @@ jobs:
         run: |
           mv dist/SpectralFilmLUT.exe SpectralFilmLUT-${VERSION}.exe
 
-      # Linux artifact (AppImage-like but single binary)
+      # Linux artifact
       - name: Package Linux binary
         if: matrix.os == 'ubuntu-latest'
         shell: bash
@@ -53,9 +73,11 @@ jobs:
           chmod +x dist/SpectralFilmLUT
           mv dist/SpectralFilmLUT SpectralFilmLUT-${VERSION}.AppImage
 
-      - name: Upload release assets
+      - name: Create / Upload Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
+          name: Version ${{ github.ref_name }}
           files: |
             SpectralFilmLUT-${{ env.VERSION }}.exe
             SpectralFilmLUT-${{ env.VERSION }}.AppImage
