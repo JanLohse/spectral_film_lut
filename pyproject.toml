@@ -32,6 +32,6 @@ Homepage = "https://github.com/JanLohse/spectral_film_lut"
 Issues = "https://github.com/JanLohse/spectral_film_lut/issues"
 
 [project.gui-scripts]
-spectral_film_lut = "spectral_film_lut:main"
+spectral_film_lut = "spectral_film_lut.gui:main"
 
 [tool.setuptools_scm]
