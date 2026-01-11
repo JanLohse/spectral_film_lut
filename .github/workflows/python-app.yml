@@ -38,11 +38,13 @@ jobs:
           WITH_V: true
           DEFAULT_BUMP: patch
 
-      # Export version without 'v'
+      # Strip leading 'v' for artifact filenames
       - name: Set version output
         id: set_version
         run: |
-          VERSION=${{ steps.bump.outputs.new_tag#v }}
+          TAG=${{ steps.bump.outputs.new_tag }}
+          VERSION=${TAG#v}
+          echo "TAG=$TAG" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # Create GitHub Release
