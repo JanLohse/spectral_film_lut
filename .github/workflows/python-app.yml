@@ -108,4 +108,3 @@ jobs:
             SpectralFilmLUT-${{ needs.tag-and-release.outputs.VERSION }}.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

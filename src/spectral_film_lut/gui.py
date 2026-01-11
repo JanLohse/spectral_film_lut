@@ -303,7 +303,10 @@ class MainWindow(QMainWindow):
 
     @lru_cache(maxsize=8)
     def load_image_data(self, src):
-        return iio.imread(src)
+        image = iio.imread(src)
+        if image.dtype == xp.uint8:
+            image = image.astype(xp.uint16) * 255
+        return image
 
     def update_preview(self, verbose=False, *args, **kwargs):
         if verbose:
@@ -315,10 +318,7 @@ class MainWindow(QMainWindow):
 
         src = self.image_selector.currentText()
         image = self.load_image_data(src)
-        if image.dtype == np.uint8:
-            bit_depth = 8
-        else:
-            bit_depth = 16
+        bit_depth = 16
         height, width, _ = image.shape
         height_target = self.image.height()
         width_target = self.image.width()
