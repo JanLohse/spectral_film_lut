@@ -29,7 +29,6 @@ HIGHLIGHT_COLOR = oklch_to_hex(0.75)
 HOVER_DURATION = 150
 PRESS_DURATION = 75
 
-
 def resource_path(relative_path):
     """Get absolute path to resource (works for dev and PyInstaller)."""
     if hasattr(sys, '_MEIPASS'):
@@ -45,6 +44,14 @@ THEME = f"""
 QMainWindow > QWidget, QDialog > QWidget {{
     background-color: {BACKGROUND_COLOR};
     color: {TEXT_PRIMARY};
+    border-radius: {BUTTON_RADIUS}px;
+}}
+
+MainWindow {{
+    background-color: {BACKGROUND_COLOR};
+}}
+
+MainWindow > QWidget {{
     border-radius: 0px;
 }}
 
@@ -64,12 +71,17 @@ QPushButton, QComboBox, QToolButton {{
     padding: 3px;
 }}
 
+
 QPushButton:hover, QComboBox:hover, QToolButton:hover {{
     background-color: {HOVER_COLOR};
 }}
 
 QPushButton:pressed, QComboBox:pressed, QToolButton:pressed {{
     background-color: {PRESSED_COLOR};
+}}
+
+QPushButton:disabled, QComboBox:disabled, QToolButton:disabled, AnimatedButton:disabled {{
+    color: {TEXT_SECONDARY};
 }}
 
 /* ComboBox */
@@ -249,5 +261,28 @@ QScrollBar::sub-page:vertical,
 QScrollBar::add-page:horizontal,
 QScrollBar::sub-page:horizontal {{
     background: none;
+}}
+    
+/* Progress bar */
+QProgressDialog {{
+    background-color: {BASE_COLOR}; color: {TEXT_PRIMARY};
+}}
+
+QProgressBar {{
+    border-radius: {BUTTON_RADIUS}px;
+    text-align: center;
+    background-color: {PRESSED_COLOR};
+    height: 16px;  /* thicker bar */
+    color: {TEXT_PRIMARY};
+}}
+
+QProgressBar::chunk {{
+    background-color: {OUTLINE_COLOR};
+    border-radius: {BUTTON_RADIUS}px;
+}}
+
+#scroll {{
+    background-color: {BASE_COLOR};
+    border-radius: {BORDER_RADIUS}px;
 }}
 """

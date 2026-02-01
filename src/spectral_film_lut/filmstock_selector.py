@@ -1,16 +1,17 @@
 from PyQt6.QtCore import QSize, QEvent, QTimer
 from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QStackedWidget, QGridLayout,
-                             QToolButton, QSizePolicy, QSplitter)
+                             QSizePolicy, QSplitter)
 
 from spectral_film_lut.gui_objects import *
+
 
 base_dir = os.path.dirname(__file__)
 icon_path = os.path.join(base_dir, "resources", "search.svg").replace("\\", "/")
 
 
 class FilmStockSelector(QWidget):
-    def __init__(self, film_stocks, **kwargs):
+    def __init__(self, film_stocks, main_parent, **kwargs):
         """
         Combobox style UI element that lets you select a film stock and can open a pop-up window for more
         detailed information on the various film stocks.
@@ -39,12 +40,14 @@ class FilmStockSelector(QWidget):
         self.currentTextChanged = self.film_combo.currentTextChanged
         self.currentText = self.film_combo.currentText
 
+        self.main_parent = main_parent
+
     def open_selector(self):
         """
         Opens the FilmStockSelectorWindow when clicking on the looking-glass button.
         """
         current_stock = self.film_combo.currentText()
-        dialog = FilmStockSelectorWindow(self, self.film_stocks, highlighted_stock=current_stock, **self.kwargs)
+        dialog = FilmStockSelectorWindow(self.main_parent, self.film_stocks, highlighted_stock=current_stock, **self.kwargs)
         if dialog.exec():
             selected_stock = dialog.get_selected_film_stock()
             self.film_combo.setCurrentText(selected_stock)
@@ -52,6 +55,11 @@ class FilmStockSelector(QWidget):
         self.kwargs["default_group"] = dialog.get_group_key()
         self.kwargs["default_filter"] = dialog.get_filter_key()
         self.kwargs["view_state"] = dialog.view_toggle.isChecked()
+
+    def setEnabled(self, a0):
+        self.film_combo.setEnabled(a0)
+        self.select_button.setEnabled(a0)
+        super().setEnabled(a0)
 
 
 class FilmStockSelectorWindow(QDialog):
@@ -81,51 +89,6 @@ class FilmStockSelectorWindow(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Select Film Stock")
         self.resize(800, 500)
-        self.setStyleSheet(f"""
-QDialog {{
-    background-color: {BACKGROUND_COLOR};
-}}
-
-QComboBox, QToolButton {{
-    border-radius: {BUTTON_RADIUS}px;
-    background-color: transparent;
-}}
-
-HoverLineEdit {{
-    background-color: {PRESSED_COLOR};
-    border-radius: {BUTTON_RADIUS}px;
-    padding: 2px;
-}}
-
-HoverLineEdit:hover {{
-    background-color: {HOVER_COLOR};
-}}
-
-QComboBox:hover, QToolButton:hover {{
-    background-color: {HOVER_COLOR};
-}}
-
-QComboBox:pressed, QToolButton:pressed {{
-    background-color: {PRESSED_COLOR};
-}}
-
-QToolButton:checked {{
-    background-color: {MENU_COLOR};
-}}
-
-QFrame {{
-    background-color: transparent;
-}}
-
-#scroll {{
-    background-color: {BASE_COLOR};
-    border-radius: {BORDER_RADIUS}px;
-}}
-
-QLabel {{
-    background-color: transparent;
-}}
-""")
 
         self.selected_film = None
         self.highlighted_stock = None

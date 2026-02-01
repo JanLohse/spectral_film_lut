@@ -1,5 +1,4 @@
 import math
-import sys
 import traceback
 from pathlib import Path
 
@@ -111,6 +110,11 @@ class WideComboBox(QComboBox):
             
             QComboBox QAbstractItemView {{
                 background-color: {MENU_COLOR};
+            }}
+            
+            WideComboBox:disabled {{
+                color: {TEXT_SECONDARY};
+                background-color: transparent;
             }}
         """
 
@@ -612,6 +616,11 @@ class AnimatedButton(QPushButton):
             AnimatedButton {{
                 background-color: {bg};
                 color: {fg};
+            }}
+            
+            AnimatedButton:disabled {{
+                background-color: transparent;
+                color: {TEXT_SECONDARY};
             }}
         """
 

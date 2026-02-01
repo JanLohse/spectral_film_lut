@@ -5,8 +5,6 @@ from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWidgets import QMainWindow, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
-
-from spectral_film_lut.film_loader import load_ui
 from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.grain_generation import ExportGrainDialog
 from spectral_film_lut.gui_objects import *
@@ -94,7 +92,7 @@ class MainWindow(QMainWindow):
         sidebar_keys_negative = ["Manufacturer", "Type", "Year", "Sensitivity", "resolution", "Granularity", "Medium",
                                  "Chromaticity", "Gamma", "Alias", "Comment", "D-max"]
         self.filmstocks["None"] = None
-        self.negative_selector = FilmStockSelector(negative_info, sort_keys=sort_keys_negative,
+        self.negative_selector = FilmStockSelector(negative_info, self, sort_keys=sort_keys_negative,
                                                    group_keys=group_keys_negative, list_keys=list_keys_negative,
                                                    sidebar_keys=sidebar_keys_negative, default_group="Manufacturer",
                                                    image_key="image")
@@ -132,7 +130,7 @@ class MainWindow(QMainWindow):
         list_keys_print = ["Manufacturer", "Type", "Year", "Chromaticity"]
         sidebar_keys_print = ["Alias", "Manufacturer", "Type", "Year", "Medium", "Chromaticity", "Gamma", "Comment",
                               "D-max"]
-        self.print_selector = FilmStockSelector(print_info, sort_keys=sort_keys_print, group_keys=group_keys_print,
+        self.print_selector = FilmStockSelector(print_info, self, sort_keys=sort_keys_print, group_keys=group_keys_print,
                                                 list_keys=list_keys_print, sidebar_keys=sidebar_keys_print,
                                                 default_group="Manufacturer", image_key="image")
         add_option(self.print_selector, "Print stock:", "Kodak2383", self.print_selector.setCurrentText)
@@ -353,11 +351,3 @@ class MainWindow(QMainWindow):
     def export_noise(self):
         dialog = ExportGrainDialog(self)
         dialog.exec()
-
-
-def main():
-    load_ui(MainWindow)
-
-
-if __name__ == '__main__':
-    main()

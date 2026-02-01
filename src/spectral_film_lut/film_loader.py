@@ -1,9 +1,7 @@
 import ctypes
-import sys
 from ctypes import wintypes
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QProgressBar, QVBoxLayout, QWidget, QLabel
+from PyQt6.QtWidgets import QApplication, QWidget
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
 from spectral_film_lut.bw_print_film.kodak_polymax_fine_art import *
@@ -38,8 +36,8 @@ from spectral_film_lut.negative_film.kodak_ultramax_400 import KodakUltramax400
 from spectral_film_lut.negative_film.kodak_vericolor_iii import KodakVericolorIII
 from spectral_film_lut.print_film.fuji_3513di import Fuji3513DI
 from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
-from spectral_film_lut.print_film.fuji_ca_pdII import FujiCrystalArchiveProPDII
 from spectral_film_lut.print_film.fuji_ca_maxima import FujiCrystalArchiveMaxima
+from spectral_film_lut.print_film.fuji_ca_pdII import FujiCrystalArchiveProPDII
 from spectral_film_lut.print_film.fuji_ca_super_c import FujiCrystalArchiveSuperTypeC
 from spectral_film_lut.print_film.fujiflex_new import FujiflexNew
 from spectral_film_lut.print_film.fujiflex_old import FujiflexOld
@@ -108,84 +106,13 @@ def load_filmstocks(progress_callback, gray_value=None):
 PROGRESS_BACKGROUND = PRESSED_COLOR
 PROGRESS_COLOR = TEXT_PRIMARY
 
-
-class SplashScreen(QWidget):
-    def __init__(self, total_items, name):
-        super().__init__()
-        self.setWindowTitle(name)
-        self.setFixedSize(400, 180)
-        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.CoverWindow)
-        self.setWindowModality(Qt.WindowModality.ApplicationModal)
-
-        # Background color
-        self.setStyleSheet(f"background-color: {BACKGROUND_COLOR}; color: {TEXT_PRIMARY};")
-
-        # Layout
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(15)
-
-        # Heading label
-        self.heading = QLabel(name)
-        self.heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.heading.setStyleSheet("font-weight: bold; font-size: 18px;")
-
-        # Sub-label
-        self.label = QLabel("Starting up...")
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label.setStyleSheet("font-size: 13px;")
-
-        # Progress bar
-        self.total_items = total_items
-        self.progress = QProgressBar()
-        self.progress.setRange(0, total_items)
-        self.progress.setValue(0)
-        self.progress.setTextVisible(True)
-
-        self.update_style_sheet(0)
-
-        layout.addWidget(self.heading)
-        layout.addWidget(self.label)
-        layout.addWidget(self.progress)
-
-        self.show()
-        QApplication.processEvents()
-
-    def update_style_sheet(self, progress):
-        # Style the progress bar
-        progress_color = colour.convert((0.5, 0.08, progress), "Oklch", "Hexadecimal")
-        self.progress.setStyleSheet(f"""
-            QProgressBar {{
-                border-radius: {BUTTON_RADIUS}px;
-                text-align: center;
-                background-color: {PROGRESS_BACKGROUND};
-                height: 16px;  /* thicker bar */
-                color: {TEXT_PRIMARY};
-            }}
-            QProgressBar::chunk {{
-                background-color: {progress_color};
-                border-radius: {BUTTON_RADIUS}px;
-            }}
-        """)
-
-    def update(self, current, total, name):
-        self.progress.setValue(current)
-        self.update_style_sheet(current / self.total_items)
-        self.label.setText(f"Loading {name} ({current}/{total})")
-        QApplication.processEvents()
-
-
 DWMWA_USE_IMMERSIVE_DARK_MODE = 20
 
 
 def set_dark_title_bar(hwnd):
     value = ctypes.c_int(1)
-    ctypes.windll.dwmapi.DwmSetWindowAttribute(
-        wintypes.HWND(hwnd),
-        wintypes.DWORD(DWMWA_USE_IMMERSIVE_DARK_MODE),
-        ctypes.byref(value),
-        ctypes.sizeof(value)
-    )
+    ctypes.windll.dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), wintypes.DWORD(DWMWA_USE_IMMERSIVE_DARK_MODE),
+        ctypes.byref(value), ctypes.sizeof(value))
 
 
 class DarkApp(QApplication):
@@ -199,24 +126,18 @@ class DarkApp(QApplication):
                 pass
         return result
 
-def load_ui(main_window, name="Spectral Film LUT", gray_value=None):
-    if sys.platform == "win32":
-        app = DarkApp(sys.argv)
-    else:
-        app = QApplication(sys.argv)
 
-    app.setStyleSheet(THEME)
-
-    splash = SplashScreen(total_items=len(filmstocks), name=name)
-
+def load_ui(main_window, splash_screen, app, gray_value=None):
     def update_progress(current, total, name):
-        splash.update(current, total, name)
+        splash_screen.update(current, total, name)
+
+    splash_screen.set_total_items(len(filmstocks))
 
     loaded_filmstocks = load_filmstocks(update_progress, gray_value)
 
     window = main_window(loaded_filmstocks)
 
     window.show()
-    splash.close()
+    splash_screen.close()
 
     sys.exit(app.exec())

@@ -1,6 +1,5 @@
 from spectral_film_lut.utils import *
 
-
 def compute_xyz_dual(CCT=7000, spectral_shape=spectral_shape):
     xyz_cmfs = xp.asarray(colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].align(spectral_shape).values,
                           dtype=default_dtype)
