@@ -32,7 +32,7 @@ Homepage = "https://github.com/JanLohse/spectral_film_lut"
 Issues = "https://github.com/JanLohse/spectral_film_lut/issues"
 
 [project.gui-scripts]
-spectral_film_lut = "spectral_film_lut.gui:main"
+spectral_film_lut = "spectral_film_lut.__main__:run"
 
 [tool.setuptools_scm]
 write_to = "src/spectral_film_lut/_version.py"
