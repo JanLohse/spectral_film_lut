@@ -34,7 +34,7 @@ hiddenimports += collect_submodules("numpy")
 hiddenimports += collect_submodules("colour")
 
 # ---- entry script ----
-entry_script = "src/spectral_film_lut/gui.py"
+entry_script = "src/spectral_film_lut/__main__.py"
 
 a = Analysis(
     [entry_script],
