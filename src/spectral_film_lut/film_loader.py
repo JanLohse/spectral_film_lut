@@ -2,6 +2,7 @@ import ctypes
 from ctypes import wintypes
 
 from PyQt6.QtWidgets import QApplication, QWidget
+
 from spectral_film_lut.bw_negative_film.kodak_trix_400 import *
 from spectral_film_lut.bw_print_film.kodak_2303 import *
 from spectral_film_lut.bw_print_film.kodak_polymax_fine_art import *
@@ -112,7 +113,7 @@ DWMWA_USE_IMMERSIVE_DARK_MODE = 20
 def set_dark_title_bar(hwnd):
     value = ctypes.c_int(1)
     ctypes.windll.dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), wintypes.DWORD(DWMWA_USE_IMMERSIVE_DARK_MODE),
-        ctypes.byref(value), ctypes.sizeof(value))
+                                               ctypes.byref(value), ctypes.sizeof(value))
 
 
 class DarkApp(QApplication):
@@ -128,8 +129,10 @@ class DarkApp(QApplication):
 
 
 def load_ui(main_window, splash_screen, app, gray_value=None):
+    app.setStyleSheet(THEME)
+
     def update_progress(current, total, name):
-        splash_screen.update(current, total, name)
+        splash_screen.update(current, total, name, colour)
 
     splash_screen.set_total_items(len(filmstocks))
 

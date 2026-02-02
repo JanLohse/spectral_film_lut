@@ -1,12 +1,15 @@
 import ctypes
+import sys
 from ctypes import wintypes
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QProgressBar, QVBoxLayout, QWidget, QLabel
-from spectral_film_lut.css_theme import *
 
-PROGRESS_BACKGROUND = PRESSED_COLOR
-PROGRESS_COLOR = TEXT_PRIMARY
+PROGRESS_BACKGROUND = "#2d2d2d"
+PROGRESS_COLOR = "#dddddd"
+BACKGROUND_COLOR = '#272727'
+TEXT_PRIMARY = '#dddddd'
+BUTTON_RADIUS = 6
 
 
 class SplashScreen(QWidget):
@@ -51,9 +54,12 @@ class SplashScreen(QWidget):
         self.show()
         QApplication.processEvents()
 
-    def update_style_sheet(self, progress):
+    def update_style_sheet(self, progress, colour=None):
         # Style the progress bar
-        progress_color = colour.convert((0.5, 0.08, progress), "Oklch", "Hexadecimal")
+        if colour is not None and progress:
+            progress_color = colour.convert((0.5, 0.08, progress), "Oklch", "Hexadecimal")
+        else:
+            progress_color = "transparent"
         self.progress.setStyleSheet(f"""
             QProgressBar {{
                 border-radius: {BUTTON_RADIUS}px;
@@ -71,9 +77,9 @@ class SplashScreen(QWidget):
     def set_total_items(self, total_items):
         self.progress.setRange(0, total_items)
 
-    def update(self, current, total, name):
+    def update(self, current, total, name, colour):
         self.progress.setValue(current)
-        self.update_style_sheet(current / self.total_items)
+        self.update_style_sheet(current / self.total_items, colour=colour)
         self.label.setText(f"Loading {name} ({current}/{total})")
         QApplication.processEvents()
 
@@ -104,8 +110,6 @@ def launch_splash_screen(name):
         app = DarkApp(sys.argv)
     else:
         app = QApplication(sys.argv)
-
-    app.setStyleSheet(THEME)
 
     splash_screen = SplashScreen(name)
 
