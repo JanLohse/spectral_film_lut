@@ -35,3 +35,6 @@ Issues = "https://github.com/JanLohse/spectral_film_lut/issues"
 spectral_film_lut = "spectral_film_lut.gui:main"
 
 [tool.setuptools_scm]
+write_to = "src/spectral_film_lut/_version.py"
+version_scheme = "release-branch-semver"
+local_scheme = "no-local-version"

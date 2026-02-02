@@ -8,13 +8,13 @@ from colour.models import RGB_COLOURSPACES
 from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.grain_generation import ExportGrainDialog
 from spectral_film_lut.gui_objects import *
-
+from spectral_film_lut import __version__
 
 class MainWindow(QMainWindow):
     def __init__(self, filmstocks):
         super().__init__()
 
-        self.setWindowTitle("Spectral Film LUT")
+        self.setWindowTitle(f"Spectral Film LUT {__version__}")
 
         self.filmstocks = filmstocks
 

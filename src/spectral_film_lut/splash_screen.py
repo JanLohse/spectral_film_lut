@@ -13,9 +13,9 @@ BUTTON_RADIUS = 6
 
 
 class SplashScreen(QWidget):
-    def __init__(self, name, total_items=100):
+    def __init__(self, name, version, total_items=100):
         super().__init__()
-        self.setWindowTitle(name)
+        self.setWindowTitle(f"{name} {version}")
         self.setFixedSize(400, 180)
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.CoverWindow)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -105,12 +105,12 @@ class DarkApp(QApplication):
         return result
 
 
-def launch_splash_screen(name):
+def launch_splash_screen(name, version):
     if sys.platform == "win32":
         app = DarkApp(sys.argv)
     else:
         app = QApplication(sys.argv)
 
-    splash_screen = SplashScreen(name)
+    splash_screen = SplashScreen(name, version)
 
     return app, splash_screen
