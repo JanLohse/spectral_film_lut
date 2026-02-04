@@ -150,8 +150,8 @@ class MainWindow(QMainWindow):
         add_option(self.sat_adjust, "Sat:", 1, self.sat_adjust.setValue)
 
         self.black_offset = Slider()
-        self.black_offset.setMinMaxTicks(-2, 2, 1, 50)
-        add_option(self.black_offset, "Black offset", 0., self.black_offset.setValue)
+        self.black_offset.setMinMaxTicks(-1, 1, 1, 50)
+        add_option(self.black_offset, "Black offset %:", 0., self.black_offset.setValue)
 
         self.output_colourspace_selector = WideComboBox()
         self.output_colourspace_selector.addItems(colourspaces)

@@ -4,6 +4,7 @@ import colour.plotting
 import scipy
 from colour import SpectralDistribution
 from scipy.optimize import least_squares
+
 from spectral_film_lut import densiometry
 from spectral_film_lut.densiometry import DENSIOMETRY, COLORCHECKER_2005, adx16_encode, adx16_decode
 from spectral_film_lut.utils import *
@@ -583,22 +584,24 @@ class FilmSpectral:
             elif output_transform is not None:
                 add(output_transform, "output")
 
-        def add_black_offset(compute_factor=False):
-            if print_film is not None and print_film.medium == "cine":
-                flare = xp.array((0.95, 1., 1.09), dtype=default_dtype) * 0.0026
-            else:
-                flare = 0
-            if compute_factor:
-                offset = black_offset * max(xp.min(flare + pipeline[-1][0](output_film.d_max)), 0.0005)
-            else:
-                offset = black_offset * 0.0005
+        def add_black_offset():
+            if not black_offset:
+                return
+            offset = negative_film.CCT_to_XYZ(projector_kelvin) * black_offset / 100
 
-            func = lambda x: flare + np.nan_to_num(np.clip(np.where(x >= black_pivot, x,
-                                                                    black_pivot * ((x + offset) / (
-                                                                                black_pivot + offset)) ** (
-                                                                            (black_pivot + offset) / black_pivot)), 0,
-                                                           None),
-                                                   nan=0)
+            if black_offset < 0:
+                func = lambda x: np.nan_to_num(
+                    np.clip(
+                        np.where(
+                            x >= black_pivot,
+                            x,
+                            black_pivot * ((x + offset) / (black_pivot + offset)) ** (
+                                        (black_pivot + offset) / black_pivot)),
+                        0,
+                        None),
+                    nan=0)
+            else:
+                func = lambda x: x * (1 - offset) + offset
             add(func, "black_offset")
 
         if mode == 'negative' or mode == 'full':
@@ -689,7 +692,7 @@ class FilmSpectral:
                     add(lambda x: (gray / (x * adjustment)) ** output_gamma * target_gray ** (1 - output_gamma),
                         "invert")
                     add(lambda x: x / (x + 1), "roll-off")
-                add_black_offset(print_film is not None)
+                add_black_offset()
                 if not 6500 <= projector_kelvin <= 6505:
                     wb = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin))
                     add(lambda x: x * wb, "projection color")
@@ -730,7 +733,7 @@ class FilmSpectral:
                     output_mat = xp.asarray(
                         colour.chromatic_adaptation(to_numpy(output_mat), mid_gray, to_numpy(out_gray)))
 
-                add_black_offset(True)
+                add_black_offset()
                 if sat_adjust != 1:
                     luminance_factors = colour.RGB_COLOURSPACES[output_colourspace].matrix_RGB_to_XYZ[1]
                     add(lambda x: saturation_adjust_oklch(x, sat_adjust, luminance_factors=luminance_factors,
@@ -739,7 +742,7 @@ class FilmSpectral:
                 else:
                     add_output_transform()
             else:
-                add_black_offset(True)
+                add_black_offset()
                 FilmSpectral.add_status_inversion(add, negative_film, color_masking)
                 if sat_adjust != 1:
                     luminance_factors = colour.RGB_COLOURSPACES[output_colourspace].matrix_RGB_to_XYZ[1]
