@@ -9,7 +9,8 @@ from spectral_film_lut.css_theme import *
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
-    raise ImportError
+    if '--no-cuda' in sys.argv:
+        raise ImportError()
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
