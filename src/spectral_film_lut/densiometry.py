@@ -165,9 +165,9 @@ COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005, default_dtype)
 
 def adx16_encode(apd, apd_min=None, scaling=1.):
     if apd_min is None:
-        apd_min = xp.zeros(3, dtype=xp.float32)
+        apd_min = xp.zeros(3, dtype=default_dtype)
     # Scaling factors per channel: R, G, B
-    scale = xp.array([1.00, 0.92, 0.95], dtype=xp.float32)
+    scale = xp.array([1.00, 0.92, 0.95], dtype=default_dtype)
 
     if apd.shape[-1] != 3:
         scale = 1
@@ -185,15 +185,15 @@ def adx16_encode(apd, apd_min=None, scaling=1.):
 
 def adx16_decode(adx, apd_min=None, scaling=1.):
     if apd_min is None:
-        apd_min = xp.zeros(3, dtype=xp.float32)
+        apd_min = xp.zeros(3, dtype=default_dtype)
     # Scaling factors per channel: R, G, B
-    scale = xp.array([1.00, 0.92, 0.95], dtype=xp.float32)
+    scale = xp.array([1.00, 0.92, 0.95], dtype=default_dtype)
 
     if adx.shape[-1] != 3:
         scale = 1
         apd_min = apd_min[0]
 
-    apd = ((adx.astype(np.float32) / scaling - 1520.0 / 65535.) / (scale * 8000.0 / 65535.)) + apd_min
+    apd = ((adx.astype(default_dtype) / scaling - 1520.0 / 65535.) / (scale * 8000.0 / 65535.)) + apd_min
 
     return apd
 

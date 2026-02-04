@@ -555,7 +555,7 @@ class FilmSpectral:
     def grain_transform(self, rgb, scale=1., std_div=1.):
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm, default for 3840 / 24mm
         # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay in [0, 1] range
-        adx_density_scale = xp.array([1.00, 0.92, 0.95], dtype=xp.float32) * (8000. / 65535.)
+        adx_density_scale = xp.array([1.00, 0.92, 0.95], dtype=default_dtype) * (8000. / 65535.)
         std_factor = math.sqrt(math.pi) * 0.024 * scale * adx_density_scale / std_div
         xps = [rms_density * adx_density_scale[i] + 1520.0 / 65535. for i, rms_density in enumerate(self.rms_density)]
         fps = [rms * std_factor[i] for i, rms in enumerate(self.rms_curve)]
