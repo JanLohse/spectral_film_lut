@@ -587,7 +587,7 @@ class FilmSpectral:
         def add_black_offset():
             if not black_offset:
                 return
-            offset = negative_film.CCT_to_XYZ(projector_kelvin) * black_offset / 100
+            offset = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin) * black_offset / 100)
 
             if black_offset < 0:
                 func = lambda x: np.nan_to_num(
