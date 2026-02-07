@@ -226,7 +226,6 @@ class GradientSlider(QSlider):
         self.anim = QPropertyAnimation(self, b"hoverProgress", self)
         self.anim.setDuration(150)
         self.setMouseTracking(True)
-        self.setFixedHeight(30)
         self.setStyleSheet("QSlider { background: transparent; }")
 
     # --- animated property for smooth scaling ---
