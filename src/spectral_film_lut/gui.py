@@ -5,6 +5,8 @@ from PyQt6.QtCore import QSize, QThreadPool
 from PyQt6.QtGui import QPixmap, QImage, QIcon
 from PyQt6.QtWidgets import QMainWindow, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
+
+from spectral_film_lut.__main__ import BASE_DIR
 from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.grain_generation import ExportGrainDialog
 from spectral_film_lut.gui_objects import *
@@ -17,10 +19,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"Spectral Film LUT {__version__}")
 
         icon = QIcon()
-        BASE_DIR = Path(__file__).resolve().parent
         for size in [256, 128, 64, 32, 16]:
-            path = resource_path(f"{BASE_DIR}/resources/spectral_film_lut_{size}.png")
-            # print(path)
+            path = f"{BASE_DIR}/resources/spectral_film_lut_{size}.png"
             icon.addFile(path, QSize(size, size))
 
         self.setWindowIcon(icon)

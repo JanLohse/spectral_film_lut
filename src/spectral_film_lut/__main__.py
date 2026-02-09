@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from spectral_film_lut.splash_screen import launch_splash_screen
 from spectral_film_lut import __version__
+
+BASE_DIR = Path(__file__).resolve().parent
 
 def run():
     app, splash_screen = launch_splash_screen(f"Spectral Film LUT", __version__)

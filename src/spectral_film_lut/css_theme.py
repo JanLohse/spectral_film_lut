@@ -1,7 +1,6 @@
-import os
-import sys
-
 import colour
+
+from spectral_film_lut.__main__ import BASE_DIR
 
 
 def oklch_to_hex(l, c=0., h=0.):
@@ -28,18 +27,6 @@ SCROLLBAR_HANDLE_HOVER = oklch_to_hex(0.4535)
 HIGHLIGHT_COLOR = oklch_to_hex(0.75)
 HOVER_DURATION = 150
 PRESS_DURATION = 75
-
-def resource_path(relative_path):
-    """Get absolute path to resource (works for dev and PyInstaller)."""
-    if hasattr(sys, '_MEIPASS'):
-        # Running from the PyInstaller bundle
-        base_path = sys._MEIPASS
-    else:
-        # Running from source
-        base_path = os.path.dirname(__file__)
-    path = os.path.join(base_path, relative_path).replace("\\", "/")
-    return path
-
 
 
 THEME = f"""
@@ -104,7 +91,7 @@ QComboBox QAbstractItemView::item:selected {{
 }}
 
 QComboBox::down-arrow {{
-    image: url("{resource_path("resources/combo_arrow.svg")}");
+    image: url("{BASE_DIR}/resources/combo_arrow.svg");
     border: none;
     outline: none;
     background: transparent;
@@ -120,16 +107,16 @@ QComboBox::drop-down {{
 /* Button icons */
 
 #plus {{
-    image: url("{resource_path("resources/plus.svg")}");
+    image: url("{BASE_DIR}/resources/plus.svg");
 }}
 #right {{
-    image: url("{resource_path("resources/right.svg")}");
+    image: url("{BASE_DIR}/"resources/right.svg");
 }}
 #left {{
-    image: url("{resource_path("resources/left.svg")}");
+    image: url("{BASE_DIR}/"resources/left.svg"));
 }}
 #flip {{
-    image: url("{resource_path("resources/flip.svg")}");
+    image: url("{BASE_DIR}/"resources/flip.svg"));
 }}
 
 /* LineEdit */
@@ -159,15 +146,15 @@ QCheckBox::indicator:pressed {{
 }}
 
 QCheckBox::indicator:unchecked {{
-    image: url("{resource_path("resources/checkbox_unchecked.svg")}");
+    image: url("{BASE_DIR}/"resources/checkbox_unchecked.svg");
 }}
 
 QCheckBox::indicator:checked {{
-    image: url("{resource_path("resources/checkbox_checked.svg")}");
+    image: url("{BASE_DIR}/"resources/checkbox_checked.svg");
 }}
 
 QCheckBox::indicator:indeterminate {{
-    image: url("{resource_path("resources/checkbox_halfway.svg")}");
+    image: url("{BASE_DIR}/"resources/checkbox_halfway.svg");
 }}
 
 /* MenuBar */
