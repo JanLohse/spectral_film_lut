@@ -4,10 +4,9 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QStackedWidget, QGridLayout,
                              QSizePolicy, QSplitter)
 
 from spectral_film_lut.gui_objects import *
+from spectral_film_lut.__main__ import BASE_DIR
 
-
-base_dir = os.path.dirname(__file__)
-icon_path = os.path.join(base_dir, "resources", "search.svg").replace("\\", "/")
+icon_path = f"{BASE_DIR}/resources/search.svg"
 
 
 class FilmStockSelector(QWidget):
