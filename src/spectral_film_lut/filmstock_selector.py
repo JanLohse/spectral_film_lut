@@ -4,13 +4,13 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QStackedWidget, QGridLayout,
                              QSizePolicy, QSplitter)
 
 from spectral_film_lut.gui_objects import *
-from spectral_film_lut.__main__ import BASE_DIR
+from spectral_film_lut import BASE_DIR
 
 icon_path = f"{BASE_DIR}/resources/search.svg"
 
 
 class FilmStockSelector(QWidget):
-    def __init__(self, film_stocks, main_parent, **kwargs):
+    def __init__(self, film_stocks, main_parent, parent, **kwargs):
         """
         Combobox style UI element that lets you select a film stock and can open a pop-up window for more
         detailed information on the various film stocks.
@@ -18,13 +18,13 @@ class FilmStockSelector(QWidget):
             film_stocks: lList of film stocks to choose from.
             **kwargs: Arguments passed to FilmStockSelectorWindow.
         """
-        super().__init__()
+        super().__init__(parent)
         self.film_stocks = film_stocks
         self.kwargs = kwargs
 
-        self.film_combo = WideComboBox()
+        self.film_combo = WideComboBox(parent)
         self.film_combo.addItems(self.film_stocks.keys())
-        self.film_combo.setStyleSheet(f"QComboBox QAbstractItemView {{background-color: {MENU_COLOR};}}")
+        # self.film_combo.setStyleSheet(f"QComboBox QAbstractItemView {{background-color: {MENU_COLOR};}}")
         self.select_button = AnimatedButton()
         self.select_button.setIcon(QIcon(icon_path))
         self.select_button.setFixedWidth(25)

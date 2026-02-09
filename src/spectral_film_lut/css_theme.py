@@ -1,10 +1,11 @@
 import colour
 
-from spectral_film_lut.__main__ import BASE_DIR
+from spectral_film_lut import BASE_DIR
 
 
 def oklch_to_hex(l, c=0., h=0.):
     return colour.convert((l, c, h), "Oklch", "Hexadecimal")
+
 
 BASE_COLOR = oklch_to_hex(0.2175)
 BACKGROUND_COLOR = oklch_to_hex(0.276)
@@ -27,7 +28,6 @@ SCROLLBAR_HANDLE_HOVER = oklch_to_hex(0.4535)
 HIGHLIGHT_COLOR = oklch_to_hex(0.75)
 HOVER_DURATION = 150
 PRESS_DURATION = 75
-
 
 THEME = f"""
 QMainWindow > QWidget, QDialog > QWidget {{
@@ -60,7 +60,6 @@ QPushButton, QComboBox, QToolButton {{
     padding: 3px;
 }}
 
-
 QPushButton:hover, QComboBox:hover, QToolButton:hover {{
     background-color: {HOVER_COLOR};
 }}
@@ -78,6 +77,7 @@ QComboBox QAbstractItemView {{
     padding: 5px 5px;
     outline: none;
     border: 1px solid {OUTLINE_COLOR};
+    background-color: {MENU_COLOR};
 }}
 
 QComboBox QAbstractItemView::item {{
@@ -101,7 +101,6 @@ QComboBox::down-arrow {{
 
 QComboBox::drop-down {{
     border: none;
-    background: transparent;
 }}
 
 /* Button icons */
