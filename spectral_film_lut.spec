@@ -33,7 +33,6 @@ hiddenimports += collect_submodules("networkx")
 hiddenimports += collect_submodules("numpy")
 hiddenimports += collect_submodules("colour")
 
-
 # ---- icon path ----
 
 specpath = os.path.dirname(os.path.abspath(SPEC))

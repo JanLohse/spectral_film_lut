@@ -112,10 +112,10 @@ QComboBox::drop-down {{
     image: url("{BASE_DIR}/resources/right.svg");
 }}
 #left {{
-    image: url("{BASE_DIR}/resources/left.svg"));
+    image: url("{BASE_DIR}/resources/left.svg");
 }}
 #flip {{
-    image: url("{BASE_DIR}/resources/flip.svg"));
+    image: url("{BASE_DIR}/resources/flip.svg");
 }}
 
 /* LineEdit */

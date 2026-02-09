@@ -100,66 +100,10 @@ class WideComboBox(QComboBox):
     def _build_stylesheet(bg_color: QColor, text_color: QColor) -> str:
         bg = qcolor_to_rgba_string(bg_color)
         fg = qcolor_to_rgba_string(text_color)
-        # You can change font, radius, padding etc. here.
         return f"""
         WideComboBox {{
             background-color: {bg};
             color: {fg};
-        }}
-        
-        WideComboBox:disabled {{
-            color: {TEXT_SECONDARY};
-            background-color: transparent;
-        }}
-        
-        QScrollBar:vertical, QScrollBar:horizontal {{
-            background: transparent;
-            border: none;
-            height: {SCROLLBAR_THICKNESS}px;
-            width: {SCROLLBAR_THICKNESS}px;
-        }}
-        
-        QScrollBar:vertical:hover, QScrollBar:horizontal:hover {{
-            background: {SCROLLBAR_HOVER_COLOR};
-        }}
-        
-        QScrollBar::handle:vertical {{
-            background: {SCROLLBAR_HANDLE_COLOR};
-            border-radius: {(SCROLLBAR_THICKNESS - 2 * SCROLLBAR_MARGIN) // 2}px;
-            margin: {SCROLLBAR_MARGIN}px;
-            min-height: 20px;
-        }}
-        
-        QScrollBar::handle:vertical:hover {{
-            background: {SCROLLBAR_HANDLE_HOVER};
-        }}
-        
-        QScrollBar::handle:horizontal {{
-            background: {SCROLLBAR_HANDLE_COLOR};
-            border-radius: {(SCROLLBAR_THICKNESS - 2 * SCROLLBAR_MARGIN) // 2}px;
-            margin: {SCROLLBAR_MARGIN}px;
-            min-width: 20px;
-        }}
-        
-        QScrollBar::handle:horizontal:hover {{
-            background: {SCROLLBAR_HANDLE_HOVER};
-        }}
-        
-        QScrollBar::add-line:vertical,
-        QScrollBar::sub-line:vertical,
-        QScrollBar::add-line:horizontal,
-        QScrollBar::sub-line:horizontal {{
-            background: none;
-            border: none;
-            width: 0;
-            height: 0;
-        }}
-        
-        QScrollBar::add-page:vertical,
-        QScrollBar::sub-page:vertical,
-        QScrollBar::add-page:horizontal,
-        QScrollBar::sub-page:horizontal {{
-            background: none;
         }}
         """
 
@@ -675,8 +619,8 @@ class AnimatedButton(QPushButton):
 
 
 class AnimatedToolButton(QToolButton):
-    def __init__(self, text=None, base_color=None, *args, **kwargs):
-        super().__init__(text=text, *args, **kwargs)
+    def __init__(self, base_color=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         if base_color is None:
             base_color = BASE_COLOR
