@@ -3,6 +3,7 @@
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 import colour.characterisation.datasets.rawtoaces as rawtoaces
 import os
+from pathlib import Path
 
 block_cipher = None
 
@@ -32,6 +33,12 @@ hiddenimports += collect_submodules("imageio")
 hiddenimports += collect_submodules("networkx")
 hiddenimports += collect_submodules("numpy")
 hiddenimports += collect_submodules("colour")
+
+
+# ---- icon path ----
+
+ROOT = Path(__file__).resolve().parent
+ICON = ROOT / "build_resources" / "spectral_film_lut.ico"
 
 # ---- entry script ----
 entry_script = "src/spectral_film_lut/__main__.py"
@@ -63,5 +70,5 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
-    icon="resources/spectral_film_lut.ico",
+    icon=str(ICON),
 )
