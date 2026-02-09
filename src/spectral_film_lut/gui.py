@@ -17,8 +17,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"Spectral Film LUT {__version__}")
 
         icon = QIcon()
+        BASE_DIR = Path(__file__).resolve().parent
         for size in [256, 128, 64, 32, 16]:
-            path = resource_path(f"resources/spectral_film_lut_{size}.png")
+            path = resource_path(f"{BASE_DIR}/resources/spectral_film_lut_{size}.png")
+            # print(path)
             icon.addFile(path, QSize(size, size))
 
         self.setWindowIcon(icon)
