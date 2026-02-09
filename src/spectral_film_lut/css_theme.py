@@ -41,6 +41,7 @@ def resource_path(relative_path):
     return path
 
 
+
 THEME = f"""
 QMainWindow > QWidget, QDialog > QWidget {{
     background-color: {BACKGROUND_COLOR};
