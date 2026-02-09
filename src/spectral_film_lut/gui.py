@@ -18,7 +18,7 @@ class MainWindow(QMainWindow):
 
         icon = QIcon()
         for size in [256, 128, 64, 32, 16]:
-            path = f"./src/spectral_film_lut/resources/spectral_film_lut_{size}.png"
+            path = resource_path(f"resources/spectral_film_lut_{size}.png")
             icon.addFile(path, QSize(size, size))
 
         self.setWindowIcon(icon)
