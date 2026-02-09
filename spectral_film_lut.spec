@@ -37,7 +37,7 @@ hiddenimports += collect_submodules("colour")
 
 # ---- icon path ----
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(SPEC).resolve().parent
 ICON = ROOT / "build_resources" / "spectral_film_lut.ico"
 
 # ---- entry script ----
