@@ -15,7 +15,7 @@ def run():
     app, splash_screen = launch_splash_screen(f"Spectral Film LUT", __version__)
 
     icon = QIcon()
-    for size in [256, 128, 64, 32, 16]:
+    for size in [256, 128, 64, 48, 32, 16]:
         path = f"{BASE_DIR}/resources/spectral_film_lut_{size}.png"
         icon.addFile(path, QSize(size, size))
 

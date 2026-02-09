@@ -63,5 +63,5 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
-    icon=None,
+    icon="resources/spectral_film_lut.ico",
 )
