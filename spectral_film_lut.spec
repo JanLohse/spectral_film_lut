@@ -37,7 +37,7 @@ hiddenimports += collect_submodules("colour")
 # ---- icon path ----
 
 specpath = os.path.dirname(os.path.abspath(SPEC))
-icon = os.path.join(specpath, "resources", "spectral_film_lut.ico")
+icon = os.path.join(specpath, "src", "spectral_film_lut", "resources", "spectral_film_lut.ico")
 
 # ---- entry script ----
 entry_script = "src/spectral_film_lut/__main__.py"
