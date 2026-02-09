@@ -2,7 +2,7 @@ from functools import lru_cache
 
 import imageio.v3 as iio
 from PyQt6.QtCore import QSize, QThreadPool
-from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtGui import QPixmap, QImage, QIcon
 from PyQt6.QtWidgets import QMainWindow, QGridLayout, QSizePolicy, QCheckBox
 from colour.models import RGB_COLOURSPACES
 from spectral_film_lut.filmstock_selector import FilmStockSelector
@@ -15,6 +15,13 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle(f"Spectral Film LUT {__version__}")
+
+        icon = QIcon()
+        for size in [256, 128, 64, 32, 16]:
+            path = f"./src/spectral_film_lut/resources/spectral_film_lut_{size}.png"
+            icon.addFile(path, QSize(size, size))
+
+        self.setWindowIcon(icon)
 
         self.filmstocks = filmstocks
 

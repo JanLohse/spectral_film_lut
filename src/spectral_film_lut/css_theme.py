@@ -37,7 +37,8 @@ def resource_path(relative_path):
     else:
         # Running from source
         base_path = os.path.dirname(__file__)
-    return os.path.join(base_path, relative_path).replace("\\", "/")
+    path = os.path.join(base_path, relative_path).replace("\\", "/")
+    return path
 
 
 THEME = f"""
