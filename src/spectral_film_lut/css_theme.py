@@ -274,4 +274,3 @@ QProgressBar::chunk {{
     border-radius: {BORDER_RADIUS}px;
 }}
 """
-print(THEME)
