@@ -57,27 +57,27 @@ class MainWindow(QMainWindow):
                 setter(default)
 
         self.image_selector = FileSelector()
-        add_option(self.image_selector, "Reference image:")
+        add_option(self.image_selector, "Reference image")
 
         colourspaces = ["CIE XYZ 1931"] + list(RGB_COLOURSPACES.data.keys())
         self.input_colourspace_selector = WideComboBox()
         self.input_colourspace_selector.addItems(colourspaces)
-        add_option(self.input_colourspace_selector, "Input colourspace:", "ARRI Wide Gamut 4",
+        add_option(self.input_colourspace_selector, "Input colourspace", "ARRI Wide Gamut 4",
                    self.input_colourspace_selector.setCurrentText)
 
         self.exp_comp = Slider()
         self.exp_comp.setMinMaxTicks(-2, 2, 1, 6)
-        add_option(self.exp_comp, "Exposure:", 0, self.exp_comp.setValue)
+        add_option(self.exp_comp, "Exposure", 0, self.exp_comp.setValue)
 
         self.exp_wb = SliderLog()
         self.exp_wb.setMinMaxSteps(2700, 16000, 120, 6500, -2)
         self.exp_wb.set_color_gradient(np.array([2 / 3, 0.14, 0.65277]), np.array([2 / 3, 0.14, 0.15277]))
-        add_option(self.exp_wb, "WB:", 6500, self.exp_wb.setValue)
+        add_option(self.exp_wb, "WB", 6500, self.exp_wb.setValue)
 
         self.tint = Slider()
         self.tint.setMinMaxTicks(-1, 1, 1, 100)
         self.tint.set_color_gradient(np.array([2 / 3, 0.14, 0.90277]), np.array([2 / 3, 0.14, 0.40277]))
-        add_option(self.tint, "Tint:", 0, self.tint.setValue)
+        add_option(self.tint, "Tint", 0, self.tint.setValue)
 
         filmstock_info = {x: {'Year': filmstocks[x].year, 'Manufacturer': filmstocks[x].manufacturer, 'Type':
             {"camerapositive": "Slide", "cameranegative": "Negative", "printnegative": "Print",
@@ -105,7 +105,7 @@ class MainWindow(QMainWindow):
                                                    group_keys=group_keys_negative, list_keys=list_keys_negative,
                                                    sidebar_keys=sidebar_keys_negative, default_group="Manufacturer",
                                                    image_key="image")
-        add_option(self.negative_selector, "Negativ stock:", "Kodak5207", self.negative_selector.setCurrentText)
+        add_option(self.negative_selector, "Negativ stock", "Kodak5207", self.negative_selector.setCurrentText)
 
         luma_bright = 0.8
         luma_dark = 0.4
@@ -115,17 +115,17 @@ class MainWindow(QMainWindow):
         self.red_light.setMinMaxTicks(-1, 1, 1, 20)
         self.red_light.set_color_gradient(np.array([luma_bright, chroma, hue_offset + 0 / 6]),
                                           np.array([luma_dark, chroma, hue_offset + 3 / 6]))
-        add_option(self.red_light, "Red printer light:", 0, self.red_light.setValue)
+        add_option(self.red_light, "Red printer light", 0, self.red_light.setValue)
         self.green_light = Slider()
         self.green_light.setMinMaxTicks(-1, 1, 1, 20)
         self.green_light.set_color_gradient(np.array([luma_bright, chroma, hue_offset + 2 / 6]),
                                             np.array([luma_dark, chroma, hue_offset + 5 / 6]))
-        add_option(self.green_light, "Green printer light:", 0, self.green_light.setValue)
+        add_option(self.green_light, "Green printer light", 0, self.green_light.setValue)
         self.blue_light = Slider()
         self.blue_light.setMinMaxTicks(-1, 1, 1, 20)
         self.blue_light.set_color_gradient(np.array([luma_bright, chroma, hue_offset + 4 / 6]),
                                            np.array([luma_dark, chroma, hue_offset + 1 / 6]))
-        add_option(self.blue_light, "Blue printer light:", 0, self.blue_light.setValue)
+        add_option(self.blue_light, "Blue printer light", 0, self.blue_light.setValue)
 
         self.link_lights = QCheckBox()
         self.link_lights.setChecked(True)
@@ -142,42 +142,42 @@ class MainWindow(QMainWindow):
         self.print_selector = FilmStockSelector(print_info, self, self, sort_keys=sort_keys_print, group_keys=group_keys_print,
                                                 list_keys=list_keys_print, sidebar_keys=sidebar_keys_print,
                                                 default_group="Manufacturer", image_key="image")
-        add_option(self.print_selector, "Print stock:", "Kodak2383", self.print_selector.setCurrentText)
+        add_option(self.print_selector, "Print stock", "Kodak2383", self.print_selector.setCurrentText)
 
         self.projector_kelvin = SliderLog()
         self.projector_kelvin.setMinMaxSteps(2700, 16000, 120, 6500, -2)
         self.projector_kelvin.set_color_gradient(np.array([2 / 3, 0.14, 0.15277]), np.array([2 / 3, 0.14, 0.65277]))
-        add_option(self.projector_kelvin, "Projector wb:", 6500, self.projector_kelvin.setValue)
+        add_option(self.projector_kelvin, "Projector wb", 6500, self.projector_kelvin.setValue)
 
         self.white_point = SliderLog()
         self.white_point.setMinMaxSteps(.5, 2., 100, 1.)
-        add_option(self.white_point, "White point:", 1., self.white_point.setValue)
+        add_option(self.white_point, "White point", 1., self.white_point.setValue)
 
         self.sat_adjust = Slider()
         self.sat_adjust.set_color_gradient(np.array([0.666, 0., 0., ]), np.array([0.666, 0.25, 2.]), 20, False)
         self.sat_adjust.setMinMaxTicks(0, 2, 1, 100, 1)
-        add_option(self.sat_adjust, "Sat:", 1, self.sat_adjust.setValue)
+        add_option(self.sat_adjust, "Sat", 1, self.sat_adjust.setValue)
 
         self.black_offset = Slider()
         self.black_offset.setMinMaxTicks(-1, 1, 1, 50)
-        add_option(self.black_offset, "Black offset %:", 0., self.black_offset.setValue)
+        add_option(self.black_offset, "Black offset %", 0., self.black_offset.setValue)
 
         self.output_colourspace_selector = WideComboBox(self)
         self.output_colourspace_selector.addItems(colourspaces)
-        add_option(self.output_colourspace_selector, "Output colourspace:", "sRGB",
+        add_option(self.output_colourspace_selector, "Output colourspace", "sRGB",
                    self.output_colourspace_selector.setCurrentText)
 
         self.lut_size = Slider()
         self.lut_size.setMinMaxTicks(2, 67, default=33)
-        add_option(self.lut_size, "LUT size:", 33, self.lut_size.setValue)
+        add_option(self.lut_size, "LUT size", 33, self.lut_size.setValue)
 
         self.color_masking = Slider()
         self.color_masking.setMinMaxTicks(0, 1, 1, 10, 1)
-        add_option(self.color_masking, "Color masking:", 1, self.color_masking.setValue)
+        add_option(self.color_masking, "Color masking", 1, self.color_masking.setValue)
 
         self.mode = WideComboBox(self)
         self.mode.addItems(['full', 'negative', 'print', 'grain'])
-        add_option(self.mode, "Mode:", "full", self.mode.setCurrentText)
+        add_option(self.mode, "Mode", "full", self.mode.setCurrentText)
 
         self.save_lut_button = AnimatedButton("Save LUT")
         self.save_lut_button.clicked.connect(self.save_lut)
