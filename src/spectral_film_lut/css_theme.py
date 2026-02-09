@@ -109,13 +109,13 @@ QComboBox::drop-down {{
     image: url("{BASE_DIR}/resources/plus.svg");
 }}
 #right {{
-    image: url("{BASE_DIR}/"resources/right.svg");
+    image: url("{BASE_DIR}/resources/right.svg");
 }}
 #left {{
-    image: url("{BASE_DIR}/"resources/left.svg"));
+    image: url("{BASE_DIR}/resources/left.svg"));
 }}
 #flip {{
-    image: url("{BASE_DIR}/"resources/flip.svg"));
+    image: url("{BASE_DIR}/resources/flip.svg"));
 }}
 
 /* LineEdit */
@@ -145,15 +145,15 @@ QCheckBox::indicator:pressed {{
 }}
 
 QCheckBox::indicator:unchecked {{
-    image: url("{BASE_DIR}/"resources/checkbox_unchecked.svg");
+    image: url("{BASE_DIR}/resources/checkbox_unchecked.svg");
 }}
 
 QCheckBox::indicator:checked {{
-    image: url("{BASE_DIR}/"resources/checkbox_checked.svg");
+    image: url("{BASE_DIR}/resources/checkbox_checked.svg");
 }}
 
 QCheckBox::indicator:indeterminate {{
-    image: url("{BASE_DIR}/"resources/checkbox_halfway.svg");
+    image: url("{BASE_DIR}/resources/checkbox_halfway.svg");
 }}
 
 /* MenuBar */
@@ -274,3 +274,4 @@ QProgressBar::chunk {{
     border-radius: {BORDER_RADIUS}px;
 }}
 """
+print(THEME)
