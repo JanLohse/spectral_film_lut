@@ -112,17 +112,17 @@ class MainWindow(QMainWindow):
         chroma = 0.2
         hue_offset = 0.06111111
         self.red_light = Slider()
-        self.red_light.setMinMaxTicks(-1, 1, 1, 20)
+        self.red_light.setMinMaxTicks(-0.5, 0.5, 1, 100)
         self.red_light.set_color_gradient(np.array([luma_bright, chroma, hue_offset + 0 / 6]),
                                           np.array([luma_dark, chroma, hue_offset + 3 / 6]))
         add_option(self.red_light, "Red printer light", 0, self.red_light.setValue)
         self.green_light = Slider()
-        self.green_light.setMinMaxTicks(-1, 1, 1, 20)
+        self.green_light.setMinMaxTicks(-0.5, 0.5, 1, 100)
         self.green_light.set_color_gradient(np.array([luma_bright, chroma, hue_offset + 2 / 6]),
                                             np.array([luma_dark, chroma, hue_offset + 5 / 6]))
         add_option(self.green_light, "Green printer light", 0, self.green_light.setValue)
         self.blue_light = Slider()
-        self.blue_light.setMinMaxTicks(-1, 1, 1, 20)
+        self.blue_light.setMinMaxTicks(-0.5, 0.5, 1, 100)
         self.blue_light.set_color_gradient(np.array([luma_bright, chroma, hue_offset + 4 / 6]),
                                            np.array([luma_dark, chroma, hue_offset + 1 / 6]))
         add_option(self.blue_light, "Blue printer light", 0, self.blue_light.setValue)
@@ -159,7 +159,7 @@ class MainWindow(QMainWindow):
         add_option(self.sat_adjust, "Sat", 1, self.sat_adjust.setValue)
 
         self.black_offset = Slider()
-        self.black_offset.setMinMaxTicks(-1, 1, 1, 50)
+        self.black_offset.setMinMaxTicks(-2, 2, 1, 50)
         add_option(self.black_offset, "Black offset %", 0., self.black_offset.setValue)
 
         self.output_colourspace_selector = WideComboBox(self)
@@ -172,7 +172,7 @@ class MainWindow(QMainWindow):
         add_option(self.lut_size, "LUT size", 33, self.lut_size.setValue)
 
         self.color_masking = Slider()
-        self.color_masking.setMinMaxTicks(0, 1, 1, 10, 1)
+        self.color_masking.setMinMaxTicks(0, 2, 1, 10, 1)
         add_option(self.color_masking, "Color masking", 1, self.color_masking.setValue)
 
         self.mode = WideComboBox(self)
