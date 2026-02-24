@@ -27,7 +27,7 @@ dependencies = [
     "networkx"
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pre-commit",
     "ruff",
