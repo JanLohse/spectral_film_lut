@@ -27,6 +27,12 @@ dependencies = [
     "networkx"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "ruff",
+]
+
 [project.urls]
 Homepage = "https://github.com/JanLohse/spectral_film_lut"
 Issues = "https://github.com/JanLohse/spectral_film_lut/issues"
