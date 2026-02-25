@@ -5,32 +5,26 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "spectral_film_lut"
 dynamic = ["version"]
-authors = [
-  { name="Jan Lohse" },
-]
+authors = [{ name = "Jan Lohse" }]
 description = "GUI to create LUTs to emulate film from spectral datasheets."
 readme = "README.md"
-requires-python = ">=3.8"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
-]
-dependencies = [
-    "numpy",
-    "colour-science",
-    "scipy",
-    "pyqt6",
-    "numba",
-    "imageio",
-    "matplotlib",
-    "opencv-python",
-    "networkx"
+requires-python = ">=3.11"
+dependencies = ["colour-science>=0.4.7",
+    "imageio>=2.37.2",
+    "matplotlib>=3.10.8",
+    "networkx>=3.6.1",
+    "numba>=0.64.0",
+    "numpy>=2.4.2",
+    "opencv-python>=4.13.0.92",
+    "pyqt6>=6.10.2",
+    "scipy>=1.17.1",
 ]
 
 [dependency-groups]
-dev = [
-    "pre-commit",
-    "ruff",
+dev = ["pre-commit>=4.5.1",
+    "ruff>=0.15.2",
+]
+docs = ["pdoc>=16.0.0",
 ]
 
 [project.urls]
@@ -44,3 +38,7 @@ spectral_film_lut = "spectral_film_lut.__main__:run"
 write_to = "src/spectral_film_lut/_version.py"
 version_scheme = "release-branch-semver"
 local_scheme = "no-local-version"
+
+[tool.ruff.lint]
+extend-select = ["I", "E"]
+extend-fixable = ["I", "E"]

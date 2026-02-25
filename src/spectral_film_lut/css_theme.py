@@ -3,7 +3,7 @@ import colour
 from spectral_film_lut import BASE_DIR
 
 
-def oklch_to_hex(l, c=0., h=0.):
+def oklch_to_hex(l, c=0.0, h=0.0):
     return colour.convert((l, c, h), "Oklch", "Hexadecimal")
 
 
@@ -250,7 +250,7 @@ QScrollBar::add-page:horizontal,
 QScrollBar::sub-page:horizontal {{
     background: none;
 }}
-    
+
 /* Progress bar */
 QProgressDialog {{
     background-color: {BASE_COLOR}; color: {TEXT_PRIMARY};

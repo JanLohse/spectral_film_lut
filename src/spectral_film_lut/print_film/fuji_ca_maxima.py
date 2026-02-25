@@ -6,7 +6,9 @@ class FujiCrystalArchiveMaxima(FujiCrystalArchiveDPII):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.comment = 'No contrast curve available. Therefore just DPII with deeper blacks.'
+        self.comment = (
+            "No contrast curve available. Therefore just DPII with deeper blacks."
+        )
 
         # estimate d-max based on calibration data
         self.density_curve[0] *= 2.55 / 2.35

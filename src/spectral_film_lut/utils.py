@@ -3,30 +3,28 @@ import sys
 import time
 import warnings
 
+import colour
 import cv2
+import numpy as np
 from matplotlib import pyplot as plt
-from numba import njit, prange, cuda
-from spectral_film_lut.css_theme import *
+from numba import cuda, njit, prange
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
-    if '--no-cuda' in sys.argv:
+    if "--no-cuda" in sys.argv:
         raise ImportError()
     import cupy as xp
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
-    from cupyx.scipy.interpolate import PchipInterpolator
 
     cuda_available = True
 except ImportError:
     import numpy as xp
     from scipy import ndimage as xdimage
     from scipy import signal
-    from scipy.interpolate import PchipInterpolator
 
     cuda_available = False
-import numpy as np
 
 
 def to_numpy(x):
@@ -41,7 +39,15 @@ colour.utilities.set_default_float_dtype(default_dtype)
 spectral_shape = colour.SpectralShape(380, 780, 5)
 
 
-def create_lut(negative_film, print_film=None, lut_size=33, name="test", cube=True, verbose=False, **kwargs):
+def create_lut(
+    negative_film,
+    print_film=None,
+    lut_size=33,
+    name="test",
+    cube=True,
+    verbose=False,
+    **kwargs,
+):
     lut = colour.LUT3D(size=lut_size, name="test")
     transform = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
@@ -62,7 +68,15 @@ def create_lut(negative_film, print_film=None, lut_size=33, name="test", cube=Tr
     return path
 
 
-def multi_channel_interp(x, xps, fps, num_bins=1024, interpolate=False, left_extrapolate=False, right_extrapolate=False):
+def multi_channel_interp(
+    x,
+    xps,
+    fps,
+    num_bins=1024,
+    interpolate=False,
+    left_extrapolate=False,
+    right_extrapolate=False,
+):
     """
     Resamples each (xp, fp) pair to a uniform grid for fast lookup.
 
@@ -74,17 +88,45 @@ def multi_channel_interp(x, xps, fps, num_bins=1024, interpolate=False, left_ext
     if cuda_available:
         extrapolation_distance = 100
         if right_extrapolate:
-            slopes = [(f_p[-1] - f_p[-2]) / (x_p[-1] - x_p[-2]) for x_p, f_p in zip(xps, fps)]
-            xps = [xp.concatenate((x_p, xp.array([x_p[-1] + extrapolation_distance]))) for x_p in xps]
-            fps = [xp.concatenate((f_p, xp.array([f_p[-1] + extrapolation_distance * slope]))) for f_p, slope in zip(fps, slopes)]
+            slopes = [
+                (f_p[-1] - f_p[-2]) / (x_p[-1] - x_p[-2]) for x_p, f_p in zip(xps, fps)
+            ]
+            xps = [
+                xp.concatenate((x_p, xp.array([x_p[-1] + extrapolation_distance])))
+                for x_p in xps
+            ]
+            fps = [
+                xp.concatenate(
+                    (f_p, xp.array([f_p[-1] + extrapolation_distance * slope]))
+                )
+                for f_p, slope in zip(fps, slopes)
+            ]
         if left_extrapolate:
-            slopes = [(f_p[0] - f_p[1]) / (x_p[0] - x_p[1]) for x_p, f_p in zip(xps, fps)]
-            xps = [xp.concatenate((xp.array([x_p[0] - extrapolation_distance]), x_p)) for x_p in xps]
-            fps = [xp.concatenate((xp.array([f_p[0] - extrapolation_distance * slope])), f_p) for f_p, slope in
-                   zip(fps, slopes)]
+            slopes = [
+                (f_p[0] - f_p[1]) / (x_p[0] - x_p[1]) for x_p, f_p in zip(xps, fps)
+            ]
+            xps = [
+                xp.concatenate((xp.array([x_p[0] - extrapolation_distance]), x_p))
+                for x_p in xps
+            ]
+            fps = [
+                xp.concatenate(
+                    (xp.array([f_p[0] - extrapolation_distance * slope])), f_p
+                )
+                for f_p, slope in zip(fps, slopes)
+            ]
         return xp.stack(
-            [xp.interp(xp.ascontiguousarray(x[..., i]), xp.ascontiguousarray(x_p), xp.ascontiguousarray(f_p)) for
-             i, (x_p, f_p) in enumerate(zip(xps, fps))], dtype=default_dtype, axis=-1)
+            [
+                xp.interp(
+                    xp.ascontiguousarray(x[..., i]),
+                    xp.ascontiguousarray(x_p),
+                    xp.ascontiguousarray(f_p),
+                )
+                for i, (x_p, f_p) in enumerate(zip(xps, fps))
+            ],
+            dtype=default_dtype,
+            axis=-1,
+        )
     n_channels = len(xps)
     xp_min = min(x[0] for x in xps)
     xp_max = max(x[-1] for x in xps)
@@ -93,11 +135,20 @@ def multi_channel_interp(x, xps, fps, num_bins=1024, interpolate=False, left_ext
     fp_uniform = xp.empty((n_channels, num_bins), dtype=default_dtype)
     for ch in range(n_channels):
         fp_uniform[ch] = xp.interp(xp_common, xps[ch], fps[ch])
-    return uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate, left_extrapolate, right_extrapolate)
+    return uniform_multi_channel_interp(
+        x, xp_common, fp_uniform, interpolate, left_extrapolate, right_extrapolate
+    )
 
 
 @njit
-def uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate=True, left_extrapolate=False, right_extrapolate=False):
+def uniform_multi_channel_interp(
+    x,
+    xp_common,
+    fp_uniform,
+    interpolate=True,
+    left_extrapolate=False,
+    right_extrapolate=False,
+):
     """
     Interpolates values in an N-D array `x` over the last dimension (channels)
     using a precomputed uniform grid (xp_common, fp_uniform), with optional
@@ -174,6 +225,7 @@ def uniform_multi_channel_interp(x, xp_common, fp_uniform, interpolate=True, lef
 
     return result
 
+
 @njit(parallel=True)
 def apply_lut_tetrahedral_int(image, lut, bit_depth=16, out_bit_depth=8):
     """
@@ -195,7 +247,7 @@ def apply_lut_tetrahedral_int(image, lut, bit_depth=16, out_bit_depth=8):
     """
     h, w, c = image.shape
     size = lut.shape[0]
-    max_value = 2 ** bit_depth - 1
+    max_value = 2**bit_depth - 1
     scale = max_value // (size - 1)
     scale_out = scale * 2 ** (bit_depth - out_bit_depth)
 
@@ -232,36 +284,48 @@ def apply_lut_tetrahedral_int(image, lut, bit_depth=16, out_bit_depth=8):
             # Tetrahedral interpolation
             if dr >= dg:
                 if dg >= db:
-                    c = (c000 * scale
-                         + dr * (c100 - c000)
-                         + dg * (c110 - c100)
-                         + db * (c111 - c110))
+                    c = (
+                        c000 * scale
+                        + dr * (c100 - c000)
+                        + dg * (c110 - c100)
+                        + db * (c111 - c110)
+                    )
                 elif dr >= db:
-                    c = (c000 * scale
-                         + dr * (c100 - c000)
-                         + db * (c101 - c100)
-                         + dg * (c111 - c101))
+                    c = (
+                        c000 * scale
+                        + dr * (c100 - c000)
+                        + db * (c101 - c100)
+                        + dg * (c111 - c101)
+                    )
                 else:
-                    c = (c000 * scale
-                         + db * (c001 - c000)
-                         + dr * (c101 - c001)
-                         + dg * (c111 - c101))
+                    c = (
+                        c000 * scale
+                        + db * (c001 - c000)
+                        + dr * (c101 - c001)
+                        + dg * (c111 - c101)
+                    )
             else:
                 if db >= dg:
-                    c = (c000 * scale
-                         + db * (c001 - c000)
-                         + dg * (c011 - c001)
-                         + dr * (c111 - c011))
+                    c = (
+                        c000 * scale
+                        + db * (c001 - c000)
+                        + dg * (c011 - c001)
+                        + dr * (c111 - c011)
+                    )
                 elif db >= dr:
-                    c = (c000 * scale
-                         + dg * (c010 - c000)
-                         + db * (c011 - c010)
-                         + dr * (c111 - c011))
+                    c = (
+                        c000 * scale
+                        + dg * (c010 - c000)
+                        + db * (c011 - c010)
+                        + dr * (c111 - c011)
+                    )
                 else:
-                    c = (c000 * scale
-                         + dg * (c010 - c000)
-                         + dr * (c110 - c010)
-                         + db * (c111 - c110))
+                    c = (
+                        c000 * scale
+                        + dg * (c010 - c000)
+                        + dr * (c110 - c010)
+                        + db * (c111 - c110)
+                    )
 
             # Convert back to uint8 safely
             if out_bit_depth == 8:
@@ -275,10 +339,11 @@ def apply_lut_tetrahedral_int(image, lut, bit_depth=16, out_bit_depth=8):
 
     return out
 
+
 if cuda_available:
+
     @cuda.jit
-    def apply_lut_tetrahedral_int_cuda(image, lut, out,
-                                       size, scale, scale_out):
+    def apply_lut_tetrahedral_int_cuda(image, lut, out, size, scale, scale_out):
         """
         CUDA kernel: Apply a 3D LUT with tetrahedral interpolation.
         Input : uint16 image in [0, 65535]
@@ -326,52 +391,64 @@ if cuda_available:
         for ch in range(3):
             if dr >= dg:
                 if dg >= db:
-                    c[ch] = c000[ch] * scale \
-                            + dr * (c100[ch] - c000[ch]) \
-                            + dg * (c110[ch] - c100[ch]) \
-                            + db * (c111[ch] - c110[ch])
+                    c[ch] = (
+                        c000[ch] * scale
+                        + dr * (c100[ch] - c000[ch])
+                        + dg * (c110[ch] - c100[ch])
+                        + db * (c111[ch] - c110[ch])
+                    )
                 elif dr >= db:
-                    c[ch] = c000[ch] * scale \
-                            + dr * (c100[ch] - c000[ch]) \
-                            + db * (c101[ch] - c100[ch]) \
-                            + dg * (c111[ch] - c101[ch])
+                    c[ch] = (
+                        c000[ch] * scale
+                        + dr * (c100[ch] - c000[ch])
+                        + db * (c101[ch] - c100[ch])
+                        + dg * (c111[ch] - c101[ch])
+                    )
                 else:
-                    c[ch] = c000[ch] * scale \
-                            + db * (c001[ch] - c000[ch]) \
-                            + dr * (c101[ch] - c001[ch]) \
-                            + dg * (c111[ch] - c101[ch])
+                    c[ch] = (
+                        c000[ch] * scale
+                        + db * (c001[ch] - c000[ch])
+                        + dr * (c101[ch] - c001[ch])
+                        + dg * (c111[ch] - c101[ch])
+                    )
             else:
                 if db >= dg:
-                    c[ch] = c000[ch] * scale \
-                            + db * (c001[ch] - c000[ch]) \
-                            + dg * (c011[ch] - c001[ch]) \
-                            + dr * (c111[ch] - c011[ch])
+                    c[ch] = (
+                        c000[ch] * scale
+                        + db * (c001[ch] - c000[ch])
+                        + dg * (c011[ch] - c001[ch])
+                        + dr * (c111[ch] - c011[ch])
+                    )
                 elif db >= dr:
-                    c[ch] = c000[ch] * scale \
-                            + dg * (c010[ch] - c000[ch]) \
-                            + db * (c011[ch] - c010[ch]) \
-                            + dr * (c111[ch] - c011[ch])
+                    c[ch] = (
+                        c000[ch] * scale
+                        + dg * (c010[ch] - c000[ch])
+                        + db * (c011[ch] - c010[ch])
+                        + dr * (c111[ch] - c011[ch])
+                    )
                 else:
-                    c[ch] = c000[ch] * scale \
-                            + dg * (c010[ch] - c000[ch]) \
-                            + dr * (c110[ch] - c010[ch]) \
-                            + db * (c111[ch] - c110[ch])
+                    c[ch] = (
+                        c000[ch] * scale
+                        + dg * (c010[ch] - c000[ch])
+                        + dr * (c110[ch] - c010[ch])
+                        + db * (c111[ch] - c110[ch])
+                    )
 
         # Normalize back to uint8
         out[y, x, 0] = min(255, max(0, int(c[0] / scale_out)))
         out[y, x, 1] = min(255, max(0, int(c[1] / scale_out)))
         out[y, x, 2] = min(255, max(0, int(c[2] / scale_out)))
 
-
-    def run_lut_cuda(image: np.ndarray, lut: np.ndarray,
-                     exponent=16, out_exponent=8) -> np.ndarray:
+    def run_lut_cuda(
+        image: np.ndarray, lut: np.ndarray, exponent=16, out_exponent=8
+    ) -> np.ndarray:
         """
         Wrapper: runs the CUDA kernel on an image + LUT.
         """
         h, w, _ = image.shape
         size = lut.shape[0]
 
-        max_value = 2 ** exponent - 1
+        max_value = 2**exponent - 1
         scale = max_value // (size - 1)
         scale_out = scale * 2 ** (exponent - out_exponent)
 
@@ -398,14 +475,20 @@ def construct_spectral_density(ref_density, sigma=25):
     gr_cutoff = wavelength_argmin(ref_density, green_peak, red_peak)
 
     wavelengths = xp.asarray(ref_density.wavelengths)
-    factors = xp.stack((xp.where(gr_cutoff <= wavelengths, 1., 0.),
-                        xp.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1., 0.),
-                        xp.where(wavelengths <= bg_cutoff, 1., 0.)))
-    factors = xdimage.gaussian_filter(factors, sigma=(0, sigma / spectral_shape.interval)).astype(
-        default_dtype)
+    factors = xp.stack(
+        (
+            xp.where(gr_cutoff <= wavelengths, 1.0, 0.0),
+            xp.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1.0, 0.0),
+            xp.where(wavelengths <= bg_cutoff, 1.0, 0.0),
+        )
+    )
+    factors = xdimage.gaussian_filter(
+        factors, sigma=(0, sigma / spectral_shape.interval)
+    ).astype(default_dtype)
 
     out = (factors * xp.asarray(ref_density.values)).T
     return out
+
 
 def wavelength_argmax(distribution, low=None, high=None):
     range = distribution.copy()
@@ -414,12 +497,14 @@ def wavelength_argmax(distribution, low=None, high=None):
     peak = range.wavelengths[range.values.argmax()]
     return peak
 
+
 def wavelength_argmin(distribution, low=None, high=None):
     range = distribution.copy()
     if low is not None and high is not None:
         range.trim(colour.SpectralShape(low, high, 1))
     peak = range.wavelengths[range.values.argmin()]
     return peak
+
 
 def plot_gamuts(rgb_to_xyz, labels=None):
     rgb_to_xyz = [to_numpy(x) for x in rgb_to_xyz]
@@ -448,9 +533,9 @@ def plot_gamuts(rgb_to_xyz, labels=None):
         labels = list(range(len(rgb_to_xyz)))
 
     for i, x, y in zip(labels, xy_gamut, xy_white):
-        line, = plt.plot(x[:, 0], x[:, 1], 'o-', label=i)
+        (line,) = plt.plot(x[:, 0], x[:, 1], "o-", label=i)
         # Use the same color to plot the white point
-        plt.plot(y[0], y[1], 'x', color=line.get_color())
+        plt.plot(y[0], y[1], "x", color=line.get_color())
 
     plt.legend()
     plt.title("RGB Gamut on CIE 1931 Chromaticity Diagram")
@@ -530,15 +615,25 @@ def generate_all_summing_to_one(steps):
 
 
 def CCT_to_xy(CCT):
-    CCT_3 = CCT ** 3
-    CCT_2 = CCT ** 2
+    CCT_3 = CCT**3
+    CCT_2 = CCT**2
 
     if CCT <= 7000:
-        x = -4.607 * 10 ** 9 / CCT_3 + 2.9678 * 10 ** 6 / CCT_2 + 0.09911 * 10 ** 3 / CCT + 0.244063
+        x = (
+            -4.607 * 10**9 / CCT_3
+            + 2.9678 * 10**6 / CCT_2
+            + 0.09911 * 10**3 / CCT
+            + 0.244063
+        )
     else:
-        x = -2.0064 * 10 ** 9 / CCT_3 + 1.9018 * 10 ** 6 / CCT_2 + 0.24748 * 10 ** 3 / CCT + 0.23704
+        x = (
+            -2.0064 * 10**9 / CCT_3
+            + 1.9018 * 10**6 / CCT_2
+            + 0.24748 * 10**3 / CCT
+            + 0.23704
+        )
 
-    y = -3.000 * x ** 2 + 2.870 * x - 0.275
+    y = -3.000 * x**2 + 2.870 * x - 0.275
     return np.array([x, y])
 
 
@@ -547,45 +642,344 @@ def xy_to_illuminant_D(xy, spectral_shape=None):
     xy /= np.array([0.0241, 0.2562, -0.7341]) @ xy
     M = np.array([[-1.3515, -1.7703, 5.9114], [0.030, -31.4424, 30.0717]]) @ xy
     M = np.concatenate((np.ones(1), M))
-    illuminant = np.array([
-        [  0.04,   3.02,   6.00,  17.80,  29.60,  42.45,  55.30,  56.30,  57.30,  59.55,
-          61.80,  61.65,  61.50,  65.15,  68.80,  66.10,  63.40,  64.60,  65.80,  80.30,
-          94.80,  99.80, 104.80, 105.35, 105.90, 101.35,  96.80, 105.35, 113.90, 119.75,
-         125.60, 125.55, 125.50, 123.40, 121.30, 121.30, 121.30, 117.40, 113.50, 113.30,
-         113.10, 111.95, 110.80, 108.65, 106.50, 107.65, 108.80, 107.05, 105.30, 104.85,
-         104.40, 102.20, 100.00,  98.00,  96.00,  95.55,  95.10,  92.10,  89.10,  89.80,
-          90.50,  90.40,  90.30,  89.35,  88.40,  86.20,  84.00,  84.55,  85.10,  83.50,
-          81.90,  82.25,  82.60,  83.75,  84.90,  83.10,  81.30,  76.60,  71.90,  73.10,
-          74.30,  75.35,  76.40,  69.85,  63.30,  67.50,  71.70,  74.35,  77.00,  71.10,
-          65.20,  56.45,  47.70,  58.15,  68.60,  66.80,  65.00,  65.50,  66.00,  63.50,
-          61.00,  57.15,  53.30,  56.10,  58.90,  60.40,  61.90],
-
-        [  0.02,   2.26,   4.50,  13.45,  22.40,  32.20,  42.00,  41.30,  40.60,  41.10,
-          41.60,  39.80,  38.00,  40.20,  42.40,  40.45,  38.50,  36.75,  35.00,  39.20,
-          43.40,  44.85,  46.30,  45.10,  43.90,  40.50,  37.10,  36.90,  36.70,  36.30,
-          35.90,  34.25,  32.60,  30.25,  27.90,  26.10,  24.30,  22.20,  20.10,  18.15,
-          16.20,  14.70,  13.20,  10.90,   8.60,   7.35,   6.10,   5.15,   4.20,   3.05,
-           1.90,   0.95,   0.00,  -0.80,  -1.60,  -2.55,  -3.50,  -3.50,  -3.50,  -4.65,
-          -5.80,  -6.50,  -7.20,  -7.90,  -8.60,  -9.05,  -9.50, -10.20, -10.90, -10.80,
-         -10.70, -11.35, -12.00, -13.00, -14.00, -13.80, -13.60, -12.80, -12.00, -12.65,
-         -13.30, -13.10, -12.90, -11.75, -10.60, -11.10, -11.60, -11.90, -12.20, -11.20,
-         -10.20,  -9.00,  -7.80,  -9.50, -11.20, -10.80, -10.40, -10.50, -10.60, -10.15,
-          -9.70,  -9.00,  -8.30,  -8.80,  -9.30,  -9.55,  -9.80],
-
-        [  0.00,   1.00,   2.00,   3.00,   4.00,   6.25,   8.50,   8.15,   7.80,   7.25,
-           6.70,   6.00,   5.30,   5.70,   6.10,   4.55,   3.00,   2.10,   1.20,   0.05,
-          -1.10,  -0.80,  -0.50,  -0.60,  -0.70,  -0.95,  -1.20,  -1.90,  -2.60,  -2.75,
-          -2.90,  -2.85,  -2.80,  -2.70,  -2.60,  -2.60,  -2.60,  -2.20,  -1.80,  -1.65,
-          -1.50,  -1.40,  -1.30,  -1.25,  -1.20,  -1.10,  -1.00,  -0.75,  -0.50,  -0.40,
-          -0.30,  -0.15,   0.00,   0.10,   0.20,   0.35,   0.50,   1.30,   2.10,   2.65,
-           3.20,   3.65,   4.10,   4.40,   4.70,   4.90,   5.10,   5.90,   6.70,   7.00,
-           7.30,   7.95,   8.60,   9.20,   9.80,  10.00,  10.20,   9.25,   8.30,   8.95,
-           9.60,   9.05,   8.50,   7.75,   7.00,   7.30,   7.60,   7.80,   8.00,   7.35,
-           6.70,   5.95,   5.20,   6.30,   7.40,   7.10,   6.80,   6.90,   7.00,   6.70,
-           6.40,   5.95,   5.50,   5.80,   6.10,   6.30,   6.50]]).T @ M
+    illuminant = (
+        np.array(
+            [
+                [
+                    0.04,
+                    3.02,
+                    6.00,
+                    17.80,
+                    29.60,
+                    42.45,
+                    55.30,
+                    56.30,
+                    57.30,
+                    59.55,
+                    61.80,
+                    61.65,
+                    61.50,
+                    65.15,
+                    68.80,
+                    66.10,
+                    63.40,
+                    64.60,
+                    65.80,
+                    80.30,
+                    94.80,
+                    99.80,
+                    104.80,
+                    105.35,
+                    105.90,
+                    101.35,
+                    96.80,
+                    105.35,
+                    113.90,
+                    119.75,
+                    125.60,
+                    125.55,
+                    125.50,
+                    123.40,
+                    121.30,
+                    121.30,
+                    121.30,
+                    117.40,
+                    113.50,
+                    113.30,
+                    113.10,
+                    111.95,
+                    110.80,
+                    108.65,
+                    106.50,
+                    107.65,
+                    108.80,
+                    107.05,
+                    105.30,
+                    104.85,
+                    104.40,
+                    102.20,
+                    100.00,
+                    98.00,
+                    96.00,
+                    95.55,
+                    95.10,
+                    92.10,
+                    89.10,
+                    89.80,
+                    90.50,
+                    90.40,
+                    90.30,
+                    89.35,
+                    88.40,
+                    86.20,
+                    84.00,
+                    84.55,
+                    85.10,
+                    83.50,
+                    81.90,
+                    82.25,
+                    82.60,
+                    83.75,
+                    84.90,
+                    83.10,
+                    81.30,
+                    76.60,
+                    71.90,
+                    73.10,
+                    74.30,
+                    75.35,
+                    76.40,
+                    69.85,
+                    63.30,
+                    67.50,
+                    71.70,
+                    74.35,
+                    77.00,
+                    71.10,
+                    65.20,
+                    56.45,
+                    47.70,
+                    58.15,
+                    68.60,
+                    66.80,
+                    65.00,
+                    65.50,
+                    66.00,
+                    63.50,
+                    61.00,
+                    57.15,
+                    53.30,
+                    56.10,
+                    58.90,
+                    60.40,
+                    61.90,
+                ],
+                [
+                    0.02,
+                    2.26,
+                    4.50,
+                    13.45,
+                    22.40,
+                    32.20,
+                    42.00,
+                    41.30,
+                    40.60,
+                    41.10,
+                    41.60,
+                    39.80,
+                    38.00,
+                    40.20,
+                    42.40,
+                    40.45,
+                    38.50,
+                    36.75,
+                    35.00,
+                    39.20,
+                    43.40,
+                    44.85,
+                    46.30,
+                    45.10,
+                    43.90,
+                    40.50,
+                    37.10,
+                    36.90,
+                    36.70,
+                    36.30,
+                    35.90,
+                    34.25,
+                    32.60,
+                    30.25,
+                    27.90,
+                    26.10,
+                    24.30,
+                    22.20,
+                    20.10,
+                    18.15,
+                    16.20,
+                    14.70,
+                    13.20,
+                    10.90,
+                    8.60,
+                    7.35,
+                    6.10,
+                    5.15,
+                    4.20,
+                    3.05,
+                    1.90,
+                    0.95,
+                    0.00,
+                    -0.80,
+                    -1.60,
+                    -2.55,
+                    -3.50,
+                    -3.50,
+                    -3.50,
+                    -4.65,
+                    -5.80,
+                    -6.50,
+                    -7.20,
+                    -7.90,
+                    -8.60,
+                    -9.05,
+                    -9.50,
+                    -10.20,
+                    -10.90,
+                    -10.80,
+                    -10.70,
+                    -11.35,
+                    -12.00,
+                    -13.00,
+                    -14.00,
+                    -13.80,
+                    -13.60,
+                    -12.80,
+                    -12.00,
+                    -12.65,
+                    -13.30,
+                    -13.10,
+                    -12.90,
+                    -11.75,
+                    -10.60,
+                    -11.10,
+                    -11.60,
+                    -11.90,
+                    -12.20,
+                    -11.20,
+                    -10.20,
+                    -9.00,
+                    -7.80,
+                    -9.50,
+                    -11.20,
+                    -10.80,
+                    -10.40,
+                    -10.50,
+                    -10.60,
+                    -10.15,
+                    -9.70,
+                    -9.00,
+                    -8.30,
+                    -8.80,
+                    -9.30,
+                    -9.55,
+                    -9.80,
+                ],
+                [
+                    0.00,
+                    1.00,
+                    2.00,
+                    3.00,
+                    4.00,
+                    6.25,
+                    8.50,
+                    8.15,
+                    7.80,
+                    7.25,
+                    6.70,
+                    6.00,
+                    5.30,
+                    5.70,
+                    6.10,
+                    4.55,
+                    3.00,
+                    2.10,
+                    1.20,
+                    0.05,
+                    -1.10,
+                    -0.80,
+                    -0.50,
+                    -0.60,
+                    -0.70,
+                    -0.95,
+                    -1.20,
+                    -1.90,
+                    -2.60,
+                    -2.75,
+                    -2.90,
+                    -2.85,
+                    -2.80,
+                    -2.70,
+                    -2.60,
+                    -2.60,
+                    -2.60,
+                    -2.20,
+                    -1.80,
+                    -1.65,
+                    -1.50,
+                    -1.40,
+                    -1.30,
+                    -1.25,
+                    -1.20,
+                    -1.10,
+                    -1.00,
+                    -0.75,
+                    -0.50,
+                    -0.40,
+                    -0.30,
+                    -0.15,
+                    0.00,
+                    0.10,
+                    0.20,
+                    0.35,
+                    0.50,
+                    1.30,
+                    2.10,
+                    2.65,
+                    3.20,
+                    3.65,
+                    4.10,
+                    4.40,
+                    4.70,
+                    4.90,
+                    5.10,
+                    5.90,
+                    6.70,
+                    7.00,
+                    7.30,
+                    7.95,
+                    8.60,
+                    9.20,
+                    9.80,
+                    10.00,
+                    10.20,
+                    9.25,
+                    8.30,
+                    8.95,
+                    9.60,
+                    9.05,
+                    8.50,
+                    7.75,
+                    7.00,
+                    7.30,
+                    7.60,
+                    7.80,
+                    8.00,
+                    7.35,
+                    6.70,
+                    5.95,
+                    5.20,
+                    6.30,
+                    7.40,
+                    7.10,
+                    6.80,
+                    6.90,
+                    7.00,
+                    6.70,
+                    6.40,
+                    5.95,
+                    5.50,
+                    5.80,
+                    6.10,
+                    6.30,
+                    6.50,
+                ],
+            ]
+        ).T
+        @ M
+    )
     if spectral_shape is not None:
-        illuminant = colour.SpectralDistribution(to_numpy(illuminant), colour.SpectralShape(300, 830, 5)).align(
-            spectral_shape)
+        illuminant = colour.SpectralDistribution(
+            to_numpy(illuminant), colour.SpectralShape(300, 830, 5)
+        ).align(spectral_shape)
     return illuminant
 
 
@@ -593,6 +987,7 @@ def CCT_to_illuminant_D(CCT, spectral_shape=None):
     xy = CCT_to_xy(CCT)
     illuminant = xy_to_illuminant_D(xy, spectral_shape)
     return illuminant
+
 
 @njit
 def _rgb_to_hsv_pixel(r, g, b):
@@ -624,6 +1019,7 @@ def _rgb_to_hsv_pixel(r, g, b):
 
     return h, s, v
 
+
 @njit
 def _hsv_to_rgb_pixel(h, s, v):
     """Convert one HSV pixel to RGB (all values in [0,1])."""
@@ -632,15 +1028,15 @@ def _hsv_to_rgb_pixel(h, s, v):
     m = v - c
 
     # rgb temp
-    if 0 <= h < 1/6:
+    if 0 <= h < 1 / 6:
         r, g, b = c, x, 0
-    elif 1/6 <= h < 2/6:
+    elif 1 / 6 <= h < 2 / 6:
         r, g, b = x, c, 0
-    elif 2/6 <= h < 3/6:
+    elif 2 / 6 <= h < 3 / 6:
         r, g, b = 0, c, x
-    elif 3/6 <= h < 4/6:
+    elif 3 / 6 <= h < 4 / 6:
         r, g, b = 0, x, c
-    elif 4/6 <= h < 5/6:
+    elif 4 / 6 <= h < 5 / 6:
         r, g, b = x, 0, c
     else:
         r, g, b = c, 0, x
@@ -651,6 +1047,7 @@ def _hsv_to_rgb_pixel(h, s, v):
     b += m
 
     return r, g, b
+
 
 @njit
 def _rgb_to_hsl_pixel(r, g, b):
@@ -682,6 +1079,7 @@ def _rgb_to_hsl_pixel(r, g, b):
 
     return h, s, l
 
+
 @njit
 def _hsl_to_rgb_pixel(h, s, l):
     """Convert one HSL pixel to RGB (all values in [0,1])."""
@@ -690,15 +1088,15 @@ def _hsl_to_rgb_pixel(h, s, l):
     m = l - c / 2
 
     # rgb temp
-    if 0 <= h < 1/6:
+    if 0 <= h < 1 / 6:
         r, g, b = c, x, 0
-    elif 1/6 <= h < 2/6:
+    elif 1 / 6 <= h < 2 / 6:
         r, g, b = x, c, 0
-    elif 2/6 <= h < 3/6:
+    elif 2 / 6 <= h < 3 / 6:
         r, g, b = 0, c, x
-    elif 3/6 <= h < 4/6:
+    elif 3 / 6 <= h < 4 / 6:
         r, g, b = 0, x, c
-    elif 4/6 <= h < 5/6:
+    elif 4 / 6 <= h < 5 / 6:
         r, g, b = x, 0, c
     else:
         r, g, b = c, 0, x
@@ -710,18 +1108,21 @@ def _hsl_to_rgb_pixel(h, s, l):
 
     return r, g, b
 
+
 # Reference white (D65)
 REF_X = 0.95047
 REF_Y = 1.00000
 REF_Z = 1.08883
 
+
 @njit
 def _f(t):
-    delta = 6/29
+    delta = 6 / 29
     if t > delta**3:
-        return t ** (1/3)
+        return t ** (1 / 3)
     else:
-        return (t / (3 * delta**2)) + (4/29)
+        return (t / (3 * delta**2)) + (4 / 29)
+
 
 @njit
 def apply_per_pixel(rgb, function):
@@ -762,17 +1163,21 @@ def apply_per_pixel(rgb, function):
     else:
         raise ValueError("Input must be 3D or 4D with last dimension == 3")
 
+
 @njit
 def rgb_to_hsv(rgb):
     return apply_per_pixel(rgb, _rgb_to_hsv_pixel)
+
 
 @njit
 def hsv_to_rgb(hsv):
     return apply_per_pixel(hsv, _hsv_to_rgb_pixel)
 
+
 @njit
 def rgb_to_hsl(rgb):
     return apply_per_pixel(rgb, _rgb_to_hsl_pixel)
+
 
 @njit
 def hsl_to_rgb(hsl):
@@ -787,13 +1192,14 @@ def saturation_adjust_hsv_linear(rgb, sat_adjust, density=1):
     rgb = hsv_to_rgb(hsv)
     return rgb
 
+
 @njit
 def saturation_adjust_hsv_density(rgb, sat_adjust, density=1):
     hsv = rgb_to_hsv(rgb)
     if sat_adjust < 1:
         hsv[..., 1] *= sat_adjust
     else:
-        hsv[..., 2] *= density * (1 - sat_adjust) *  hsv[..., 1] ** 2 + 1
+        hsv[..., 2] *= density * (1 - sat_adjust) * hsv[..., 1] ** 2 + 1
         hsv[..., 1] = (1 - sat_adjust) * hsv[..., 1] ** 2 + sat_adjust * hsv[..., 1]
 
     rgb = hsv_to_rgb(hsv)
@@ -807,6 +1213,7 @@ def saturation_adjust_hsl_linear(rgb, sat_adjust, density=1):
     rgb = hsl_to_rgb(hsl)
     return rgb
 
+
 @njit
 def saturation_adjust_hsl_density(rgb, sat_adjust, density=1):
     hsl = rgb_to_hsl(rgb)
@@ -814,17 +1221,19 @@ def saturation_adjust_hsl_density(rgb, sat_adjust, density=1):
     if sat_adjust < 1:
         hsl[..., 1] *= sat_adjust
     else:
-        hsl[..., 2] *= density * (1 - sat_adjust) *  hsl[..., 1] ** 2 + 1
+        hsl[..., 2] *= density * (1 - sat_adjust) * hsl[..., 1] ** 2 + 1
         hsl[..., 1] = (1 - sat_adjust) * hsl[..., 1] ** 2 + sat_adjust * hsl[..., 1]
 
     rgb = hsl_to_rgb(hsl)
     return rgb
+
 
 def linear_gamut_compression(rgb, gamut_compression=0):
     A = xp.identity(3, rgb.dtype) * (1 - gamut_compression) + gamut_compression / 3
     A_inv = xp.linalg.inv(A)
     rgb = xp.clip(rgb @ A_inv, -0.1, None) @ A
     return rgb
+
 
 def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=None):
     if luminance_factors is None:
@@ -836,26 +1245,56 @@ def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=Non
         rgb = (1 - sat_adjust) * Y + sat_adjust * rgb
     else:
         rgb_saturated = (1 - sat_adjust) * Y + sat_adjust * rgb
-        achromaticity = (np.divide(-rgb_saturated.min(axis=-1, keepdims=True), Y, where=(Y != 0)) + 1)
+        achromaticity = (
+            np.divide(-rgb_saturated.min(axis=-1, keepdims=True), Y, where=(Y != 0)) + 1
+        )
         achromaticity /= sat_adjust
         achromaticity = np.clip(achromaticity, 0, 1)
-        rgb = (rgb * achromaticity + rgb_saturated * (1 - achromaticity)) * (1 - achromaticity * density * (sat_adjust - 1))
+        rgb = (rgb * achromaticity + rgb_saturated * (1 - achromaticity)) * (
+            1 - achromaticity * density * (sat_adjust - 1)
+        )
     return rgb
 
-def gamut_compression_matrices(matrix, gamut_compression=0.):
-    A = xp.identity(3, dtype=default_dtype) * (1 - gamut_compression) + gamut_compression / 3
+
+def gamut_compression_matrices(matrix, gamut_compression=0.0):
+    A = (
+        xp.identity(3, dtype=default_dtype) * (1 - gamut_compression)
+        + gamut_compression / 3
+    )
     A_inv = xp.linalg.inv(A)
     return matrix @ A_inv, A
 
 
 COLORCHECKER_2005 = np.array(
-    [[0.3457, 0.3585, 100.], [0.4316, 0.3777, 10.08], [0.4197, 0.3744, 34.95], [0.2760, 0.3016, 18.36],
-     [0.3703, 0.4499, 13.25], [0.2999, 0.2856, 23.04], [0.2848, 0.3911, 41.78], [0.5295, 0.4055, 31.18],
-     [0.2305, 0.2106, 11.26], [0.5012, 0.3273, 19.38], [0.3319, 0.2482, 6.37], [0.3984, 0.5008, 44.46],
-     [0.4957, 0.4427, 43.57], [0.2018, 0.1692, 5.75], [0.3253, 0.5032, 23.18], [0.5686, 0.3303, 12.57],
-     [0.4697, 0.4734, 59.81], [0.4159, 0.2688, 20.09], [0.2131, 0.3023, 19.30], [0.3469, 0.3608, 91.31],
-     [0.3440, 0.3584, 58.94], [0.3432, 0.3581, 36.32], [0.3446, 0.3579, 19.15], [0.3401, 0.3548, 8.83],
-     [0.3406, 0.3537, 3.11]], default_dtype)
+    [
+        [0.3457, 0.3585, 100.0],
+        [0.4316, 0.3777, 10.08],
+        [0.4197, 0.3744, 34.95],
+        [0.2760, 0.3016, 18.36],
+        [0.3703, 0.4499, 13.25],
+        [0.2999, 0.2856, 23.04],
+        [0.2848, 0.3911, 41.78],
+        [0.5295, 0.4055, 31.18],
+        [0.2305, 0.2106, 11.26],
+        [0.5012, 0.3273, 19.38],
+        [0.3319, 0.2482, 6.37],
+        [0.3984, 0.5008, 44.46],
+        [0.4957, 0.4427, 43.57],
+        [0.2018, 0.1692, 5.75],
+        [0.3253, 0.5032, 23.18],
+        [0.5686, 0.3303, 12.57],
+        [0.4697, 0.4734, 59.81],
+        [0.4159, 0.2688, 20.09],
+        [0.2131, 0.3023, 19.30],
+        [0.3469, 0.3608, 91.31],
+        [0.3440, 0.3584, 58.94],
+        [0.3432, 0.3581, 36.32],
+        [0.3446, 0.3579, 19.15],
+        [0.3401, 0.3548, 8.83],
+        [0.3406, 0.3537, 3.11],
+    ],
+    default_dtype,
+)
 COLORCHECKER_2005 = colour.xyY_to_XYZ(COLORCHECKER_2005)
 COLORCHECKER_2005 *= np.array([0.95047, 1.00000, 1.08883]) / COLORCHECKER_2005[0]
 COLORCHECKER_2005 = COLORCHECKER_2005[1:]
@@ -866,12 +1305,18 @@ COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005, default_dtype)
 def smooth_piecewise(x, threshold, max_value):
     k = 1 / (max_value - threshold)
 
-    x = xp.where(x < threshold, x, max_value - (max_value - threshold) * np.exp(-k * (x - threshold)))
+    x = xp.where(
+        x < threshold,
+        x,
+        max_value - (max_value - threshold) * np.exp(-k * (x - threshold)),
+    )
 
     return x
 
 
-def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors=None, color_space='sRGB'):
+def saturation_adjust_oklch(
+    rgb, sat_adjust, white_point=None, luminance_factors=None, color_space="sRGB"
+):
     if luminance_factors is None:
         luminance_factors = np.ones(3, dtype=default_dtype) / 3
     else:
@@ -883,7 +1328,9 @@ def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors
 
     samples_lab = COLORCHECKER_OKLAB.copy()
     samples_lab[..., 1:3] *= sat_adjust
-    samples_rgb = colour.convert(samples_lab, "Oklab", "RGB", colourspace=color_space, apply_cctf_encoding=False)
+    samples_rgb = colour.convert(
+        samples_lab, "Oklab", "RGB", colourspace=color_space, apply_cctf_encoding=False
+    )
     samples_rgb = xp.asarray(samples_rgb, default_dtype)
 
     M = xp.linalg.lstsq(COLORCHECKER_2005, samples_rgb, rcond=None)[0].T
@@ -902,7 +1349,9 @@ def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors
         rgb_compressed = a - d * np.abs(a)
 
         # Compute new luminance
-        Y_new = rgb_compressed @ xp.asarray(luminance_factors.reshape(-1, 1), dtype=default_dtype)
+        Y_new = rgb_compressed @ xp.asarray(
+            luminance_factors.reshape(-1, 1), dtype=default_dtype
+        )
 
         # Avoid division by zero
         scale = xp.where(Y_new != 0, Y / Y_new, 1.0) ** 2
@@ -915,7 +1364,6 @@ def saturation_adjust_oklch(rgb, sat_adjust, white_point=None, luminance_factors
     return rgb
 
 
-
 def convolution_filter(rgb, kernel, padding=False):
     if not cuda_available:
         return cv2.filter2D(rgb, -1, kernel)
@@ -925,7 +1373,7 @@ def convolution_filter(rgb, kernel, padding=False):
         if padding:
             pad_h = kernel.shape[0] // 2
             pad_w = kernel.shape[1] // 2
-            rgb = xp.pad(rgb, ((pad_h, pad_h), (pad_w, pad_w), (0, 0)), 'reflect')
-            return signal.oaconvolve(rgb, kernel, mode='valid', axes=(0, 1))
+            rgb = xp.pad(rgb, ((pad_h, pad_h), (pad_w, pad_w), (0, 0)), "reflect")
+            return signal.oaconvolve(rgb, kernel, mode="valid", axes=(0, 1))
         else:
-            return signal.oaconvolve(rgb, kernel, mode='same', axes=(0, 1))
+            return signal.oaconvolve(rgb, kernel, mode="same", axes=(0, 1))

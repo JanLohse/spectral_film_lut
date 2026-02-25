@@ -1,13 +1,58 @@
 import math
+import sys
 import traceback
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QObject, pyqtSignal, QRunnable, pyqtSlot, QRectF, QRect, QPoint, pyqtProperty, \
-    QPropertyAnimation, QPointF, QEasingCurve
-from PyQt6.QtGui import QWheelEvent, QFontMetrics, QPainter, QColor, QLinearGradient, QBrush
-from PyQt6.QtWidgets import QLabel, QWidget, QHBoxLayout, QFileDialog, QLineEdit, QSlider, QComboBox, QScrollArea, \
-    QFrame, QPushButton, QToolButton
-from spectral_film_lut.utils import *
+import colour
+import numpy as np
+from PyQt6.QtCore import (
+    QEasingCurve,
+    QObject,
+    QPoint,
+    QPointF,
+    QPropertyAnimation,
+    QRect,
+    QRectF,
+    QRunnable,
+    Qt,
+    pyqtProperty,
+    pyqtSignal,
+    pyqtSlot,
+)
+from PyQt6.QtGui import (
+    QBrush,
+    QColor,
+    QFontMetrics,
+    QLinearGradient,
+    QPainter,
+    QWheelEvent,
+)
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QToolButton,
+    QWidget,
+)
+
+from spectral_film_lut.css_theme import (
+    BASE_COLOR,
+    BORDER_RADIUS,
+    CHECKED_COLOR,
+    HOVER_COLOR,
+    HOVER_DURATION,
+    LINEEDIT_COLOR,
+    PRESS_DURATION,
+    PRESSED_COLOR,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+)
 
 
 class RoundedScrollArea(QScrollArea):
@@ -33,7 +78,9 @@ class WideComboBox(QComboBox):
 
         # Current color property used by animation
         self._base_text_color = QColor(TEXT_PRIMARY)  # Normal text
-        self._pressed_text_color = QColor(TEXT_SECONDARY)  # Pressed text color (slightly lighter or darker if you like)
+        self._pressed_text_color = QColor(
+            TEXT_SECONDARY
+        )  # Pressed text color (slightly lighter or darker if you like)
 
         # Track current colors
         self._color = QColor(self._base_color)
@@ -48,7 +95,9 @@ class WideComboBox(QComboBox):
     def showPopup(self):
         # Measure the widest item text
         fm = QFontMetrics(self.view().font())
-        max_width = max(fm.horizontalAdvance(self.itemText(i)) for i in range(self.count()))
+        max_width = max(
+            fm.horizontalAdvance(self.itemText(i)) for i in range(self.count())
+        )
         # Add some padding
         max_width += 30
 
@@ -178,7 +227,7 @@ class FileSelector(QWidget):
         self.setLayout(layout)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        file_browse = AnimatedButton('Browse')
+        file_browse = AnimatedButton("Browse")
         file_browse.setFixedWidth(55)
         file_browse.clicked.connect(self.open_file_dialog)
         self.filename_edit = HoverLineEdit()
@@ -192,7 +241,9 @@ class FileSelector(QWidget):
         self.show()
 
     def open_file_dialog(self):
-        filename, ok = QFileDialog.getOpenFileName(self, "Select a File", "", self.filetype)
+        filename, ok = QFileDialog.getOpenFileName(
+            self, "Select a File", "", self.filetype
+        )
         if filename:
             path = Path(filename)
             self.filename_edit.setText(str(path))
@@ -205,7 +256,7 @@ class GradientSlider(QSlider):
     def __init__(self, *args, reference_value=0, modern_design=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.gradient = None
-        self.set_color_gradient((0.3, 0., 0.), (0.7, 0., 0.))
+        self.set_color_gradient((0.3, 0.0, 0.0), (0.7, 0.0, 0.0))
         self.modern_design = modern_design
         self.setRange(-100, 100)
         self.setValue(0)
@@ -230,10 +281,21 @@ class GradientSlider(QSlider):
             start_color = colour.convert(start_color, "Oklch", "Oklab")
             end_color = colour.convert(end_color, "Oklch", "Oklab")
         source = "Oklab" if blend_in_lab else "Oklch"
-        self.gradient = [(x, QColor(colour.convert(start_color * (1 - x) + end_color * x, source, "Hexadecimal"))) for x
-                         in np.linspace(0, 1, steps)]
+        self.gradient = [
+            (
+                x,
+                QColor(
+                    colour.convert(
+                        start_color * (1 - x) + end_color * x, source, "Hexadecimal"
+                    )
+                ),
+            )
+            for x in np.linspace(0, 1, steps)
+        ]
 
-    hoverProgress = pyqtProperty(float, fget=get_hover_progress, fset=set_hover_progress)
+    hoverProgress = pyqtProperty(
+        float, fget=get_hover_progress, fset=set_hover_progress
+    )
 
     # --- hover detection ---
     def enterEvent(self, event):
@@ -258,14 +320,20 @@ class GradientSlider(QSlider):
 
         horizontal_padding = 7
         groove_thickness = 10 if self.modern_design else 4
-        groove_rect = QRect(horizontal_padding, self.height() // 2 - groove_thickness // 2,
-                            self.width() - horizontal_padding * 2, groove_thickness)
+        groove_rect = QRect(
+            horizontal_padding,
+            self.height() // 2 - groove_thickness // 2,
+            self.width() - horizontal_padding * 2,
+            groove_thickness,
+        )
 
         min_val, max_val = self.minimum(), self.maximum()
         total_range = max_val - min_val
 
         def value_to_x(val):
-            return groove_rect.left() + (val - min_val) / total_range * groove_rect.width()
+            return (
+                groove_rect.left() + (val - min_val) / total_range * groove_rect.width()
+            )
 
         handle_x = int(value_to_x(self.value()))
         ref_x = int(value_to_x(self.reference_value))
@@ -273,7 +341,9 @@ class GradientSlider(QSlider):
         # background groove with gradient
         painter.setPen(Qt.PenStyle.NoPen)
 
-        gradient = QLinearGradient(QPointF(groove_rect.topLeft()), QPointF(groove_rect.topRight()))
+        gradient = QLinearGradient(
+            QPointF(groove_rect.topLeft()), QPointF(groove_rect.topRight())
+        )
         for pos, color in self.gradient:
             gradient.setColorAt(pos, color)  # left color
 
@@ -283,9 +353,13 @@ class GradientSlider(QSlider):
         # active segment (ref -> handle)
         painter.setBrush(QColor(255, 255, 255, 85))
         if handle_x > ref_x:
-            active_rect = QRect(ref_x, groove_rect.top(), handle_x - ref_x, groove_rect.height())
+            active_rect = QRect(
+                ref_x, groove_rect.top(), handle_x - ref_x, groove_rect.height()
+            )
         else:
-            active_rect = QRect(handle_x, groove_rect.top(), ref_x - handle_x, groove_rect.height())
+            active_rect = QRect(
+                handle_x, groove_rect.top(), ref_x - handle_x, groove_rect.height()
+            )
         if self.reference_value in (self.minimum(), self.maximum()):
             painter.drawRoundedRect(active_rect, 3, 3)
         else:
@@ -294,15 +368,23 @@ class GradientSlider(QSlider):
         # handle
         if self.modern_design:
             handle_bg_width = 6 + self._hoverProgress * 1
-            handle_bg_rect = QRectF(handle_x - handle_bg_width, groove_rect.center().y() - groove_thickness,
-                                    handle_bg_width * 2, groove_thickness * 2)
+            handle_bg_rect = QRectF(
+                handle_x - handle_bg_width,
+                groove_rect.center().y() - groove_thickness,
+                handle_bg_width * 2,
+                groove_thickness * 2,
+            )
             painter.setBrush(QColor(BASE_COLOR))
             painter.drawRect(handle_bg_rect)
 
             handle_width = 1.25 + self._hoverProgress * 1
             handle_length = groove_thickness / 2 + 4
-            handle_rect = QRectF(handle_x - handle_width, groove_rect.center().y() - handle_length, handle_width * 2,
-                                 handle_length * 2)
+            handle_rect = QRectF(
+                handle_x - handle_width,
+                groove_rect.center().y() - handle_length,
+                handle_width * 2,
+                handle_length * 2,
+            )
             painter.setBrush(QColor(TEXT_PRIMARY))
             painter.drawRoundedRect(handle_rect, handle_width, handle_width)
         else:
@@ -340,7 +422,9 @@ class Slider(QWidget):
         self.setMinMaxTicks(0, 1, 1)
 
         self.text = QLabel()
-        self.text.setAlignment((Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter))
+        self.text.setAlignment(
+            (Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        )
         self.text.setFixedWidth(30)
 
         layout.addWidget(self.slider)
@@ -380,7 +464,9 @@ class Slider(QWidget):
         return self.slider.value() * self.enumerator / self.denominator + self.min
 
     def setValue(self, value):
-        self.slider.setValue(round((value - self.min) * self.denominator / self.enumerator))
+        self.slider.setValue(
+            round((value - self.min) * self.denominator / self.enumerator)
+        )
 
     def setPosition(self, position):
         self.slider.setValue(position)
@@ -442,7 +528,9 @@ class SliderLog(QWidget):
         self.setMinMaxSteps(1, 10, 100, 3)
 
         self.text = QLabel()
-        self.text.setAlignment((Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter))
+        self.text.setAlignment(
+            (Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        )
         self.text.setFixedWidth(30)
 
         layout.addWidget(self.slider)
@@ -543,7 +631,9 @@ class AnimatedButton(QPushButton):
 
         # Current color property used by animation
         self._base_text_color = QColor(TEXT_PRIMARY)  # Normal text
-        self._pressed_text_color = QColor(TEXT_SECONDARY)  # Pressed text color (slightly lighter or darker if you like)
+        self._pressed_text_color = QColor(
+            TEXT_SECONDARY
+        )  # Pressed text color (slightly lighter or darker if you like)
 
         # Track current colors
         self._color = QColor(self._base_color)
@@ -605,7 +695,7 @@ class AnimatedButton(QPushButton):
                 background-color: {bg};
                 color: {fg};
             }}
-            
+
             AnimatedButton:disabled {{
                 background-color: transparent;
                 color: {TEXT_SECONDARY};
@@ -664,7 +754,9 @@ class AnimatedToolButton(QToolButton):
 
     def mouseReleaseEvent(self, event):
         # After releasing, go back depending on hover/toggle state
-        target_bg = self._hover_color if self.underMouse() else self._get_base_state_color()
+        target_bg = (
+            self._hover_color if self.underMouse() else self._get_base_state_color()
+        )
         self._start_color_animation(target_bg, PRESS_DURATION)
         self._set_text_color(self._base_text_color)
         super().mouseReleaseEvent(event)
@@ -763,6 +855,7 @@ class HoverLineEdit(QLineEdit):
                 background-color: {bg};
             }}
         """
+
 
 def qcolor_to_rgba_string(c: QColor) -> str:
     """Return a CSS rgba(...) string where alpha is 0..1 (Qt accepts that)."""
