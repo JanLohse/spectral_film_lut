@@ -21,6 +21,13 @@ from spectral_film_lut.bw_negative_film.kodak_trix_400 import (
 from spectral_film_lut.css_theme import PRESSED_COLOR, TEXT_PRIMARY, THEME
 from spectral_film_lut.film_spectral import FilmSpectral
 from spectral_film_lut.negative_film.agfa_vista_100 import AGFA_VISTA_100
+from spectral_film_lut.negative_film.fuji_c200 import FUJI_C200
+from spectral_film_lut.negative_film.fuji_eterna_500 import FUJI_ETERNA_500
+from spectral_film_lut.negative_film.fuji_eterna_500_vivid import FUJI_ETERNA_500_VIVID
+from spectral_film_lut.negative_film.fuji_natura_1600 import FUJI_NATURA_1600
+from spectral_film_lut.negative_film.fuji_pro_160c import FUJI_PRO_160C
+from spectral_film_lut.negative_film.fuji_pro_160s import FUJI_PRO_160S
+from spectral_film_lut.negative_film.fuji_pro_400h import FUJI_PRO_400H
 from spectral_film_lut.negative_film.kodak_5207 import KODAK_5207
 from spectral_film_lut.print_film.kodak_2383 import KODAK_2383
 
@@ -37,6 +44,13 @@ NEGATIVE_FILM = [
     KODAK_TRI_X_400_DEV_9,
     KODAK_TRI_X_400_DEV_11,
     AGFA_VISTA_100,
+    FUJI_C200,
+    FUJI_ETERNA_500,
+    FUJI_ETERNA_500_VIVID,
+    FUJI_NATURA_1600,
+    FUJI_PRO_160C,
+    FUJI_PRO_160S,
+    FUJI_PRO_400H,
 ]
 PRINT_FILM = [KODAK_2383]
 REVERSAL_PRINT = []

@@ -1,22 +1,18 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_spectral import FilmData
 
-
-class FujiEterna500Vivid(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.iso = 500
-        self.density_measure = "status_m"
-        self.exposure_kelvin = 3200
-        self.projection_kelvin = 5500
-        self.year = 2009
-        self.manufacturer = "Fujifilm"
-        self.stage = "camera"
-        self.type = "negative"
-        self.medium = "cine"
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+FUJI_ETERNA_500_VIVID = FilmData(
+    name="Fuji Eterna 500 Vivid",
+    iso=500,
+    density_measure="status_m",
+    exposure_kelvin=3200,
+    projection_kelvin=5500,
+    year=2007,
+    manufacturer="Fujifilm",
+    stage="camera",
+    film_type="negative",
+    medium="cine",
+    log_sensitivity=[
+        {
             584.6949: 0.6932,
             589.0259: 0.8656,
             595.4765: 1.0114,
@@ -31,8 +27,8 @@ class FujiEterna500Vivid(FilmSpectral):
             658.0603: 0.9440,
             661.6487: 0.7635,
             664.8954: 0.5966,
-        }
-        green_log_sensitivity = {
+        },
+        {
             491.8396: 0.8656,
             497.4785: 1.0407,
             507.2185: 1.2539,
@@ -48,8 +44,8 @@ class FujiEterna500Vivid(FilmSpectral):
             582.4044: 1.3424,
             586.4628: 1.0563,
             591.2046: 0.7171,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             392.5173: 1.0883,
             398.2417: 1.5093,
             403.1544: 1.7633,
@@ -69,15 +65,10 @@ class FujiEterna500Vivid(FilmSpectral):
             489.0628: 1.5161,
             495.4707: 1.1108,
             503.0320: 0.7253,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry - characteristic curve
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -6.2116: 0.2655,
             -5.6207: 0.2655,
             -5.0079: 0.2742,
@@ -95,8 +86,8 @@ class FujiEterna500Vivid(FilmSpectral):
             4.7526: 1.3993,
             5.5988: 1.4995,
             6.3210: 1.5822,
-        }
-        green_curve = {
+        },
+        {
             -6.2407: 0.5375,
             -5.4237: 0.5484,
             -4.6213: 0.5680,
@@ -111,8 +102,8 @@ class FujiEterna500Vivid(FilmSpectral):
             4.0559: 1.9140,
             5.0590: 2.0577,
             6.2590: 2.2209,
-        }
-        blue_curve = {
+        },
+        {
             -6.2407: 0.6725,
             -5.1903: 0.6834,
             -4.4170: 0.7040,
@@ -132,104 +123,85 @@ class FujiEterna500Vivid(FilmSpectral):
             5.5149: 2.1839,
             6.0365: 2.2437,
             6.2480: 2.2644,
+        },
+    ],
+    d_ref_sd={
+        412.4857: 1.2681,
+        418.5576: 1.2853,
+        426.7674: 1.3644,
+        434.0365: 1.4196,
+        441.4766: 1.4474,
+        449.6009: 1.4421,
+        458.2383: 1.4117,
+        467.6454: 1.3542,
+        476.0262: 1.2862,
+        481.5849: 1.2429,
+        487.4857: 1.2072,
+        492.7879: 1.1935,
+        501.4253: 1.2129,
+        508.9510: 1.2580,
+        513.4835: 1.2831,
+        524.0878: 1.2915,
+        536.8301: 1.3154,
+        543.5006: 1.3216,
+        551.1117: 1.2951,
+        561.8871: 1.1820,
+        571.6363: 1.0155,
+        579.2474: 0.8860,
+        586.0889: 0.7933,
+        592.5029: 0.7314,
+        601.9954: 0.6833,
+        609.6066: 0.6692,
+        623.5462: 0.7032,
+        641.1631: 0.7959,
+        652.8791: 0.8507,
+        666.0490: 0.8816,
+        681.1003: 0.8746,
+        692.5599: 0.8485,
+        698.6317: 0.8264,
+    },
+    d_min_sd={
+        410.6899: 0.8640,
+        414.6237: 0.8441,
+        423.7814: 0.8137,
+        432.0957: 0.8112,
+        441.3008: 0.8020,
+        458.2264: 0.7499,
+        480.2000: 0.6931,
+        492.0776: 0.6732,
+        507.5185: 0.6891,
+        513.8137: 0.6811,
+        522.0686: 0.6425,
+        528.3044: 0.6137,
+        546.7147: 0.5790,
+        559.1861: 0.5551,
+        573.3205: 0.4870,
+        586.9798: 0.4149,
+        598.9761: 0.3664,
+        614.4170: 0.3388,
+        632.2335: 0.3358,
+        644.1111: 0.3315,
+        663.1153: 0.2882,
+        683.6041: 0.2189,
+        699.5795: 0.1750,
+    },
+    mtf=[
+        {
+            1.9915: 1.0074,
+            4.9217: 0.9951,
+            7.5584: 0.9526,
+            9.8776: 0.9016,
+            12.1630: 0.8373,
+            16.0988: 0.7191,
+            20.7544: 0.6045,
+            27.6106: 0.4806,
+            37.1082: 0.3703,
+            37.1713: 0.3709,
+            47.2737: 0.2934,
         }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        self.exposure_base = 2
-
-        # spectral dye density
-        midscale_sd = {
-            412.4857: 1.2681,
-            418.5576: 1.2853,
-            426.7674: 1.3644,
-            434.0365: 1.4196,
-            441.4766: 1.4474,
-            449.6009: 1.4421,
-            458.2383: 1.4117,
-            467.6454: 1.3542,
-            476.0262: 1.2862,
-            481.5849: 1.2429,
-            487.4857: 1.2072,
-            492.7879: 1.1935,
-            501.4253: 1.2129,
-            508.9510: 1.2580,
-            513.4835: 1.2831,
-            524.0878: 1.2915,
-            536.8301: 1.3154,
-            543.5006: 1.3216,
-            551.1117: 1.2951,
-            561.8871: 1.1820,
-            571.6363: 1.0155,
-            579.2474: 0.8860,
-            586.0889: 0.7933,
-            592.5029: 0.7314,
-            601.9954: 0.6833,
-            609.6066: 0.6692,
-            623.5462: 0.7032,
-            641.1631: 0.7959,
-            652.8791: 0.8507,
-            666.0490: 0.8816,
-            681.1003: 0.8746,
-            692.5599: 0.8485,
-            698.6317: 0.8264,
-        }
-        minimum_sd = {
-            410.6899: 0.8640,
-            414.6237: 0.8441,
-            423.7814: 0.8137,
-            432.0957: 0.8112,
-            441.3008: 0.8020,
-            458.2264: 0.7499,
-            480.2000: 0.6931,
-            492.0776: 0.6732,
-            507.5185: 0.6891,
-            513.8137: 0.6811,
-            522.0686: 0.6425,
-            528.3044: 0.6137,
-            546.7147: 0.5790,
-            559.1861: 0.5551,
-            573.3205: 0.4870,
-            586.9798: 0.4149,
-            598.9761: 0.3664,
-            614.4170: 0.3388,
-            632.2335: 0.3358,
-            644.1111: 0.3315,
-            663.1153: 0.2882,
-            683.6041: 0.2189,
-            699.5795: 0.1750,
-        }
-        self.d_ref_sd = colour.SpectralDistribution(midscale_sd)
-        self.d_min_sd = colour.SpectralDistribution(minimum_sd)
-
-        self.mtf = [
-            {
-                1.9915: 1.0074,
-                4.9217: 0.9951,
-                7.5584: 0.9526,
-                9.8776: 0.9016,
-                12.1630: 0.8373,
-                16.0988: 0.7191,
-                20.7544: 0.6045,
-                27.6106: 0.4806,
-                37.1082: 0.3703,
-                37.1713: 0.3709,
-                47.2737: 0.2934,
-            }
-        ]
-
-        # copied from kodak 5207
-        red_rms = {
+    ],
+    rms_curve=[
+        {  # copied from kodak 5207
             0.0161: 0.0049,
             0.1713: 0.0050,
             0.3747: 0.0051,
@@ -260,8 +232,8 @@ class FujiEterna500Vivid(FilmSpectral):
             4.6306: 0.0043,
             4.8233: 0.0042,
             5.0000: 0.0043,
-        }
-        green_rms = {
+        },
+        {
             0.0000: 0.0051,
             0.1392: 0.0056,
             0.2730: 0.0059,
@@ -288,8 +260,8 @@ class FujiEterna500Vivid(FilmSpectral):
             4.5343: 0.0053,
             4.7430: 0.0051,
             5.0054: 0.0046,
-        }
-        blue_rms = {
+        },
+        {
             0.0000: 0.0112,
             0.0857: 0.0114,
             0.1606: 0.0123,
@@ -320,8 +292,10 @@ class FujiEterna500Vivid(FilmSpectral):
             4.4700: 0.0088,
             4.8073: 0.0069,
             5.0054: 0.0060,
-        }
-        red_rms_density = {
+        },
+    ],
+    rms_density=[
+        {
             0.0000: 0.2286,
             0.7369: 0.2286,
             1.0380: 0.2429,
@@ -333,8 +307,8 @@ class FujiEterna500Vivid(FilmSpectral):
             4.4176: 1.8762,
             4.7385: 1.9714,
             5.0000: 2.0238,
-        }
-        green_rms_density = {
+        },
+        {
             0.0079: 0.5952,
             0.5784: 0.5952,
             0.9509: 0.6048,
@@ -350,8 +324,8 @@ class FujiEterna500Vivid(FilmSpectral):
             4.7425: 2.6524,
             4.8732: 2.6810,
             4.9960: 2.7000,
-        }
-        blue_rms_density = {
+        },
+        {
             0.0000: 1.0071,
             0.6418: 1.0119,
             0.9350: 1.0310,
@@ -364,9 +338,8 @@ class FujiEterna500Vivid(FilmSpectral):
             4.2353: 2.7881,
             4.5840: 2.9190,
             4.8732: 2.9929,
-        }
-        self.rms_curve = [red_rms, green_rms, blue_rms]
-        self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
-        self.rms = 3.5
-
-        self.calibrate()
+        },
+    ],
+    rms=3.5,
+    exposure_base=2,
+)
