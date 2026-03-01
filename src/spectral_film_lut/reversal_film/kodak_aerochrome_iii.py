@@ -1,24 +1,18 @@
-import colour
+from spectral_film_lut.film_data import FilmData
 
-from spectral_film_lut.film_spectral import *
-from spectral_film_lut.wratten_filters import WRATTEN
-
-
-class KodakAerochromeIII(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.iso = 40
-        self.density_measure = "status_a"
-        self.manufacturer = "Kodak"
-        self.stage = "camera"
-        self.type = "positive"
-        self.medium = "photo"
-        self.year = 2001
-        self.comment = "Very experimental and inaccurate results. Needs reflective data in the infrared domain to word properly."
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+KODAK_AEROCHROME_III = FilmData(
+    name="Kodak Aerochrome III Infrared Film 1443",
+    iso=40,
+    density_measure="status_a",
+    manufacturer="Kodak",
+    comment="Very experimental and inaccurate results. Needs reflective data in the "
+    "infrared domain to word properly.",
+    stage="camera",
+    film_type="positive",
+    medium="photo",
+    year=2001,
+    log_sensitivity=[
+        {
             410.0294: 1.2477,
             422.4031: 1.2116,
             434.2503: 1.1643,
@@ -70,8 +64,8 @@ class KodakAerochromeIII(FilmSpectral):
             891.8143: -0.5955,
             896.0266: -0.7390,
             899.1858: -0.8520,
-        }
-        green_log_sensitivity = {
+        },
+        {
             408.9763: 0.5547,
             420.5602: 0.6153,
             432.1441: 0.6565,
@@ -121,8 +115,8 @@ class KodakAerochromeIII(FilmSpectral):
             691.7288: -0.6868,
             693.8349: -0.7998,
             695.9411: -0.9163,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             407.8063: 1.0722,
             417.9275: 1.1241,
             428.3998: 1.1617,
@@ -154,15 +148,10 @@ class KodakAerochromeIII(FilmSpectral):
             605.9026: -0.6617,
             609.0618: -0.8124,
             611.6945: -0.9129,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity.copy(),
-            green_log_sensitivity.copy(),
-            blue_log_sensitivity.copy(),
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -1.8701: 3.4989,
             -1.7952: 3.4711,
             -1.4861: 3.4415,
@@ -213,8 +202,8 @@ class KodakAerochromeIII(FilmSpectral):
             0.7589: 0.1655,
             0.8401: 0.1628,
             0.9066: 0.1588,
-        }
-        green_curve = {
+        },
+        {
             -1.8627: 3.6331,
             -1.7815: 3.5861,
             -1.7002: 3.5411,
@@ -254,8 +243,8 @@ class KodakAerochromeIII(FilmSpectral):
             0.1497: 0.2041,
             0.6147: 0.1735,
             0.9337: 0.1568,
-        }
-        blue_curve = {
+        },
+        {
             -1.8701: 3.3060,
             -1.7889: 3.2962,
             -1.7076: 3.2832,
@@ -305,22 +294,10 @@ class KodakAerochromeIII(FilmSpectral):
             0.7672: 0.1381,
             0.8475: 0.1370,
             0.9103: 0.1340,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             407.8583: 0.1951,
             414.8538: 0.1690,
             420.1004: 0.1481,
@@ -357,8 +334,8 @@ class KodakAerochromeIII(FilmSpectral):
             688.4941: 0.9033,
             695.0232: 0.8898,
             702.7182: 0.8681,
-        }
-        green_sd = {
+        },
+        {
             407.8583: 0.0724,
             414.8538: 0.0911,
             420.8000: 0.1056,
@@ -402,8 +379,8 @@ class KodakAerochromeIII(FilmSpectral):
             680.6824: 0.0199,
             687.6779: 0.0139,
             692.9245: 0.0108,
-        }
-        blue_sd = {
+        },
+        {
             405.4099: 0.6529,
             412.0556: 0.7089,
             419.0511: 0.7639,
@@ -429,88 +406,84 @@ class KodakAerochromeIII(FilmSpectral):
             552.6650: 0.0338,
             559.6605: 0.0225,
             565.2568: 0.0146,
+        },
+    ],
+    d_ref_sd={
+        404.3606: 0.9275,
+        408.9077: 0.9541,
+        422.5489: 1.0392,
+        429.5444: 1.0710,
+        436.5398: 1.0922,
+        443.5353: 1.0948,
+        450.5308: 1.0783,
+        457.5263: 1.0457,
+        461.7236: 1.0216,
+        472.9164: 0.9349,
+        479.9119: 0.8864,
+        486.9074: 0.8439,
+        492.8535: 0.8225,
+        505.7952: 0.8314,
+        512.7907: 0.8646,
+        519.7862: 0.9122,
+        525.7323: 0.9550,
+        538.6740: 1.0528,
+        545.6695: 1.0905,
+        552.6650: 1.1112,
+        559.6605: 1.1166,
+        566.6559: 1.1078,
+        573.6514: 1.0803,
+        580.6469: 1.0432,
+        584.4944: 1.0230,
+        594.9877: 0.9660,
+        607.2298: 0.9258,
+        614.2253: 0.9213,
+        621.2208: 0.9278,
+        628.2163: 0.9437,
+        635.2117: 0.9615,
+        642.2072: 0.9746,
+        649.2027: 0.9797,
+        656.1982: 0.9797,
+        663.1937: 0.9700,
+        670.1892: 0.9556,
+        677.1847: 0.9400,
+        681.0322: 0.9295,
+        697.8991: 0.8832,
+        702.7182: 0.8671,
+    },
+    mtf=[
+        {
+            2.6116: 1.0233,
+            2.9423: 1.0282,
+            3.3148: 1.0293,
+            3.7346: 1.0239,
+            4.2074: 1.0147,
+            4.7402: 1.0019,
+            5.3404: 0.9798,
+            6.0166: 0.9511,
+            6.7784: 0.9150,
+            7.6450: 0.8692,
+            8.6036: 0.8182,
+            9.6930: 0.7613,
+            10.9204: 0.7027,
+            12.3031: 0.6500,
+            13.8609: 0.5991,
+            15.6160: 0.5457,
+            17.5933: 0.4898,
+            19.8210: 0.4322,
+            22.0900: 0.3812,
+            23.8312: 0.3467,
+            30.0848: 0.2530,
+            32.8098: 0.2229,
+            35.7816: 0.1967,
+            38.8117: 0.1738,
+            42.0984: 0.1529,
+            45.9116: 0.1334,
+            48.9965: 0.1206,
         }
-        midscale_sd = {
-            404.3606: 0.9275,
-            408.9077: 0.9541,
-            422.5489: 1.0392,
-            429.5444: 1.0710,
-            436.5398: 1.0922,
-            443.5353: 1.0948,
-            450.5308: 1.0783,
-            457.5263: 1.0457,
-            461.7236: 1.0216,
-            472.9164: 0.9349,
-            479.9119: 0.8864,
-            486.9074: 0.8439,
-            492.8535: 0.8225,
-            505.7952: 0.8314,
-            512.7907: 0.8646,
-            519.7862: 0.9122,
-            525.7323: 0.9550,
-            538.6740: 1.0528,
-            545.6695: 1.0905,
-            552.6650: 1.1112,
-            559.6605: 1.1166,
-            566.6559: 1.1078,
-            573.6514: 1.0803,
-            580.6469: 1.0432,
-            584.4944: 1.0230,
-            594.9877: 0.9660,
-            607.2298: 0.9258,
-            614.2253: 0.9213,
-            621.2208: 0.9278,
-            628.2163: 0.9437,
-            635.2117: 0.9615,
-            642.2072: 0.9746,
-            649.2027: 0.9797,
-            656.1982: 0.9797,
-            663.1937: 0.9700,
-            670.1892: 0.9556,
-            677.1847: 0.9400,
-            681.0322: 0.9295,
-            697.8991: 0.8832,
-            702.7182: 0.8671,
-        }
-
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-        self.d_ref_sd = colour.SpectralDistribution(midscale_sd)
-        self.mtf = [
-            {
-                2.6116: 1.0233,
-                2.9423: 1.0282,
-                3.3148: 1.0293,
-                3.7346: 1.0239,
-                4.2074: 1.0147,
-                4.7402: 1.0019,
-                5.3404: 0.9798,
-                6.0166: 0.9511,
-                6.7784: 0.9150,
-                7.6450: 0.8692,
-                8.6036: 0.8182,
-                9.6930: 0.7613,
-                10.9204: 0.7027,
-                12.3031: 0.6500,
-                13.8609: 0.5991,
-                15.6160: 0.5457,
-                17.5933: 0.4898,
-                19.8210: 0.4322,
-                22.0900: 0.3812,
-                23.8312: 0.3467,
-                30.0848: 0.2530,
-                32.8098: 0.2229,
-                35.7816: 0.1967,
-                38.8117: 0.1738,
-                42.0984: 0.1529,
-                45.9116: 0.1334,
-                48.9965: 0.1206,
-            }
-        ]
-
-        # taken from kodak ektachrome 100
-        red_rms = {
+    ],
+    color_masking=0.0,
+    rms_curve=[
+        {  # copied from Ektachrome 100D
             -2.9756: 0.0307,
             -2.1453: 0.0279,
             -1.8942: 0.0311,
@@ -523,8 +496,8 @@ class KodakAerochromeIII(FilmSpectral):
             -0.2477: 0.0028,
             -0.1151: 0.0022,
             -0.0056: 0.0021,
-        }
-        green_rms = {
+        },
+        {
             -2.5221: 0.0330,
             -2.1070: 0.0336,
             -1.7198: 0.0292,
@@ -535,8 +508,8 @@ class KodakAerochromeIII(FilmSpectral):
             -0.3837: 0.0026,
             -0.1744: 0.0019,
             -0.0042: 0.0017,
-        }
-        blue_rms = {
+        },
+        {
             -2.0505: 0.0532,
             -1.9263: 0.0585,
             -1.8495: 0.0600,
@@ -553,8 +526,10 @@ class KodakAerochromeIII(FilmSpectral):
             -0.2058: 0.0023,
             -0.0907: 0.0020,
             0.0014: 0.0018,
-        }
-        red_rms_density = {
+        },
+    ],
+    rms_density=[
+        {
             -2.9491: 3.2977,
             -2.7506: 3.2900,
             -2.5555: 3.2266,
@@ -572,8 +547,8 @@ class KodakAerochromeIII(FilmSpectral):
             -0.2536: 0.2025,
             -0.1170: 0.1401,
             -0.0063: 0.1182,
-        }
-        green_rms_density = {
+        },
+        {
             -2.4998: 3.5549,
             -2.4127: 3.5002,
             -2.3117: 3.3962,
@@ -587,8 +562,8 @@ class KodakAerochromeIII(FilmSpectral):
             -0.3504: 0.2047,
             -0.1414: 0.0974,
             -0.0028: 0.0591,
-        }
-        blue_rms_density = {
+        },
+        {
             -2.0532: 2.8501,
             -1.8414: 2.2908,
             -1.5836: 1.7129,
@@ -600,44 +575,41 @@ class KodakAerochromeIII(FilmSpectral):
             -0.2703: 0.0919,
             -0.1101: 0.0394,
             0.0000: 0.0296,
-        }
-        self.rms_curve = [red_rms, green_rms, blue_rms]
-        self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
-        self.rms = 23
+        },
+    ],
+    rms=23,
+)
 
-        self.color_masking = 0.0
-
-        self.calibrate()
-
-        spectral_shape_nri = colour.SpectralShape(380, 900, 5)
-
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        self.log_sensitivity = xp.stack(
-            [
-                xp.asarray(
-                    colour.SpectralDistribution(x)
-                    .align(spectral_shape_nri, extrapolator_kwargs={"method": "linear"})
-                    .align(spectral_shape_nri)
-                    .values
-                )
-                for x in self.log_sensitivity
-            ]
-        ).T
-        self.sensitivity = 10**self.log_sensitivity
-        self.sensitivity *= xp.concatenate(
-            [
-                WRATTEN["12"],
-                xp.ones(self.sensitivity.shape[0] - WRATTEN["12"].shape[0])
-                * WRATTEN["12"][-1],
-            ]
-        ).reshape(-1, 1)
-
-        self.XYZ_to_exp = (
-            self.sensitivity.T
-            @ densiometry.compute_xyz_dual(spectral_shape=spectral_shape_nri)[1]
-        )
+# TODO: implement
+# spectral_shape_nri = colour.SpectralShape(380, 900, 5)
+#
+# self.log_sensitivity = [
+#     red_log_sensitivity,
+#     green_log_sensitivity,
+#     blue_log_sensitivity,
+# ]
+#
+# self.log_sensitivity = xp.stack(
+#     [
+#         xp.asarray(
+#             colour.SpectralDistribution(x)
+#             .align(spectral_shape_nri, extrapolator_kwargs={"method": "linear"})
+#             .align(spectral_shape_nri)
+#             .values
+#         )
+#         for x in self.log_sensitivity
+#     ]
+# ).T
+# self.sensitivity = 10**self.log_sensitivity
+# self.sensitivity *= xp.concatenate(
+#     [
+#         WRATTEN["12"],
+#         xp.ones(self.sensitivity.shape[0] - WRATTEN["12"].shape[0])
+#         * WRATTEN["12"][-1],
+#     ]
+# ).reshape(-1, 1)
+#
+# self.XYZ_to_exp = (
+#     self.sensitivity.T
+#     @ densiometry.compute_xyz_dual(spectral_shape=spectral_shape_nri)[1]
+# )

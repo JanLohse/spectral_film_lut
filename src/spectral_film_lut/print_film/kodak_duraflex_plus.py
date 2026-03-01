@@ -1,18 +1,15 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_data import FilmData
 
-
-class KodakDuraflexPlus(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.density_measure = "status_a"
-        self.manufacturer = "Kodak"
-        self.stage = "print"
-        self.type = "negative"
-        self.medium = "photo"
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+KODAK_DURAFLEX_PLUS = FilmData(
+    name="Kodak Duraflex Plus",
+    density_measure="status_a",
+    year=2004,
+    manufacturer="",
+    stage="print",
+    film_type="negative",
+    medium="photo",
+    log_sensitivity=[
+        {
             500.7862: -1.5181,
             507.3375: -1.4346,
             514.6751: -1.3873,
@@ -47,8 +44,8 @@ class KodakDuraflexPlus(FilmSpectral):
             717.7673: -0.4192,
             728.6426: -0.9617,
             740.9591: -1.6293,
-        }
-        green_log_sensitivity = {
+        },
+        {
             401.2055: -0.4498,
             407.2327: -0.4804,
             411.6876: -0.5332,
@@ -83,8 +80,8 @@ class KodakDuraflexPlus(FilmSpectral):
             576.2579: -1.0729,
             578.6164: -1.2287,
             580.8438: -1.4694,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             380.8962: 0.0482,
             386.1373: 0.3236,
             390.8543: 0.5156,
@@ -114,15 +111,10 @@ class KodakDuraflexPlus(FilmSpectral):
             506.1583: -0.8838,
             509.5650: -1.1870,
             510.8753: -1.3011,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -2.9999: 0.1035,
             -2.3049: 0.1061,
             -2.0482: 0.1103,
@@ -160,8 +152,8 @@ class KodakDuraflexPlus(FilmSpectral):
             -0.2948: 2.5559,
             -0.2267: 2.5678,
             -0.1540: 2.5814,
-        }
-        green_curve = {
+        },
+        {
             -2.9988: 0.1052,
             -2.8659: 0.1095,
             -2.3253: 0.1086,
@@ -198,8 +190,8 @@ class KodakDuraflexPlus(FilmSpectral):
             -0.3947: 2.5517,
             -0.3005: 2.5653,
             -0.1540: 2.5848,
-        }
-        blue_curve = {
+        },
+        {
             -2.8625: 0.0993,
             -2.2686: 0.1001,
             -2.0392: 0.1052,
@@ -233,22 +225,10 @@ class KodakDuraflexPlus(FilmSpectral):
             -0.3016: 2.3688,
             -0.2255: 2.3773,
             -0.1517: 2.3850,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             399.7571: 1.1988,
             405.8300: 1.0229,
             411.4170: 0.8470,
@@ -286,8 +266,8 @@ class KodakDuraflexPlus(FilmSpectral):
             682.2672: 1.1664,
             691.1336: 1.1068,
             699.7571: 1.0451,
-        }
-        green_sd = {
+        },
+        {
             400.0000: 0.8673,
             403.0364: 0.7278,
             407.4089: 0.5398,
@@ -331,8 +311,8 @@ class KodakDuraflexPlus(FilmSpectral):
             684.9393: 0.1132,
             694.8988: 0.1112,
             699.5142: 0.1092,
-        }
-        blue_sd = {
+        },
+        {
             400.4858: 1.3726,
             409.7166: 1.3504,
             415.3036: 1.3464,
@@ -359,9 +339,6 @@ class KodakDuraflexPlus(FilmSpectral):
             624.4534: 0.1395,
             658.2186: 0.1233,
             699.5142: 0.1071,
-        }
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-
-        self.calibrate()
+        },
+    ],
+)

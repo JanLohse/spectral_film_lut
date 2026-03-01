@@ -1,7 +1,7 @@
-from spectral_film_lut.film_spectral import FilmData
+from spectral_film_lut.film_data import FilmData
 
 KODAK_5207 = FilmData(
-    name="Kodak 5207",
+    name="Kodak Vision3 250D 5207",
     manufacturer="Kodak",
     year=2009,
     iso=250,
@@ -73,7 +73,6 @@ KODAK_5207 = FilmData(
             7.9962: 2.7331,
         },
     ],
-    alias="VISION3 250D Color Negative Film 5207/7207",
     exposure_base=2,
     log_sensitivity=[
         {

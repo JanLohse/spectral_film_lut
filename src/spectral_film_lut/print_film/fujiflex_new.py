@@ -1,19 +1,14 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_data import FilmData
 
-
-class FujiflexNew(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.density_measure = "status_a"
-        self.manufacturer = "Fujifilm"
-        self.stage = "print"
-        self.type = "negative"
-        self.medium = "photo"
-        self.comment = "Optimized for laser printing."
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+FUJIFLEX_NEW = FilmData(
+    name="Fujiflex Crystal Archive New Version",
+    density_measure="status_a",
+    manufacturer="Fujifilm",
+    stage="print",
+    film_type="negative",
+    medium="photo",
+    log_sensitivity=[
+        {
             589.7251: -0.6055,
             604.4840: -0.4833,
             615.5250: -0.3783,
@@ -35,8 +30,8 @@ class FujiflexNew(FilmSpectral):
             718.7247: 0.2781,
             722.2172: 0.1776,
             725.0338: 0.0897,
-        }
-        green_log_sensitivity = {
+        },
+        {
             437.4042: -0.1295,
             445.6287: -0.0450,
             458.5849: 0.1525,
@@ -66,8 +61,8 @@ class FujiflexNew(FilmSpectral):
             573.7269: -0.2447,
             578.6841: -0.4799,
             583.9793: -0.6409,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             376.4534: 0.1913,
             381.6359: 0.5155,
             386.2551: 0.7050,
@@ -101,15 +96,10 @@ class FujiflexNew(FilmSpectral):
             519.6485: -0.3680,
             523.4790: -0.4457,
             527.7603: -0.5027,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -0.2523: 0.0989,
             -0.0881: 0.1029,
             0.0221: 0.1119,
@@ -131,8 +121,8 @@ class FujiflexNew(FilmSpectral):
             1.3998: 2.7577,
             1.4879: 2.7617,
             1.5379: 2.7617,
-        }
-        green_curve = {
+        },
+        {
             -0.2402: 0.1330,
             -0.1541: 0.1310,
             0.0401: 0.1470,
@@ -160,8 +150,8 @@ class FujiflexNew(FilmSpectral):
             1.3577: 2.7677,
             1.4498: 2.7687,
             1.5359: 2.7697,
-        }
-        blue_curve = {
+        },
+        {
             -0.2503: 0.0989,
             -0.1561: 0.0969,
             -0.0600: 0.1049,
@@ -187,22 +177,10 @@ class FujiflexNew(FilmSpectral):
             1.3647: 2.4912,
             1.4458: 2.5032,
             1.5319: 2.5122,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             378.1022: 0.0518,
             413.7956: 0.0447,
             439.8540: 0.0397,
@@ -237,8 +215,8 @@ class FujiflexNew(FilmSpectral):
             711.1679: 0.3837,
             715.7664: 0.3572,
             720.1460: 0.3379,
-        }
-        green_sd = {
+        },
+        {
             377.5547: 0.0237,
             401.7518: 0.0331,
             416.8613: 0.0408,
@@ -272,8 +250,8 @@ class FujiflexNew(FilmSpectral):
             640.6569: 0.0248,
             656.4234: 0.0143,
             702.6277: 0.0127,
-        }
-        blue_sd = {
+        },
+        {
             377.4453: 0.0871,
             383.3577: 0.1367,
             389.9270: 0.2106,
@@ -302,9 +280,6 @@ class FujiflexNew(FilmSpectral):
             554.8175: 0.0232,
             593.5766: 0.0187,
             647.6642: 0.0160,
-        }
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-
-        self.calibrate()
+        },
+    ],
+)

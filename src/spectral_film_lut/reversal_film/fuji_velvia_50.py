@@ -1,20 +1,16 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_data import FilmData
 
-
-class FujiVelvia50(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.iso = 50
-        self.density_measure = "status_a"
-        self.manufacturer = "Fujifilm"
-        self.stage = "camera"
-        self.type = "positive"
-        self.medium = "photo"
-        self.year = 2007
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+FUJI_VELVIA_50 = FilmData(
+    name="Fuji Velvia 50",
+    iso=50,
+    density_measure="status_a",
+    manufacturer="Fujifilm",
+    stage="camera",
+    film_type="positive",
+    medium="photo",
+    year=2007,
+    log_sensitivity=[
+        {
             579.0990: -0.8037,
             583.8257: -0.6074,
             586.7799: -0.4504,
@@ -36,8 +32,8 @@ class FujiVelvia50(FilmSpectral):
             686.6322: -0.4548,
             689.3648: -0.5444,
             691.1374: -0.6207,
-        }
-        green_log_sensitivity = {
+        },
+        {
             486.0157: -0.7274,
             494.3553: -0.4890,
             499.5271: -0.3441,
@@ -58,8 +54,8 @@ class FujiVelvia50(FilmSpectral):
             583.4400: 0.1392,
             588.4825: -0.2603,
             591.8442: -0.5406,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             387.4924: -0.2861,
             393.1814: 0.1070,
             397.7068: 0.3615,
@@ -81,15 +77,10 @@ class FujiVelvia50(FilmSpectral):
             485.8218: -0.3731,
             489.7653: -0.5728,
             493.8381: -0.7796,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -2.8207: 3.3492,
             -2.4732: 3.3448,
             -2.1301: 3.3222,
@@ -110,8 +101,8 @@ class FujiVelvia50(FilmSpectral):
             0.5670: 0.1351,
             0.8970: 0.1334,
             1.1168: 0.1404,
-        }
-        green_curve = {
+        },
+        {
             -2.8146: 3.8129,
             -2.5861: 3.8042,
             -2.3256: 3.7720,
@@ -133,8 +124,8 @@ class FujiVelvia50(FilmSpectral):
             0.7581: 0.1543,
             0.9492: 0.1630,
             1.1142: 0.1682,
-        }
-        blue_curve = {
+        },
+        {
             -2.8207: 3.7111,
             -2.5688: 3.6954,
             -2.3516: 3.6737,
@@ -160,22 +151,10 @@ class FujiVelvia50(FilmSpectral):
             0.4592: 0.1551,
             0.8319: 0.1612,
             1.1107: 0.1673,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             382.3151: 0.3404,
             385.0161: 0.3162,
             386.4952: 0.2807,
@@ -201,8 +180,8 @@ class FujiVelvia50(FilmSpectral):
             701.9293: 0.7761,
             710.2251: 0.6934,
             719.6141: 0.6066,
-        }
-        green_sd = {
+        },
+        {
             381.1691: 0.2734,
             385.0530: 0.2054,
             388.5838: 0.1537,
@@ -236,8 +215,8 @@ class FujiVelvia50(FilmSpectral):
             661.6320: 0.0393,
             692.2322: 0.0171,
             719.3017: 0.0145,
-        }
-        blue_sd = {
+        },
+        {
             381.5222: 0.5483,
             385.2883: 0.5031,
             388.2895: 0.4685,
@@ -263,34 +242,30 @@ class FujiVelvia50(FilmSpectral):
             569.8313: 0.0378,
             585.1314: 0.0148,
             598.6661: 0.0024,
+        },
+    ],
+    mtf=[
+        {
+            1.1569: 0.9978,
+            1.5077: 1.0076,
+            2.1657: 1.0512,
+            2.8841: 1.0884,
+            4.1877: 1.1429,
+            6.1467: 1.1924,
+            8.3195: 1.2159,
+            10.7838: 1.2186,
+            14.5171: 1.1668,
+            19.2285: 1.0627,
+            25.9414: 0.9010,
+            33.3721: 0.7314,
+            40.8485: 0.5835,
+            48.3522: 0.4675,
+            61.4669: 0.3324,
         }
-
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-
-        self.mtf = [
-            {
-                1.1569: 0.9978,
-                1.5077: 1.0076,
-                2.1657: 1.0512,
-                2.8841: 1.0884,
-                4.1877: 1.1429,
-                6.1467: 1.1924,
-                8.3195: 1.2159,
-                10.7838: 1.2186,
-                14.5171: 1.1668,
-                19.2285: 1.0627,
-                25.9414: 0.9010,
-                33.3721: 0.7314,
-                40.8485: 0.5835,
-                48.3522: 0.4675,
-                61.4669: 0.3324,
-            }
-        ]
-
-        # copied from Ektachrome 100D
-        red_rms = {
+    ],
+    color_masking=0.75,
+    rms_curve=[
+        {  # copied from Ektachrome 100D
             -2.9756: 0.0307,
             -2.1453: 0.0279,
             -1.8942: 0.0311,
@@ -303,8 +278,8 @@ class FujiVelvia50(FilmSpectral):
             -0.2477: 0.0028,
             -0.1151: 0.0022,
             -0.0056: 0.0021,
-        }
-        green_rms = {
+        },
+        {
             -2.5221: 0.0330,
             -2.1070: 0.0336,
             -1.7198: 0.0292,
@@ -315,8 +290,8 @@ class FujiVelvia50(FilmSpectral):
             -0.3837: 0.0026,
             -0.1744: 0.0019,
             -0.0042: 0.0017,
-        }
-        blue_rms = {
+        },
+        {
             -2.0505: 0.0532,
             -1.9263: 0.0585,
             -1.8495: 0.0600,
@@ -333,8 +308,10 @@ class FujiVelvia50(FilmSpectral):
             -0.2058: 0.0023,
             -0.0907: 0.0020,
             0.0014: 0.0018,
-        }
-        red_rms_density = {
+        },
+    ],
+    rms_density=[
+        {
             -2.9491: 3.2977,
             -2.7506: 3.2900,
             -2.5555: 3.2266,
@@ -352,8 +329,8 @@ class FujiVelvia50(FilmSpectral):
             -0.2536: 0.2025,
             -0.1170: 0.1401,
             -0.0063: 0.1182,
-        }
-        green_rms_density = {
+        },
+        {
             -2.4998: 3.5549,
             -2.4127: 3.5002,
             -2.3117: 3.3962,
@@ -367,8 +344,8 @@ class FujiVelvia50(FilmSpectral):
             -0.3504: 0.2047,
             -0.1414: 0.0974,
             -0.0028: 0.0591,
-        }
-        blue_rms_density = {
+        },
+        {
             -2.0532: 2.8501,
             -1.8414: 2.2908,
             -1.5836: 1.7129,
@@ -380,11 +357,7 @@ class FujiVelvia50(FilmSpectral):
             -0.2703: 0.0919,
             -0.1101: 0.0394,
             0.0000: 0.0296,
-        }
-        self.rms_curve = [red_rms, green_rms, blue_rms]
-        self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
-        self.rms = 9
-
-        self.color_masking = 0.75
-
-        self.calibrate()
+        },
+    ],
+    rms=9,
+)

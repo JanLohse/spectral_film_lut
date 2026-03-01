@@ -1,18 +1,14 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_data import FilmData
 
-
-class KodakPortraEndura(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.density_measure = "status_a"
-        self.manufacturer = "Kodak"
-        self.stage = "print"
-        self.type = "negative"
-        self.medium = "photo"
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+KODAK_PORTRA_ENDURA = FilmData(
+    name="Kodak Portra Endura Paper",
+    density_measure="status_a",
+    manufacturer="Kodak",
+    stage="print",
+    film_type="negative",
+    medium="photo",
+    log_sensitivity=[
+        {
             494.2737: -1.4187,
             500.1397: -1.3608,
             504.7486: -1.2962,
@@ -57,8 +53,8 @@ class KodakPortraEndura(FilmSpectral):
             734.9860: -1.3987,
             737.0810: -1.5256,
             738.5475: -1.6058,
-        }
-        green_log_sensitivity = {
+        },
+        {
             389.3156: -0.0200,
             391.8296: -0.2561,
             393.9246: -0.4209,
@@ -98,8 +94,8 @@ class KodakPortraEndura(FilmSpectral):
             572.6257: -1.1114,
             577.8631: -1.4321,
             583.9385: -1.7416,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             379.2598: -0.0512,
             386.8017: 0.2539,
             393.7151: 0.4477,
@@ -130,15 +126,10 @@ class KodakPortraEndura(FilmSpectral):
             502.4441: -0.8931,
             506.0056: -1.2316,
             509.1480: -1.4878,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -3.0000: 0.0888,
             -2.3878: 0.0952,
             -2.2468: 0.1081,
@@ -167,8 +158,8 @@ class KodakPortraEndura(FilmSpectral):
             -0.3718: 2.6240,
             -0.3045: 2.6321,
             -0.1603: 2.6563,
-        }
-        green_curve = {
+        },
+        {
             -2.9904: 0.0920,
             -2.2949: 0.1033,
             -2.0481: 0.1662,
@@ -189,8 +180,8 @@ class KodakPortraEndura(FilmSpectral):
             -0.4519: 2.6095,
             -0.3269: 2.6272,
             -0.1587: 2.6595,
-        }
-        blue_curve = {
+        },
+        {
             -2.9936: 0.0904,
             -2.3942: 0.0968,
             -2.2051: 0.1162,
@@ -215,22 +206,10 @@ class KodakPortraEndura(FilmSpectral):
             -0.4423: 2.4077,
             -0.3077: 2.4142,
             -0.1635: 2.4223,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             400.2987: 0.1155,
             408.3624: 0.1081,
             419.7113: 0.0932,
@@ -262,8 +241,8 @@ class KodakPortraEndura(FilmSpectral):
             687.9044: 0.3652,
             695.0722: 0.3081,
             699.8507: 0.2720,
-        }
-        green_sd = {
+        },
+        {
             400.2987: 0.0422,
             415.8288: 0.0484,
             429.8656: 0.0484,
@@ -297,8 +276,8 @@ class KodakPortraEndura(FilmSpectral):
             675.0622: 0.0298,
             691.7870: 0.0236,
             700.4480: 0.0211,
-        }
-        blue_sd = {
+        },
+        {
             400.2987: 0.4087,
             406.7198: 0.5391,
             410.9009: 0.6261,
@@ -331,9 +310,6 @@ class KodakPortraEndura(FilmSpectral):
             678.6461: 0.0112,
             695.9681: 0.0087,
             699.5520: 0.0112,
-        }
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-
-        self.calibrate()
+        },
+    ],
+)

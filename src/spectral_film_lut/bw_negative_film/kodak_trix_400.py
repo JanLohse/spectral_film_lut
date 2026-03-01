@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from spectral_film_lut.film_spectral import FilmData
+from spectral_film_lut.film_data import FilmData
 
 curve = {
     6: {
@@ -187,17 +187,17 @@ KODAK_TRI_X_400 = FilmData(
 )
 
 KODAK_TRI_X_400_DEV_6 = replace(
-    KODAK_TRI_X_400, name="Kodak trix x 400 dev 6", sensiometric_curve=[curve[6]]
+    KODAK_TRI_X_400, name="Kodak Trix-X 400 Dev 6", sensiometric_curve=[curve[6]]
 )
 
 KODAK_TRI_X_400_DEV_7 = replace(
-    KODAK_TRI_X_400, name="Kodak trix x 400 dev 7", sensiometric_curve=[curve[7]]
+    KODAK_TRI_X_400, name="Kodak Trix-X 400 Dev 7", sensiometric_curve=[curve[7]]
 )
 
 KODAK_TRI_X_400_DEV_9 = replace(
-    KODAK_TRI_X_400, name="Kodak trix x 400 dev 9", sensiometric_curve=[curve[9]]
+    KODAK_TRI_X_400, name="Kodak Trix-X 400 Dev 9", sensiometric_curve=[curve[9]]
 )
 
 KODAK_TRI_X_400_DEV_11 = replace(
-    KODAK_TRI_X_400, name="Kodak trix x 400 dev 11", sensiometric_curve=[curve[11]]
+    KODAK_TRI_X_400, name="Kodak Trix-X 400 Dev 11", sensiometric_curve=[curve[11]]
 )

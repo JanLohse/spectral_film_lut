@@ -1,20 +1,16 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_data import FilmData
 
-
-class FujiProvia100F(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.iso = 100
-        self.density_measure = "status_a"
-        self.manufacturer = "Fujifilm"
-        self.stage = "camera"
-        self.type = "positive"
-        self.medium = "photo"
-        self.year = 2000
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+FUJI_PROVIA_100F = FilmData(
+    name="Fuji Provia 100F",
+    iso=100,
+    density_measure="status_a",
+    manufacturer="Fujifilm",
+    stage="camera",
+    film_type="positive",
+    medium="photo",
+    year=2000,
+    log_sensitivity=[
+        {
             571.5337: -0.5466,
             576.9325: -0.4540,
             581.1043: -0.3572,
@@ -34,8 +30,8 @@ class FujiProvia100F(FilmSpectral):
             665.5215: -0.1765,
             667.9141: -0.4032,
             671.0429: -0.5870,
-        }
-        green_log_sensitivity = {
+        },
+        {
             475.4601: -0.6097,
             481.3497: -0.4491,
             488.4663: -0.2163,
@@ -58,8 +54,8 @@ class FujiProvia100F(FilmSpectral):
             591.0429: 0.1299,
             594.7239: -0.2531,
             597.6074: -0.6134,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             388.6503: -0.8536,
             394.7239: -0.2561,
             402.2086: 0.3811,
@@ -79,15 +75,10 @@ class FujiProvia100F(FilmSpectral):
             492.3926: -0.2010,
             497.5460: -0.5043,
             501.2270: -0.6605,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -3.3819: 3.2890,
             -3.1206: 3.2916,
             -2.8652: 3.2832,
@@ -109,8 +100,8 @@ class FujiProvia100F(FilmSpectral):
             0.1448: 0.0854,
             0.3236: 0.0804,
             0.8270: 0.0812,
-        }
-        green_curve = {
+        },
+        {
             -3.3827: 3.4255,
             -3.1456: 3.4255,
             -2.8003: 3.4255,
@@ -135,8 +126,8 @@ class FujiProvia100F(FilmSpectral):
             0.2529: 0.0820,
             0.4900: 0.0820,
             0.8270: 0.0820,
-        }
-        blue_curve = {
+        },
+        {
             -3.3852: 3.3359,
             -3.0000: 3.3368,
             -2.7920: 3.3250,
@@ -159,22 +150,10 @@ class FujiProvia100F(FilmSpectral):
             0.4110: 0.0820,
             0.6439: 0.0837,
             0.8270: 0.0837,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             389.9301: 0.2806,
             399.2208: 0.2436,
             418.4016: 0.1976,
@@ -199,8 +178,8 @@ class FujiProvia100F(FilmSpectral):
             699.5804: 0.7719,
             709.4106: 0.6717,
             718.7013: 0.5799,
-        }
-        green_sd = {
+        },
+        {
             388.9710: 0.1550,
             407.7922: 0.1733,
             420.3796: 0.1941,
@@ -231,8 +210,8 @@ class FujiProvia100F(FilmSpectral):
             685.1349: 0.0341,
             703.8961: 0.0252,
             717.0829: 0.0219,
-        }
-        blue_sd = {
+        },
+        {
             389.8102: 0.4104,
             397.1229: 0.5022,
             407.9121: 0.6447,
@@ -263,30 +242,26 @@ class FujiProvia100F(FilmSpectral):
             692.2078: 0.0080,
             708.3916: 0.0074,
             719.0010: 0.0092,
+        },
+    ],
+    mtf=[
+        {
+            1.3438: 1.1709,
+            2.1505: 1.1722,
+            4.6331: 1.1659,
+            7.4302: 1.1622,
+            13.2662: 1.0955,
+            19.0687: 0.9756,
+            26.3137: 0.8077,
+            34.1195: 0.6323,
+            44.1459: 0.4413,
+            52.7004: 0.3346,
+            61.0497: 0.2580,
         }
-
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-
-        self.mtf = [
-            {
-                1.3438: 1.1709,
-                2.1505: 1.1722,
-                4.6331: 1.1659,
-                7.4302: 1.1622,
-                13.2662: 1.0955,
-                19.0687: 0.9756,
-                26.3137: 0.8077,
-                34.1195: 0.6323,
-                44.1459: 0.4413,
-                52.7004: 0.3346,
-                61.0497: 0.2580,
-            }
-        ]
-
-        # copied from Ektachrome 100D
-        red_rms = {
+    ],
+    color_masking=0.25,
+    rms_curve=[
+        {  # copied from Ektachrome 100D
             -2.9756: 0.0307,
             -2.1453: 0.0279,
             -1.8942: 0.0311,
@@ -299,8 +274,8 @@ class FujiProvia100F(FilmSpectral):
             -0.2477: 0.0028,
             -0.1151: 0.0022,
             -0.0056: 0.0021,
-        }
-        green_rms = {
+        },
+        {
             -2.5221: 0.0330,
             -2.1070: 0.0336,
             -1.7198: 0.0292,
@@ -311,8 +286,8 @@ class FujiProvia100F(FilmSpectral):
             -0.3837: 0.0026,
             -0.1744: 0.0019,
             -0.0042: 0.0017,
-        }
-        blue_rms = {
+        },
+        {
             -2.0505: 0.0532,
             -1.9263: 0.0585,
             -1.8495: 0.0600,
@@ -329,8 +304,10 @@ class FujiProvia100F(FilmSpectral):
             -0.2058: 0.0023,
             -0.0907: 0.0020,
             0.0014: 0.0018,
-        }
-        red_rms_density = {
+        },
+    ],
+    rms_density=[
+        {
             -2.9491: 3.2977,
             -2.7506: 3.2900,
             -2.5555: 3.2266,
@@ -348,8 +325,8 @@ class FujiProvia100F(FilmSpectral):
             -0.2536: 0.2025,
             -0.1170: 0.1401,
             -0.0063: 0.1182,
-        }
-        green_rms_density = {
+        },
+        {
             -2.4998: 3.5549,
             -2.4127: 3.5002,
             -2.3117: 3.3962,
@@ -363,8 +340,8 @@ class FujiProvia100F(FilmSpectral):
             -0.3504: 0.2047,
             -0.1414: 0.0974,
             -0.0028: 0.0591,
-        }
-        blue_rms_density = {
+        },
+        {
             -2.0532: 2.8501,
             -1.8414: 2.2908,
             -1.5836: 1.7129,
@@ -376,15 +353,7 @@ class FujiProvia100F(FilmSpectral):
             -0.2703: 0.0919,
             -0.1101: 0.0394,
             0.0000: 0.0296,
-        }
-        self.rms_curve = [red_rms, green_rms, blue_rms]
-        self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
-        self.rms = 9
-
-        self.color_masking = 0.25
-
-        self.calibrate()
-
-
-if __name__ == "__main__":
-    FujiProvia100F()
+        },
+    ],
+    rms=9,
+)

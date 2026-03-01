@@ -21,10 +21,10 @@ dependencies = ["colour-science>=0.4.7",
 ]
 
 [dependency-groups]
-dev = ["pre-commit>=4.5.1",
+dev = [
+    "pdoc>=16.0.0",
+    "pre-commit>=4.5.1",
     "ruff>=0.15.2",
-]
-docs = ["pdoc>=16.0.0",
 ]
 
 [project.urls]

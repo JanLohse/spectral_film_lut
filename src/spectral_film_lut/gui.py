@@ -215,7 +215,7 @@ class MainWindow(QMainWindow):
         add_option(
             self.negative_selector,
             "Negativ stock",
-            "Kodak 5207",
+            "Kodak Vision3 250D 5207",
             self.negative_selector.setCurrentText,
         )
 
@@ -282,7 +282,7 @@ class MainWindow(QMainWindow):
         add_option(
             self.print_selector,
             "Print stock",
-            "Kodak 2383",
+            "Kodak Vision 2383",
             self.print_selector.setCurrentText,
         )
 

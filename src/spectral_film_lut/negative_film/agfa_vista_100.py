@@ -1,4 +1,4 @@
-from spectral_film_lut.film_spectral import FilmData
+from spectral_film_lut.film_data import FilmData
 
 AGFA_VISTA_100 = FilmData(
     name="Agfa Vista 100",

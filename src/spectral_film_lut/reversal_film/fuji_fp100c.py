@@ -1,20 +1,17 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_data import FilmData
 
-
-class FujiFP100C(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.iso = 128
-        self.density_measure = "status_a"
-        self.manufacturer = "Fujifilm"
-        self.stage = "camera"
-        self.type = "positive"
-        self.medium = "photo"
-        self.year = 2002
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+FUJI_FP100C = FilmData(
+    name="Fuji FP-100C",
+    iso=128,
+    density_measure="status_a",
+    manufacturer="Fujifilm",
+    stage="camera",
+    film_type="positive",
+    medium="photo",
+    year=2002,
+    comment="Instant film.",
+    log_sensitivity=[
+        {
             563.4631: 0.2896,
             568.5559: 0.3486,
             573.9033: 0.4028,
@@ -56,8 +53,8 @@ class FujiFP100C(FilmSpectral):
             666.5922: 0.3037,
             667.6108: 0.2099,
             668.3747: 0.1620,
-        }
-        green_log_sensitivity = {
+        },
+        {
             495.7289: 0.2526,
             500.1144: 0.3171,
             504.1320: 0.3802,
@@ -100,8 +97,8 @@ class FujiFP100C(FilmSpectral):
             584.5982: 0.3334,
             585.6168: 0.2649,
             586.8390: 0.1944,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             392.8545: 1.1775,
             395.9101: 1.2339,
             399.4751: 1.2929,
@@ -142,15 +139,10 @@ class FujiFP100C(FilmSpectral):
             502.0949: 0.3988,
             505.1506: 0.2366,
             507.1877: 0.1685,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -2.5811: 2.1441,
             -2.5151: 2.1398,
             -2.4633: 2.1390,
@@ -191,8 +183,8 @@ class FujiFP100C(FilmSpectral):
             -0.1249: 0.1156,
             -0.0739: 0.1181,
             0.0964: 0.1194,
-        }
-        green_curve = {
+        },
+        {
             -2.5840: 2.2208,
             -2.5405: 2.2208,
             -2.3814: 2.2208,
@@ -235,8 +227,8 @@ class FujiFP100C(FilmSpectral):
             0.0155: 0.1051,
             0.0662: 0.1092,
             0.0997: 0.1092,
-        }
-        blue_curve = {
+        },
+        {
             -2.5735: 2.2031,
             -2.4567: 2.1939,
             -2.3882: 2.1863,
@@ -279,22 +271,10 @@ class FujiFP100C(FilmSpectral):
             -0.0678: 0.0894,
             0.0236: 0.0917,
             0.0921: 0.0939,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             387.9556: 0.1500,
             396.3414: 0.1331,
             404.9917: 0.1193,
@@ -356,8 +336,8 @@ class FujiFP100C(FilmSpectral):
             708.2944: 0.1012,
             714.8816: 0.0659,
             722.4823: 0.0410,
-        }
-        green_sd = {
+        },
+        {
             384.7257: 0.1562,
             392.2877: 0.1411,
             400.7377: 0.1254,
@@ -418,8 +398,8 @@ class FujiFP100C(FilmSpectral):
             710.8279: 0.0015,
             718.9353: -0.0003,
             725.7759: -0.0001,
-        }
-        blue_sd = {
+        },
+        {
             385.0128: 0.4024,
             389.0665: 0.4402,
             392.8668: 0.4790,
@@ -482,32 +462,26 @@ class FujiFP100C(FilmSpectral):
             712.8548: 0.0013,
             720.9621: -0.0003,
             725.7759: 0.0003,
+        },
+    ],
+    mtf=[
+        {
+            1.1569: 0.9978,
+            1.5077: 1.0076,
+            2.1657: 1.0512,
+            2.8841: 1.0884,
+            4.1877: 1.1429,
+            6.1467: 1.1924,
+            8.3195: 1.2159,
+            10.7838: 1.2186,
+            14.5171: 1.1668,
+            19.2285: 1.0627,
+            25.9414: 0.9010,
+            33.3721: 0.7314,
+            40.8485: 0.5835,
+            48.3522: 0.4675,
+            61.4669: 0.3324,
         }
-
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-
-        self.mtf = [
-            {
-                1.1569: 0.9978,
-                1.5077: 1.0076,
-                2.1657: 1.0512,
-                2.8841: 1.0884,
-                4.1877: 1.1429,
-                6.1467: 1.1924,
-                8.3195: 1.2159,
-                10.7838: 1.2186,
-                14.5171: 1.1668,
-                19.2285: 1.0627,
-                25.9414: 0.9010,
-                33.3721: 0.7314,
-                40.8485: 0.5835,
-                48.3522: 0.4675,
-                61.4669: 0.3324,
-            }
-        ]
-
-        self.color_masking = 0.20
-
-        self.calibrate(True)
+    ],
+    color_masking=0.20,
+)

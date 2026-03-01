@@ -1,21 +1,17 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_data import FilmData
 
-
-class KodakExr5386(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.lad = [1.10, 1.06, 1.03]
-        self.density_measure = "status_a"
-        self.manufacturer = "Kodak"
-        self.stage = "print"
-        self.type = "negative"
-        self.medium = "cine"
-        self.year = 1993
-        self.alias = "EASTMAN EXR Color Print Film 5386/7386/2386/3386"
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+KODAK_EXR_5386 = FilmData(
+    name="Kodak EXR 5386",
+    alias="EASTMAN EXR Color Print Film 5386/7386/2386/3386",
+    lad=[1.10, 1.06, 1.03],
+    density_measure="status_a",
+    year=1993,
+    manufacturer="Kodak",
+    stage="print",
+    film_type="negative",
+    medium="cine",
+    log_sensitivity=[
+        {
             369.7521: -0.3135,
             386.2810: -0.2679,
             400.1653: -0.3240,
@@ -44,8 +40,8 @@ class KodakExr5386(FilmSpectral):
             722.1488: -1.8181,
             727.1074: -1.9794,
             729.9174: -2.0951,
-        }
-        green_log_sensitivity = {
+        },
+        {
             400.8264: -0.6221,
             414.0496: -1.0149,
             418.6777: -1.1973,
@@ -71,8 +67,8 @@ class KodakExr5386(FilmSpectral):
             577.3554: -1.3902,
             583.6364: -1.8356,
             589.9174: -2.3284,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             399.8347: 0.0057,
             406.9421: 0.0267,
             414.0496: 0.0864,
@@ -94,15 +90,10 @@ class KodakExr5386(FilmSpectral):
             495.2066: -1.5059,
             497.8512: -1.7479,
             499.8347: -1.9075,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -0.6995: 0.0409,
             -0.4571: 0.0443,
             -0.1976: 0.0562,
@@ -135,8 +126,8 @@ class KodakExr5386(FilmSpectral):
             2.0303: 3.8176,
             2.1635: 3.8296,
             2.3871: 3.8483,
-        }
-        green_curve = {
+        },
+        {
             -0.7012: 0.0426,
             -0.5561: 0.0426,
             -0.4025: 0.0494,
@@ -170,8 +161,8 @@ class KodakExr5386(FilmSpectral):
             1.9774: 3.8517,
             2.1652: 3.8688,
             2.3820: 3.8790,
-        }
-        blue_curve = {
+        },
+        {
             -0.7029: 0.1227,
             -0.5083: 0.1210,
             -0.3000: 0.1278,
@@ -207,46 +198,34 @@ class KodakExr5386(FilmSpectral):
             2.0166: 3.9591,
             2.1959: 3.9693,
             2.3769: 3.9693,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        midscale_sd = {
-            400.2463: 0.4712,
-            408.0577: 0.5680,
-            415.0246: 0.6500,
-            423.0471: 0.7362,
-            430.0141: 0.8019,
-            437.1921: 0.8528,
-            442.6812: 0.8824,
-            447.9592: 0.8951,
-            455.7706: 0.8824,
-            463.5820: 0.8266,
-            474.9824: 0.7051,
-            488.7051: 0.5228,
-            503.2723: 0.3221,
-            510.8726: 0.2402,
-            520.7952: 0.1512,
-            530.7178: 0.0876,
-            544.2294: 0.0381,
-            564.4968: 0.0120,
-            599.9648: 0.0042,
-            633.7438: 0.0070,
-            667.5229: 0.0162,
-            698.1351: 0.0268,
-        }
-        red_sd = {
+        },
+    ],
+    d_ref_sd={
+        400.2463: 0.4712,
+        408.0577: 0.5680,
+        415.0246: 0.6500,
+        423.0471: 0.7362,
+        430.0141: 0.8019,
+        437.1921: 0.8528,
+        442.6812: 0.8824,
+        447.9592: 0.8951,
+        455.7706: 0.8824,
+        463.5820: 0.8266,
+        474.9824: 0.7051,
+        488.7051: 0.5228,
+        503.2723: 0.3221,
+        510.8726: 0.2402,
+        520.7952: 0.1512,
+        530.7178: 0.0876,
+        544.2294: 0.0381,
+        564.4968: 0.0120,
+        599.9648: 0.0042,
+        633.7438: 0.0070,
+        667.5229: 0.0162,
+        698.1351: 0.0268,
+    },
+    spectral_density=[
+        {
             400.6685: 0.3122,
             424.3139: 0.1907,
             443.7368: 0.0960,
@@ -269,8 +248,8 @@ class KodakExr5386(FilmSpectral):
             688.4236: 1.1156,
             694.3350: 1.0647,
             698.3462: 1.0259,
-        }
-        green_sd = {
+        },
+        {
             401.0908: 0.0904,
             415.4469: 0.1102,
             428.5362: 0.1194,
@@ -296,8 +275,8 @@ class KodakExr5386(FilmSpectral):
             636.2773: 0.0692,
             665.4117: 0.0325,
             697.5018: 0.0106,
-        }
-        blue_sd = {
+        },
+        {
             400.2463: 0.4712,
             408.0577: 0.5680,
             415.0246: 0.6500,
@@ -320,10 +299,6 @@ class KodakExr5386(FilmSpectral):
             633.7438: 0.0070,
             667.5229: 0.0162,
             698.1351: 0.0268,
-        }
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-        self.d_ref_sd = colour.SpectralDistribution(midscale_sd)
-
-        self.calibrate()
+        },
+    ],
+)

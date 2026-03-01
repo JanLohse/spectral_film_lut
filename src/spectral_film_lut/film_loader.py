@@ -5,63 +5,15 @@ from ctypes import wintypes
 import colour
 from PyQt6.QtWidgets import QApplication, QWidget
 
-from spectral_film_lut.bw_negative_film.kodak_5222 import (
-    KODAK_5222,
-    KODAK_5222_DEV_4,
-    KODAK_5222_DEV_5,
-    KODAK_5222_DEV_9,
-    KODAK_5222_DEV_12,
-)
-from spectral_film_lut.bw_negative_film.kodak_trix_400 import (
-    KODAK_TRI_X_400,
-    KODAK_TRI_X_400_DEV_7,
-    KODAK_TRI_X_400_DEV_9,
-    KODAK_TRI_X_400_DEV_11,
-)
+from spectral_film_lut import FILM_STOCKS
 from spectral_film_lut.css_theme import PRESSED_COLOR, TEXT_PRIMARY, THEME
 from spectral_film_lut.film_spectral import FilmSpectral
-from spectral_film_lut.negative_film.agfa_vista_100 import AGFA_VISTA_100
-from spectral_film_lut.negative_film.fuji_c200 import FUJI_C200
-from spectral_film_lut.negative_film.fuji_eterna_500 import FUJI_ETERNA_500
-from spectral_film_lut.negative_film.fuji_eterna_500_vivid import FUJI_ETERNA_500_VIVID
-from spectral_film_lut.negative_film.fuji_natura_1600 import FUJI_NATURA_1600
-from spectral_film_lut.negative_film.fuji_pro_160c import FUJI_PRO_160C
-from spectral_film_lut.negative_film.fuji_pro_160s import FUJI_PRO_160S
-from spectral_film_lut.negative_film.fuji_pro_400h import FUJI_PRO_400H
-from spectral_film_lut.negative_film.kodak_5207 import KODAK_5207
-from spectral_film_lut.print_film.kodak_2383 import KODAK_2383
-
-NEGATIVE_FILM = [
-    KODAK_5207,
-    KODAK_5222,
-    KODAK_5222,
-    KODAK_5222_DEV_4,
-    KODAK_5222_DEV_5,
-    KODAK_5222_DEV_9,
-    KODAK_5222_DEV_12,
-    KODAK_TRI_X_400,
-    KODAK_TRI_X_400_DEV_7,
-    KODAK_TRI_X_400_DEV_9,
-    KODAK_TRI_X_400_DEV_11,
-    AGFA_VISTA_100,
-    FUJI_C200,
-    FUJI_ETERNA_500,
-    FUJI_ETERNA_500_VIVID,
-    FUJI_NATURA_1600,
-    FUJI_PRO_160C,
-    FUJI_PRO_160S,
-    FUJI_PRO_400H,
-]
-PRINT_FILM = [KODAK_2383]
-REVERSAL_PRINT = []
-REVERSAL_FILM = []
-filmstocks = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM + REVERSAL_PRINT
 
 
 def load_filmstocks(progress_callback, gray_value=None):
     result = []
-    total = len(filmstocks)
-    for i, film_stock in enumerate(filmstocks, start=1):
+    total = len(FILM_STOCKS)
+    for i, film_stock in enumerate(FILM_STOCKS, start=1):
         instance = FilmSpectral(film_stock, gray_value=gray_value)
         if (
             result
@@ -114,7 +66,7 @@ def load_ui(main_window, splash_screen, app, gray_value=None):
     def update_progress(current, total, name):
         splash_screen.update(current, total, name, colour)
 
-    splash_screen.set_total_items(len(filmstocks))
+    splash_screen.set_total_items(len(FILM_STOCKS))
 
     loaded_filmstocks = load_filmstocks(update_progress, gray_value)
 

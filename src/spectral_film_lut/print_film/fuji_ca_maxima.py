@@ -1,16 +1,14 @@
-from spectral_film_lut.film_spectral import *
-from spectral_film_lut.print_film.fuji_ca_dpII import FujiCrystalArchiveDPII
+from dataclasses import replace
 
+from spectral_film_lut.print_film.fuji_ca_dpII import FUJI_CA_DPII
 
-class FujiCrystalArchiveMaxima(FujiCrystalArchiveDPII):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.comment = (
-            "No contrast curve available. Therefore just DPII with deeper blacks."
-        )
-
-        # estimate d-max based on calibration data
-        self.density_curve[0] *= 2.55 / 2.35
-        self.density_curve[1] *= 2.55 / 2.35
-        self.density_curve[2] *= 2.45 / 2.25
+FUJI_CA_MAXIMA = replace(
+    FUJI_CA_DPII,
+    name="Fuji Crystal Archive Maxima",
+    comment="No contrast curve available. Therefore just DPII with deeper blacks.",
+    sensiometric_curve=[
+        {x: y * 2.55 / 2.35 for x, y in FUJI_CA_DPII.sensiometric_curve[0].items()},
+        {x: y * 2.55 / 2.35 for x, y in FUJI_CA_DPII.sensiometric_curve[1].items()},
+        {x: y * 2.45 / 2.25 for x, y in FUJI_CA_DPII.sensiometric_curve[2].items()},
+    ],
+)

@@ -1,6 +1,5 @@
 import math
 import time
-from dataclasses import dataclass
 
 import colour.plotting
 import numpy as np
@@ -16,6 +15,7 @@ from spectral_film_lut.densiometry import (
     adx16_decode,
     adx16_encode,
 )
+from spectral_film_lut.film_data import FilmData
 from spectral_film_lut.utils import (
     CCT_to_xy,
     construct_spectral_density,
@@ -35,41 +35,8 @@ else:
     from scipy.interpolate import PchipInterpolator
 
 
-@dataclass
-class FilmData:
-    """Store data collected from a film datasheet."""
-
-    # Required
-    name: str
-    manufacturer: str
-    year: int
-    film_type: str
-    stage: str
-    medium: str
-    density_measure: str
-    sensiometric_curve: list[dict[float, float]]
-    iso: int | None = None
-    alias: str | None = None
-    comment: str | None = None
-    exposure_kelvin: int = 5500
-    projection_kelvin: int = 6500
-    exposure_base: int = 10
-    rms: float | None = None
-    color_masking: float | None = None
-    lad: list[float] | None = None
-    d_min_adjustment: bool | None = None
-    log_sensitivity: list[dict[float, float]] | None = None
-    sensitivity: list[dict[float, float]] | None = None
-    spectral_density: list[dict[float, float]] | None = None
-    d_ref_sd: dict[float, float] | None = None
-    d_min_sd: dict[float, float] | None = None
-    rms_curve: list[dict[float, float]] | None = None
-    rms_density: list[dict[float, float]] | None = None
-    mtf: list[dict[float, float]] | None = None
-
-
 class FilmSpectral:
-    def __init__(self, film_data, gray_value=0.18):
+    def __init__(self, film_data: FilmData, gray_value=0.18):
         # Copy variables from data.
         self.name = film_data.name
         self.color_masking = film_data.color_masking
@@ -229,17 +196,10 @@ class FilmSpectral:
                 self.gaussian_extrapolation(self.d_ref_sd)
             if self.spectral_density is not None and self.density_measure != "absolute":
                 if (
-                    (
-                        (
-                            self.density_measure == "status_a"
-                            and min([x.values.min() for x in self.spectral_density])
-                            > 0.05
-                        )
-                        or film_data.d_min_adjustment
-                    )
-                    and film_data.d_min_adjustment
-                    or film_data.d_min_adjustment is None
-                ):
+                    self.density_measure == "status_a"
+                    and film_data.d_min_adjustment is None
+                    and min([x.values.min() for x in self.spectral_density]) > 0.05
+                ) or film_data.d_min_adjustment:
                     self.estimate_d_min_sd()
                 self.spectral_density = xp.stack(
                     [
@@ -373,10 +333,14 @@ class FilmSpectral:
 
     def set_color_checker(self, negative=None, print_stock=None):
         """
-        Simulate the look of the 2005 ColorChecker photographed with the current film stock.
+        Simulate the look of the 2005 ColorChecker photographed with the current film
+        stock.
+
         Args:
-            negative: When a negative film is provided assume current film is print film.
-            print_stock: Use this film as the print film for the color checker if provided.
+            negative: When a negative film is provided assume current film is print
+                film.
+            print_stock: Use this film as the print film for the color checker if
+                provided.
 
         Returns:
 
@@ -395,8 +359,10 @@ class FilmSpectral:
     def extend_characteristic_curve(self, height=3):
         """
         Extend the characteristic curve of the current film with a smooth rolloff.
+
         Args:
-            height: Assumed height of the logistic curve used for extrapolation in density steps.
+            height: Assumed height of the logistic curve used for extrapolation in
+                density steps.
         """
         for i, (log_exposure, density_curve) in enumerate(
             zip(self.log_exposure, self.density_curve)
@@ -520,12 +486,12 @@ class FilmSpectral:
             if abs(a_y) < 0.001:
                 a_y = a_y / abs(a_y) * 0.001
             d = d_1 * m / np.absolute(a_y) ** d_2
-            a = a_y / np.exp(-(d**2))
+            a = a_y / max(np.exp(-(d**2)), 10**-10)
             c = to_numpy(a / m * -2 * d * np.exp(-(d**2)))
             b = to_numpy(a_x - c * d)
 
             def extrapolator(x):
-                return a * np.exp(-((x - b) ** 2) / c**2)
+                return a * np.exp(-((x - b) ** 2) / max(c**2, 0.0001))
 
             return extrapolator(wavelengths)
 

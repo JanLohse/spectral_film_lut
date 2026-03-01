@@ -1,19 +1,16 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_data import FilmData
 
-
-class FujiInstaxColor(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.iso = 1000
-        self.density_measure = "status_a"
-        self.manufacturer = "Fujifilm"
-        self.stage = "camera"
-        self.type = "positive"
-        self.medium = "photo"
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+FUJI_INSTAX_COLOR = FilmData(
+    name="Fuji Instax color",
+    iso=1000,  # compensated for better result original is 800
+    density_measure="status_a",
+    manufacturer="Fujifilm",
+    stage="camera",
+    film_type="positive",
+    medium="photo",
+    comment="Instant film.",
+    log_sensitivity=[
+        {
             575.3308: -0.1417,
             577.1648: -0.0692,
             578.6969: 0.0052,
@@ -64,8 +61,8 @@ class FujiInstaxColor(FilmSpectral):
             673.9113: -0.1482,
             675.0967: -0.2377,
             676.7349: -0.3302,
-        }
-        green_log_sensitivity = {
+        },
+        {
             489.1349: -0.1860,
             491.5776: -0.0990,
             493.7146: -0.0243,
@@ -110,8 +107,8 @@ class FujiInstaxColor(FilmSpectral):
             591.6743: -0.0901,
             592.8595: -0.1804,
             592.8490: -0.2191,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             383.5885: -0.2189,
             384.8196: -0.1395,
             385.7495: -0.0555,
@@ -154,15 +151,10 @@ class FujiInstaxColor(FilmSpectral):
             506.3381: -0.3099,
             507.8318: -0.3778,
             509.6238: -0.4606,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -3.5841: 2.3137,
             -3.5161: 2.3135,
             -3.4481: 2.3120,
@@ -216,8 +208,8 @@ class FujiInstaxColor(FilmSpectral):
             -0.9450: 0.2049,
             -0.8770: 0.2052,
             -0.8120: 0.2069,
-        }
-        green_curve = {
+        },
+        {
             -3.5839: 2.3438,
             -3.5159: 2.3436,
             -3.4541: 2.3435,
@@ -270,8 +262,8 @@ class FujiInstaxColor(FilmSpectral):
             -0.9883: 0.2052,
             -0.9203: 0.2048,
             -0.8646: 0.2046,
-        }
-        blue_curve = {
+        },
+        {
             -3.5763: 2.0885,
             -3.4897: 2.0880,
             -3.4032: 2.0874,
@@ -320,22 +312,10 @@ class FujiInstaxColor(FilmSpectral):
             -0.9883: 0.2052,
             -0.9203: 0.2048,
             -0.8801: 0.2047,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             483.4608: 0.1789,
             490.1715: 0.1813,
             496.8822: 0.1854,
@@ -389,8 +369,8 @@ class FujiInstaxColor(FilmSpectral):
             698.8136: 0.2707,
             702.7790: 0.2312,
             708.5746: 0.1914,
-        }
-        green_sd = {
+        },
+        {
             443.8066: 0.3292,
             450.5173: 0.3526,
             457.2280: 0.3796,
@@ -433,8 +413,8 @@ class FujiInstaxColor(FilmSpectral):
             615.8448: 0.2504,
             621.0304: 0.2183,
             627.4360: 0.1906,
-        }
-        blue_sd = {
+        },
+        {
             387.0706: 0.3237,
             389.8159: 0.3554,
             392.2561: 0.3891,
@@ -478,16 +458,7 @@ class FujiInstaxColor(FilmSpectral):
             545.6874: 0.2146,
             552.3981: 0.1963,
             557.2786: 0.1848,
-        }
-
-        self.spectral_density = [
-            colour.SpectralDistribution(x) - 0.15 for x in (red_sd, green_sd, blue_sd)
-        ]
-
-        self.color_masking = 0.20
-
-        self.calibrate(False)
-
-
-if __name__ == "__main__":
-    FujiInstaxColor()
+        },
+    ],
+    color_masking=0.2,
+)

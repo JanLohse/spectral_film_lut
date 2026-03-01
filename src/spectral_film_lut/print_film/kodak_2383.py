@@ -1,7 +1,7 @@
-from spectral_film_lut.film_spectral import FilmData, FilmSpectral
+from spectral_film_lut.film_data import FilmData
 
 KODAK_2383 = FilmData(
-    name="Kodak 2383",
+    name="Kodak Vision 2383",
     manufacturer="Kodak",
     year=1998,
     film_type="negative",
@@ -430,6 +430,3 @@ KODAK_2383 = FilmData(
         748.6497: 0.4020,
     },
 )
-
-if __name__ == "__main__":
-    kodak_2383 = FilmSpectral(KODAK_2383)

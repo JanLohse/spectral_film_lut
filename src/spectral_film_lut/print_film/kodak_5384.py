@@ -1,23 +1,17 @@
-from spectral_film_lut.film_spectral import *
-from spectral_film_lut.wratten_filters import WRATTEN
+from spectral_film_lut.film_data import FilmData
 
-
-class Kodak5384(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.lad = [1.08, 1.04, 1.03]
-        self.density_measure = "status_a"
-        self.exposure_kelvin = 2854
-        self.manufacturer = "Kodak"
-        self.stage = "print"
-        self.type = "negative"
-        self.medium = "cine"
-        self.year = 1981
-        self.alias = "Eastman Color Print Film 5384/7384"
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+KODAK_5384 = FilmData(
+    name="Kodak 5384",
+    lad=[1.08, 1.04, 1.03],
+    density_measure="status_a",
+    year=1981,
+    manufacturer="Kodak",
+    stage="print",
+    film_type="negative",
+    medium="cine",
+    alias="Eastman Color Print Film 5384/7384",
+    log_sensitivity=[
+        {
             369.2286: -1.0118,
             379.0892: -1.0478,
             388.9351: -1.1023,
@@ -73,8 +67,8 @@ class Kodak5384(FilmSpectral):
             731.2594: -2.6222,
             736.1192: -2.7292,
             741.9562: -2.7915,
-        }
-        green_log_sensitivity = {
+        },
+        {
             366.3156: -0.2304,
             370.9005: -0.3277,
             380.5627: -0.3763,
@@ -126,8 +120,8 @@ class Kodak5384(FilmSpectral):
             606.9087: -3.1567,
             612.5517: -3.2658,
             619.3196: -3.3419,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             364.2526: 0.4352,
             374.0422: 0.3095,
             379.4380: 0.3222,
@@ -180,15 +174,10 @@ class Kodak5384(FilmSpectral):
             602.7645: -3.4344,
             612.6145: -3.4839,
             621.2809: -3.5412,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             0.0793: 0.1008,
             0.6773: 0.0948,
             0.9156: 0.0924,
@@ -217,8 +206,8 @@ class Kodak5384(FilmSpectral):
             2.8987: 3.9282,
             2.9880: 4.0085,
             3.0690: 4.0644,
-        }
-        green_curve = {
+        },
+        {
             0.0753: 0.0968,
             0.5238: 0.1004,
             0.8995: 0.0966,
@@ -249,8 +238,8 @@ class Kodak5384(FilmSpectral):
             2.9258: 4.9036,
             2.9826: 4.9517,
             3.0252: 4.9797,
-        }
-        blue_curve = {
+        },
+        {
             0.0753: 0.0968,
             0.4228: 0.1014,
             0.6450: 0.1134,
@@ -276,70 +265,56 @@ class Kodak5384(FilmSpectral):
             2.8228: 4.1034,
             2.9320: 4.1388,
             3.0291: 4.1602,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype) - 0.1
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = (
-            xp.array(list(blue_curve.keys()), dtype=default_dtype) + 0.15
-        )
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        midscale_sd = {
-            359.8039: 0.7147,
-            366.2516: 0.6651,
-            374.9857: 0.6485,
-            381.8919: 0.6616,
-            388.9556: 0.6940,
-            398.0271: 0.7795,
-            409.7694: 0.9141,
-            424.2183: 1.0863,
-            430.9299: 1.1626,
-            437.0380: 1.2235,
-            441.2759: 1.2572,
-            445.5893: 1.2663,
-            452.9813: 1.2626,
-            461.2813: 1.2460,
-            469.1709: 1.2217,
-            477.9606: 1.1870,
-            484.7749: 1.1594,
-            491.1193: 1.1434,
-            501.1200: 1.1384,
-            512.3794: 1.1478,
-            520.5681: 1.1673,
-            527.9005: 1.1830,
-            537.0051: 1.1871,
-            545.3130: 1.1679,
-            549.7814: 1.1267,
-            560.9641: 1.0197,
-            570.4103: 0.9127,
-            577.1644: 0.8341,
-            582.5288: 0.7839,
-            588.6601: 0.7666,
-            598.4358: 0.7642,
-            607.6920: 0.7896,
-            616.2434: 0.8325,
-            627.0990: 0.9025,
-            634.1150: 0.9504,
-            642.6703: 0.9920,
-            648.2663: 1.0076,
-            658.2233: 1.0169,
-            668.6660: 1.0094,
-            676.8005: 0.9760,
-            685.8986: 0.9116,
-            706.8426: 0.7364,
-            725.2374: 0.5431,
-            737.8813: 0.3845,
-        }
-        red_sd = {
+        },
+    ],
+    d_ref_sd={
+        359.8039: 0.7147,
+        366.2516: 0.6651,
+        374.9857: 0.6485,
+        381.8919: 0.6616,
+        388.9556: 0.6940,
+        398.0271: 0.7795,
+        409.7694: 0.9141,
+        424.2183: 1.0863,
+        430.9299: 1.1626,
+        437.0380: 1.2235,
+        441.2759: 1.2572,
+        445.5893: 1.2663,
+        452.9813: 1.2626,
+        461.2813: 1.2460,
+        469.1709: 1.2217,
+        477.9606: 1.1870,
+        484.7749: 1.1594,
+        491.1193: 1.1434,
+        501.1200: 1.1384,
+        512.3794: 1.1478,
+        520.5681: 1.1673,
+        527.9005: 1.1830,
+        537.0051: 1.1871,
+        545.3130: 1.1679,
+        549.7814: 1.1267,
+        560.9641: 1.0197,
+        570.4103: 0.9127,
+        577.1644: 0.8341,
+        582.5288: 0.7839,
+        588.6601: 0.7666,
+        598.4358: 0.7642,
+        607.6920: 0.7896,
+        616.2434: 0.8325,
+        627.0990: 0.9025,
+        634.1150: 0.9504,
+        642.6703: 0.9920,
+        648.2663: 1.0076,
+        658.2233: 1.0169,
+        668.6660: 1.0094,
+        676.8005: 0.9760,
+        685.8986: 0.9116,
+        706.8426: 0.7364,
+        725.2374: 0.5431,
+        737.8813: 0.3845,
+    },
+    spectral_density=[
+        {
             359.2346: 0.2645,
             365.2686: 0.2788,
             375.6836: 0.2804,
@@ -372,8 +347,8 @@ class Kodak5384(FilmSpectral):
             721.6293: 0.5869,
             733.3614: 0.4425,
             737.8932: 0.3807,
-        }
-        green_sd = {
+        },
+        {
             360.6629: 0.0824,
             374.1405: 0.0762,
             389.5261: 0.0850,
@@ -414,8 +389,8 @@ class Kodak5384(FilmSpectral):
             722.1025: 0.0096,
             730.7889: 0.0085,
             738.6150: 0.0048,
-        }
-        blue_sd = {
+        },
+        {
             359.7295: 0.3859,
             364.1819: 0.3498,
             370.7851: 0.3203,
@@ -441,12 +416,20 @@ class Kodak5384(FilmSpectral):
             621.8283: 0.0046,
             664.8103: 0.0043,
             737.3087: 0.0060,
-        }
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-        self.d_ref_sd = colour.SpectralDistribution(midscale_sd)
+        },
+    ],
+)
 
-        self.calibrate()
-
-        self.sensitivity *= WRATTEN["2B"].reshape(-1, 1)
+# TODO: add back
+# midscale_sd =
+# red_sd =
+# green_sd =
+# blue_sd =
+# self.spectral_density = [
+#     colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
+# ]
+# self.d_ref_sd = colour.SpectralDistribution(midscale_sd)
+#
+# self.calibrate()
+#
+# self.sensitivity *= WRATTEN["2B"].reshape(-1, 1)

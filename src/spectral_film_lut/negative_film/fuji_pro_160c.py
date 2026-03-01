@@ -1,4 +1,4 @@
-from spectral_film_lut.film_spectral import FilmData
+from spectral_film_lut.film_data import FilmData
 
 FUJI_PRO_160C = FilmData(
     name="Fuji Pro 160C",

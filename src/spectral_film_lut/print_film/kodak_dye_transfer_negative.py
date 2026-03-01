@@ -1,114 +1,16 @@
-from spectral_film_lut.bw_negative_film.kodak_5222 import *
-from spectral_film_lut.wratten_filters import WRATTEN
+from spectral_film_lut.film_data import FilmData
 
-
-class KodakDyeTransferNegative(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.lad = [1.0, 1.05, 1.1]
-        self.density_measure = "absolute"
-        self.manufacturer = "Kodak"
-        self.stage = "print"
-        self.type = "negative"
-        self.medium = "photo"
-        self.year = 1946
-        self.comment = "Very experimental and unreliable results. Needs more testing and refinement."
-
-        sensitivity = Kodak5222().sensitivity
-        filters = xp.stack([WRATTEN["29"], WRATTEN["99"], WRATTEN["98"]])
-        self.sensitivity = sensitivity * filters.T
-
-        # spectral dye density
-        red_sd = {
-            399.9333: 0.1744,
-            416.2330: 0.1563,
-            437.2710: 0.1569,
-            456.4138: 0.1708,
-            477.4518: 0.1968,
-            501.3328: 0.2447,
-            523.2237: 0.3199,
-            552.1273: 0.4851,
-            567.8584: 0.5867,
-            582.1681: 0.6796,
-            593.6348: 0.7644,
-            598.3731: 0.7951,
-            613.9147: 0.8621,
-            629.7406: 0.9218,
-            639.9753: 0.9580,
-            646.8932: 0.9775,
-            652.3896: 0.9830,
-            661.4871: 0.9660,
-            672.2905: 0.9171,
-            685.8420: 0.8424,
-            699.9621: 0.7477,
-        }
-        green_sd = {
-            399.7438: 0.1771,
-            406.7564: 0.1627,
-            412.8214: 0.1549,
-            420.2132: 0.1617,
-            430.0688: 0.1893,
-            441.2512: 0.2356,
-            461.6259: 0.3725,
-            481.3372: 0.5275,
-            504.7444: 0.7084,
-            517.4430: 0.7860,
-            527.2986: 0.8156,
-            537.3438: 0.8292,
-            546.8204: 0.8308,
-            556.8656: 0.8072,
-            563.4992: 0.7768,
-            571.0805: 0.7025,
-            589.4651: 0.4383,
-            603.5852: 0.2532,
-            617.1367: 0.1425,
-            642.3444: 0.0635,
-            661.8662: 0.0441,
-            683.0938: 0.0354,
-            699.1092: 0.0273,
-        }
-        blue_sd = {
-            400.1228: 0.9301,
-            405.8088: 0.9509,
-            412.2529: 0.9664,
-            417.4650: 0.9665,
-            424.1934: 0.9508,
-            433.0066: 0.9144,
-            442.0093: 0.8622,
-            451.9598: 0.7793,
-            460.9625: 0.6925,
-            471.1972: 0.5850,
-            483.7063: 0.4364,
-            495.0782: 0.3210,
-            506.8292: 0.2136,
-            519.7174: 0.1395,
-            536.0171: 0.0908,
-            548.3367: 0.0752,
-            563.3097: 0.0757,
-            595.9091: 0.0700,
-            630.7830: 0.0545,
-            655.2326: 0.0466,
-            679.1136: 0.0340,
-            693.7075: 0.0318,
-            699.7726: 0.0306,
-        }
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-        self.spectral_density = xp.stack(
-            [
-                xp.asarray(self.gaussian_extrapolation(x).values)
-                for x in self.spectral_density
-            ]
-        ).T
-        density_measurements = xp.sum(
-            densiometry.status_a * self.spectral_density, axis=0
-        )
-        density_measurements /= density_measurements[0]
-
-        # sensiometry curve from kodak matrix film 4150
-        curve = {
+KODAK_DYE_TRANSFER_NEGATIVE = FilmData(
+    name="Kodak Dye Transfer Negative",
+    density_measure="absolute",
+    lad=[1.0, 1.05, 1.1],
+    year=1946,
+    manufacturer="",
+    stage="print",
+    film_type="negative",
+    medium="",
+    sensiometric_curve=[
+        {
             -0.8901: 0.0337,
             -0.8083: 0.0450,
             -0.7327: 0.0582,
@@ -138,17 +40,91 @@ class KodakDyeTransferNegative(FilmSpectral):
             1.8457: 2.6357,
             1.9573: 2.6437,
         }
-        log_exposure = xp.array(list(curve.keys()), dtype=default_dtype)
-        density_curve = xp.array(list(curve.values()), dtype=default_dtype)
+    ]
+    * 3,
+    spectral_density=[
+        {
+            399.9333: 0.1744,
+            416.2330: 0.1563,
+            437.2710: 0.1569,
+            456.4138: 0.1708,
+            477.4518: 0.1968,
+            501.3328: 0.2447,
+            523.2237: 0.3199,
+            552.1273: 0.4851,
+            567.8584: 0.5867,
+            582.1681: 0.6796,
+            593.6348: 0.7644,
+            598.3731: 0.7951,
+            613.9147: 0.8621,
+            629.7406: 0.9218,
+            639.9753: 0.9580,
+            646.8932: 0.9775,
+            652.3896: 0.9830,
+            661.4871: 0.9660,
+            672.2905: 0.9171,
+            685.8420: 0.8424,
+            699.9621: 0.7477,
+        },
+        {
+            399.7438: 0.1771,
+            406.7564: 0.1627,
+            412.8214: 0.1549,
+            420.2132: 0.1617,
+            430.0688: 0.1893,
+            441.2512: 0.2356,
+            461.6259: 0.3725,
+            481.3372: 0.5275,
+            504.7444: 0.7084,
+            517.4430: 0.7860,
+            527.2986: 0.8156,
+            537.3438: 0.8292,
+            546.8204: 0.8308,
+            556.8656: 0.8072,
+            563.4992: 0.7768,
+            571.0805: 0.7025,
+            589.4651: 0.4383,
+            603.5852: 0.2532,
+            617.1367: 0.1425,
+            642.3444: 0.0635,
+            661.8662: 0.0441,
+            683.0938: 0.0354,
+            699.1092: 0.0273,
+        },
+        {
+            400.1228: 0.9301,
+            405.8088: 0.9509,
+            412.2529: 0.9664,
+            417.4650: 0.9665,
+            424.1934: 0.9508,
+            433.0066: 0.9144,
+            442.0093: 0.8622,
+            451.9598: 0.7793,
+            460.9625: 0.6925,
+            471.1972: 0.5850,
+            483.7063: 0.4364,
+            495.0782: 0.3210,
+            506.8292: 0.2136,
+            519.7174: 0.1395,
+            536.0171: 0.0908,
+            548.3367: 0.0752,
+            563.3097: 0.0757,
+            595.9091: 0.0700,
+            630.7830: 0.0545,
+            655.2326: 0.0466,
+            679.1136: 0.0340,
+            693.7075: 0.0318,
+            699.7726: 0.0306,
+        },
+    ],
+)
 
-        density_curve_max = density_curve.max()
-
-        # boost contrast
-        density_curve = (
-            1 - (1 - density_curve / density_curve_max) ** 5
-        ) * density_curve_max
-
-        self.log_exposure = [log_exposure] * 3
-        self.density_curve = [density_curve * scale for scale in density_measurements]
-
-        self.calibrate()
+# TODO: implement
+# sensitivity = Kodak5222().sensitivity
+# filters = xp.stack([WRATTEN["29"], WRATTEN["99"], WRATTEN["98"]])
+# self.sensitivity = sensitivity * filters.T
+#
+# boost contrast
+# density_curve = (
+#     1 - (1 - density_curve / density_curve_max) ** 5
+# ) * density_curve_max

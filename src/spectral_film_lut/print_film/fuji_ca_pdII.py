@@ -1,21 +1,16 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_data import FilmData
 
-
-class FujiCrystalArchiveProPDII(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.density_measure = "status_a"
-        self.manufacturer = "Fujifilm"
-        self.stage = "print"
-        self.type = "negative"
-        self.medium = "photo"
-        self.comment = (
-            "Could only find this one datasheet.\nIf anyone knows more let me know."
-        )
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+FUJI_CA_PRO_PDII = FilmData(
+    name="Fuji Crystal Archive Pro PDII",
+    density_measure="status_a",
+    year=2003,
+    manufacturer="Fujifilm",
+    stage="print",
+    film_type="negative",
+    medium="photo",
+    comment="Could only find this one datasheet.\nIf anyone knows more let me know.",
+    log_sensitivity=[
+        {
             614.0714: 0.2897,
             619.8672: 0.3492,
             628.3422: 0.4124,
@@ -37,8 +32,8 @@ class FujiCrystalArchiveProPDII(FilmSpectral):
             720.4100: 1.0778,
             722.7925: 1.0001,
             724.4943: 0.9437,
-        }
-        green_log_sensitivity = {
+        },
+        {
             442.3348: 0.4386,
             447.4402: 0.5254,
             451.3544: 0.5917,
@@ -88,8 +83,8 @@ class FujiCrystalArchiveProPDII(FilmSpectral):
             570.3106: 0.5547,
             571.8423: 0.4081,
             573.3739: 0.2478,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             377.3258: 1.2087,
             380.3891: 1.3133,
             383.1800: 1.3971,
@@ -135,15 +130,10 @@ class FujiCrystalArchiveProPDII(FilmSpectral):
             518.0652: 0.6159,
             520.1641: 0.5357,
             522.3197: 0.4478,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             0.6569: 0.1224,
             0.7192: 0.1231,
             0.7815: 0.1275,
@@ -190,8 +180,8 @@ class FujiCrystalArchiveProPDII(FilmSpectral):
             2.8061: 2.7899,
             2.8684: 2.7953,
             2.9248: 2.7964,
-        }
-        green_curve = {
+        },
+        {
             0.6569: 0.1477,
             0.7192: 0.1497,
             0.7795: 0.1531,
@@ -228,8 +218,8 @@ class FujiCrystalArchiveProPDII(FilmSpectral):
             2.8528: 2.7105,
             2.9151: 2.7143,
             2.9482: 2.7145,
-        }
-        blue_curve = {
+        },
+        {
             0.6569: 0.1477,
             0.7192: 0.1502,
             0.7795: 0.1531,
@@ -266,22 +256,10 @@ class FujiCrystalArchiveProPDII(FilmSpectral):
             2.7301: 2.4716,
             2.8508: 2.4868,
             2.9657: 2.4930,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             383.9724: 0.0515,
             390.9036: 0.0505,
             397.8349: 0.0490,
@@ -337,8 +315,8 @@ class FujiCrystalArchiveProPDII(FilmSpectral):
             709.9056: 0.6282,
             715.3515: 0.5895,
             719.6423: 0.5654,
-        }
-        green_sd = {
+        },
+        {
             383.4773: 0.0278,
             388.7582: 0.0315,
             391.7288: 0.0327,
@@ -401,8 +379,8 @@ class FujiCrystalArchiveProPDII(FilmSpectral):
             630.8093: 0.0405,
             638.2003: 0.0307,
             699.8388: 0.0165,
-        }
-        blue_sd = {
+        },
+        {
             381.9370: 0.1283,
             384.9626: 0.1573,
             386.9429: 0.1793,
@@ -473,9 +451,6 @@ class FujiCrystalArchiveProPDII(FilmSpectral):
             622.2749: 0.0182,
             628.3810: 0.0174,
             699.8388: 0.0165,
-        }
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-
-        self.calibrate()
+        },
+    ],
+)

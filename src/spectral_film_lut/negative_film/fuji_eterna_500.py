@@ -1,4 +1,4 @@
-from spectral_film_lut.film_spectral import FilmData
+from spectral_film_lut.film_data import FilmData
 
 FUJI_ETERNA_500 = FilmData(
     name="Fuji Eterna 500",

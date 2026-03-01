@@ -1,20 +1,16 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_data import FilmData
 
-
-class KodakEktachrome100D(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.iso = 100
-        self.density_measure = "status_a"
-        self.manufacturer = "Kodak"
-        self.stage = "camera"
-        self.type = "positive"
-        self.medium = "photo"
-        self.year = 2018
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+KODAK_EKTACHROME_100D = FilmData(
+    name="Kodak Ektachrome 100D",
+    iso=100,
+    density_measure="status_a",
+    manufacturer="Kodak",
+    stage="camera",
+    film_type="positive",
+    medium="photo",
+    year=2018,
+    log_sensitivity=[
+        {
             554.0856: -1.0220,
             564.3580: -0.9702,
             573.3463: -0.6981,
@@ -28,8 +24,8 @@ class KodakEktachrome100D(FilmSpectral):
             661.2451: 0.7135,
             669.5331: 0.0083,
             684.5914: -0.9967,
-        }
-        green_log_sensitivity = {
+        },
+        {
             472.8405: -0.5647,
             483.1128: -0.0413,
             493.8521: 0.3939,
@@ -46,8 +42,8 @@ class KodakEktachrome100D(FilmSpectral):
             590.5058: -0.0028,
             600.3113: -0.6088,
             604.5136: -1.0022,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             394.7471: 0.5262,
             398.0156: 0.8127,
             404.4358: 1.0937,
@@ -67,15 +63,10 @@ class KodakEktachrome100D(FilmSpectral):
             505.2918: -0.2782,
             514.0467: -0.5372,
             519.6498: -0.7686,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             -2.7798: 3.2106,
             -2.6443: 3.2083,
             -2.5027: 3.1863,
@@ -96,8 +87,8 @@ class KodakEktachrome100D(FilmSpectral):
             -0.2142: 0.3853,
             -0.1009: 0.3177,
             0.0186: 0.2550,
-        }
-        green_curve = {
+        },
+        {
             -2.7784: 3.6098,
             -2.6935: 3.6049,
             -2.5703: 3.5804,
@@ -119,8 +110,8 @@ class KodakEktachrome100D(FilmSpectral):
             -0.3324: 0.3704,
             -0.1674: 0.2856,
             0.0161: 0.2168,
-        }
-        blue_curve = {
+        },
+        {
             -2.7685: 3.8081,
             -2.6380: 3.7713,
             -2.5309: 3.7185,
@@ -139,22 +130,10 @@ class KodakEktachrome100D(FilmSpectral):
             -0.4223: 0.3555,
             -0.2438: 0.2646,
             0.0148: 0.2070,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             400.3102: 0.1455,
             418.3040: 0.0948,
             439.4002: 0.0578,
@@ -174,8 +153,8 @@ class KodakEktachrome100D(FilmSpectral):
             675.8014: 0.9030,
             685.3568: 0.8507,
             699.9380: 0.7448,
-        }
-        green_sd = {
+        },
+        {
             399.6898: 0.0731,
             420.4757: 0.1119,
             428.9142: 0.1351,
@@ -202,8 +181,8 @@ class KodakEktachrome100D(FilmSpectral):
             655.6360: 0.0388,
             675.4912: 0.0172,
             699.6898: 0.0090,
-        }
-        blue_sd = {
+        },
+        {
             400.0000: 0.5056,
             418.5522: 0.7466,
             425.8118: 0.8250,
@@ -220,74 +199,29 @@ class KodakEktachrome100D(FilmSpectral):
             539.7311: 0.0299,
             562.4405: 0.0019,
             699.5657: 0.0067,
-        }
-        midscale_sd = {
-            400.0000: 0.5056,
-            418.5522: 0.7466,
-            425.8118: 0.8250,
-            434.3744: 0.8877,
-            442.5026: 0.9213,
-            451.8097: 0.9045,
-            456.4633: 0.8862,
-            460.1861: 0.8582,
-            472.8438: 0.6993,
-            488.4178: 0.4739,
-            501.5719: 0.2910,
-            511.8097: 0.1817,
-            525.0879: 0.0881,
-            539.7311: 0.0299,
-            562.4405: 0.0019,
-            699.5657: 0.0067,
-        }
-
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-        self.d_ref_sd = colour.SpectralDistribution(midscale_sd)
-
-        red_mtf = {
-            2.4954: 0.9471,
-            7.1631: 0.8595,
-            9.9589: 0.7953,
-            13.1782: 0.7204,
-            15.1843: 0.6930,
-            16.8730: 0.6930,
-            19.7971: 0.6666,
-            24.3246: 0.5830,
-            32.4541: 0.4151,
-            46.4797: 0.2411,
-            57.3925: 0.1684,
-            67.3387: 0.1230,
-            77.7175: 0.0829,
-        }
-        green_mtf = {
-            2.4954: 0.9471,
-            9.0215: 0.8884,
-            11.9378: 0.8397,
-            14.3334: 0.8141,
-            18.1416: 0.7969,
-            22.8484: 0.7317,
-            29.8385: 0.6014,
-            41.7591: 0.4299,
-            54.5347: 0.3226,
-            66.2383: 0.2416,
-            78.6190: 0.1816,
-        }
-        blue_mtf = {
-            2.4954: 0.9563,
-            7.9074: 0.9657,
-            11.6463: 0.9164,
-            14.0528: 0.8562,
-            18.2015: 0.8612,
-            20.6977: 0.8300,
-            24.1649: 0.7547,
-            32.4007: 0.6653,
-            53.2911: 0.4258,
-            78.6190: 0.2866,
-        }
-        self.mtf = [red_mtf, green_mtf, blue_mtf]
-
-        red_rms = {
+        },
+    ],
+    d_ref_sd={
+        400.0000: 0.5056,
+        418.5522: 0.7466,
+        425.8118: 0.8250,
+        434.3744: 0.8877,
+        442.5026: 0.9213,
+        451.8097: 0.9045,
+        456.4633: 0.8862,
+        460.1861: 0.8582,
+        472.8438: 0.6993,
+        488.4178: 0.4739,
+        501.5719: 0.2910,
+        511.8097: 0.1817,
+        525.0879: 0.0881,
+        539.7311: 0.0299,
+        562.4405: 0.0019,
+        699.5657: 0.0067,
+    },
+    color_masking=0.25,
+    rms_curve=[
+        {
             -2.9756: 0.0307,
             -2.1453: 0.0279,
             -1.8942: 0.0311,
@@ -300,8 +234,8 @@ class KodakEktachrome100D(FilmSpectral):
             -0.2477: 0.0028,
             -0.1151: 0.0022,
             -0.0056: 0.0021,
-        }
-        green_rms = {
+        },
+        {
             -2.5221: 0.0330,
             -2.1070: 0.0336,
             -1.7198: 0.0292,
@@ -312,8 +246,8 @@ class KodakEktachrome100D(FilmSpectral):
             -0.3837: 0.0026,
             -0.1744: 0.0019,
             -0.0042: 0.0017,
-        }
-        blue_rms = {
+        },
+        {
             -2.0505: 0.0532,
             -1.9263: 0.0585,
             -1.8495: 0.0600,
@@ -330,8 +264,10 @@ class KodakEktachrome100D(FilmSpectral):
             -0.2058: 0.0023,
             -0.0907: 0.0020,
             0.0014: 0.0018,
-        }
-        red_rms_density = {
+        },
+    ],
+    rms_density=[
+        {
             -2.9491: 3.2977,
             -2.7506: 3.2900,
             -2.5555: 3.2266,
@@ -349,8 +285,8 @@ class KodakEktachrome100D(FilmSpectral):
             -0.2536: 0.2025,
             -0.1170: 0.1401,
             -0.0063: 0.1182,
-        }
-        green_rms_density = {
+        },
+        {
             -2.4998: 3.5549,
             -2.4127: 3.5002,
             -2.3117: 3.3962,
@@ -364,8 +300,8 @@ class KodakEktachrome100D(FilmSpectral):
             -0.3504: 0.2047,
             -0.1414: 0.0974,
             -0.0028: 0.0591,
-        }
-        blue_rms_density = {
+        },
+        {
             -2.0532: 2.8501,
             -1.8414: 2.2908,
             -1.5836: 1.7129,
@@ -377,10 +313,6 @@ class KodakEktachrome100D(FilmSpectral):
             -0.2703: 0.0919,
             -0.1101: 0.0394,
             0.0000: 0.0296,
-        }
-        self.rms_curve = [red_rms, green_rms, blue_rms]
-        self.rms_density = [red_rms_density, green_rms_density, blue_rms_density]
-
-        self.color_masking = 0.25
-
-        self.calibrate()
+        },
+    ],
+)
