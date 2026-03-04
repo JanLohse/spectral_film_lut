@@ -1,9 +1,14 @@
+"""
+Here the theming of the UI is specified.
+"""
+
 import colour
 
 from spectral_film_lut import BASE_DIR
 
 
-def oklch_to_hex(luminance, c=0.0, h=0.0):
+def oklch_to_hex(luminance: float, c=0.0, h=0.0) -> str:
+    """Convert from oklch to hex with default c and h values."""
     return colour.convert((luminance, c, h), "Oklch", "Hexadecimal")
 
 

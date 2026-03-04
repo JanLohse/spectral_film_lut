@@ -1,3 +1,7 @@
+"""
+Functions to simulate film grain and to export film grain overlays.
+"""
+
 import math
 import os
 import sys
@@ -46,10 +50,15 @@ from spectral_film_lut.utils import (
 
 @cache
 def gaussian_noise_cache(shape):
+    """Computes and pre caches gaussian noise."""
     return xp.random.default_rng().standard_normal(shape, dtype=default_dtype)
 
 
 def gaussian_noise(shape, cached=False):
+    """
+    Computes gaussian noise.
+    If cached noise is used a random crop is used to not get identical noise every time.
+    """
     if not cached:
         return xp.random.default_rng().standard_normal(shape, dtype=default_dtype)
     noise_size = ((max(shape[:2]) + 100) // 1024 + 1) * 1024
@@ -73,20 +82,25 @@ def gaussian_noise(shape, cached=False):
     return noise
 
 
-def two_component_params(grain_size_mm, sigma, p=2):
-    """
-    Return D1, D2, W1, W2 for a 2-component approximation of a LogNormal(mu, sigma^2).
-    - D1 = exp(mu - sigma)
-    - D2 = exp(mu + sigma)
-    - Split point = geometric mean = exp(mu)
-    - Weights W1, W2 derived for weighting ~ D^p * pdf(D)
-      (p=0 -> number weighting, p=2 -> area weighting, p=3 -> volume/scattering)
-    All returned as floats: (D1, D2, W1, W2).
+def two_component_params(
+    grain_size_mm: float, sigma: float, p=2
+) -> tuple[float, float, float, float]:
+    r"""
+    Return :math:`d_1`, :math:`d_2`, :math:`w_1`, :math:`w_2` for a 2-component
+    approximation of :math:`LogNormal(\mu, \sigma^2)`.
+    - :math:`d_1 = \exp(\mu - \sigma)`
+    - :math:`d_2 = \exp(\mu + \sigma)`
+    - Split point :math:`=` geometric mean :math:`= \exp(\mu)`
+    - Weights :math:`w_1, w_2` derived for weighting :math:`~ d^p \cdot \text{pdf}(d)`
+      (:math:`p=0 \rightarrow` number weighting, :math:`p=2 \rightarrow` area weighting,
+      :math:`p=3 \rightarrow` volume/scattering)
+
+    All returned as floats: :math:`(d_1, d_2, w_1, w_2)`.
     """
     mu = np.log(grain_size_mm) - 0.5 * sigma**2
 
-    D1 = math.exp(mu - sigma)
-    D2 = math.exp(mu + sigma)
+    d1 = math.exp(mu - sigma)
+    d2 = math.exp(mu + sigma)
 
     # Normal CDF using erf
     def std_norm_cdf(x):
@@ -94,16 +108,25 @@ def two_component_params(grain_size_mm, sigma, p=2):
 
     # Using closed-form: W1 = Phi( (ln(split) - (mu + p*sigma^2)) / sigma )
     # with ln(split)=mu -> argument = -p*sigma
-    W1 = std_norm_cdf(-p * sigma)
-    W2 = 1.0 - W1
+    w1 = std_norm_cdf(-p * sigma)
+    w2 = 1.0 - w1
 
-    return D1, D2, W1, W2
+    return d1, d2, w1, w2
 
 
-def grain_kernel(pixel_size_mm, grain_size_mm=0.006, grain_sigma=0.3):
-    # based on the paper:
-    # Simulating Film Grain using the Noise-Power Spectrum by Ian Stephenson and Arthur
-    # Saunders
+def grain_kernel(
+    pixel_size_mm: float, grain_size_mm=0.006, grain_sigma=0.3
+) -> xp.ndarray:
+    r"""
+    Computes a convolution kernel for film grain.
+    Based on the paper *Simulating Film Grain using the Noise-Power Spectrum* by Ian
+    Stephenson and Arthur Saunders.
+
+    Args:
+        pixel_size_mm: The side length of the pixels in mm.
+        grain_size_mm: The grain diameter in mm.
+        grain_sigma: The grain size distribution standard variance
+    """
     dye_size1_mm, dye_size2_mm, w1, w2 = two_component_params(
         grain_size_mm, grain_sigma
     )
@@ -140,13 +163,30 @@ def grain_kernel(pixel_size_mm, grain_size_mm=0.006, grain_sigma=0.3):
 
 def generate_grain(
     shape,
-    scale,
+    scale: float,
     grain_size_mm=0.006,
     bw_grain=False,
     cached=False,
     grain_sigma=0.3,
     **kwargs,
-):
+) -> xp.ndarray:
+    """
+    Computes random grain somewhat efficiently with the grain smoothing inspired by
+    the paper *Simulating Film Grain using the Noise-Power Spectrum* by Ian Stephenson
+    and Arthur Saunders.
+
+    Args:
+        shape: The shape of the output ndarry.
+        scale: The pixel scale in pixels per mm.
+        grain_size_mm: The diameter of the individual grains in mm.
+        bw_grain: Is the grain monochromatic or per channel?
+        cached: Should cached noise be used for grain generation?
+        grain_sigma: The grain size distribution standard variance.
+        **kwargs:
+
+    Returns:
+        An ndarray that is essentially a grain overlay.
+    """
     # compute scaling factor of exposure rms in regard to measuring device size
     if bw_grain:
         shape = (shape[0], shape[1], 1)
@@ -165,7 +205,8 @@ def generate_grain(
 
 def generate_grain_frame(
     width, height, channels, scale, grain_size_mm=0.06, std_div=0.001, grain_sigma=0.3
-):
+) -> np.ndarray:
+    """Generates a single frame of grain scaled to 8 bit int values."""
     noise = (
         generate_grain(
             (height, width, channels),
@@ -180,9 +221,13 @@ def generate_grain_frame(
     return noise
 
 
-def output_file(noise, file_format, filename, ext):
+def output_file(noise: np.ndarray, file_format: str, filename: str, ext: str):
+    """
+    Writes the noise array to an image or video file. Formats specified in
+    `.file_formats`.
+    """
     kwargs = FILE_FORMATS[file_format]["kwargs"]
-    # --- Write output ---
+    # Write output
     if file_format.endswith("Sequence"):
         os.makedirs(filename, exist_ok=True)
         for i, frame in enumerate(noise):
@@ -195,7 +240,7 @@ def output_file(noise, file_format, filename, ext):
 
 
 class ExportGrainDialog(QDialog):
-    """Dialog for exporting random noise (grain) as images or video."""
+    """Dialog for exporting random grain overlays as images or video."""
 
     def __init__(self, parent=None):
         super().__init__(parent)

@@ -1,3 +1,7 @@
+"""
+The main class for handling all film data procesing and rendering.
+"""
+
 import math
 import time
 
@@ -36,7 +40,13 @@ else:
 
 
 class FilmSpectral:
+    """
+    The main class that profiles a film stock from its raw data and provides functions
+    for simulating the look of printed or scanned film.
+    """
+
     def __init__(self, film_data: FilmData, gray_value=0.18):
+        """Profiles a film stock from its raw data as reported in a datasheet."""
         # Copy variables from data.
         self.name = film_data.name
         self.color_masking = film_data.color_masking
@@ -331,7 +341,11 @@ class FilmSpectral:
         )
         self.gamma = abs(gamma_interp(log_H_val))
 
-    def set_color_checker(self, negative=None, print_stock=None):
+    def set_color_checker(
+        self,
+        negative: "FilmSpectral | None" = None,
+        print_stock: "FilmSpectral | None" = None,
+    ):
         """
         Simulate the look of the 2005 ColorChecker photographed with the current film
         stock.
@@ -341,9 +355,6 @@ class FilmSpectral:
                 film.
             print_stock: Use this film as the print film for the color checker if
                 provided.
-
-        Returns:
-
         """
         if negative is None:
             negative = self
@@ -387,13 +398,14 @@ class FilmSpectral:
             self.log_exposure[i] = xp.concatenate([log_exposure, logistic_func_x[1:]])
             self.density_curve[i] = xp.concatenate([density_curve, logistic_func_y[1:]])
 
-    def get_d_ref(self, color_masking=None):
+    def get_d_ref(self, color_masking: float | None = None):
         """
         Get the d_ref of the current film stock under specified color masking intensity.
 
         Args:
-            color_masking: Color masking factor in range [0, 1]. If None use default
-            value for current film.
+            color_masking: Color masking factor. If None use default value for current
+                film. Safe values are in the range [0, 1], but higher values can be used
+                to get a highly saturated look.
 
         Returns:
             np.array: d_ref value for each channel.
@@ -451,6 +463,7 @@ class FilmSpectral:
     def prepare_rms_data(rms, density):
         """
         Align the provided rms granularity and density data.
+
         Args:
             rms: RMS granularity data in relation to exposure.
             density: Density values for each channel in relation to exposure..
@@ -550,6 +563,7 @@ class FilmSpectral:
     def get_density_curve(self, color_masking=None):
         """
         Get characteristic density curve for current film stock.
+
         Args:
             color_masking: Color Masking factor in range [0, 1]. If None use default for
             current film stock.
@@ -569,6 +583,7 @@ class FilmSpectral:
     def get_spectral_density(self, color_masking=None):
         """
         Get spectral density for current film stock.
+
         Args:
             color_masking: Color Masking factor in range [0, 1]. If None use default for
             current film stock.
@@ -588,6 +603,7 @@ class FilmSpectral:
         """
         Computed matrix to convert from density of current film stock to log exposure of
         print film stock.
+
         Args:
             print_film: The film to print onto.
             **kwargs: Args passed to compute_printer_light.
@@ -615,7 +631,7 @@ class FilmSpectral:
     ):
         """
         Compute printer light needed to print onto target print film to generate neutral
-        exopsure.
+        exposure.
 
         Args:
             print_film: Film stock to print onto.
@@ -655,7 +671,23 @@ class FilmSpectral:
 
     def compute_projection_light(
         self, projector_kelvin=5500, reference_kelvin=6504, white_point=1.0
-    ):
+    ) -> tuple[xp.ndarray, xp.ndarray]:
+        """
+        Computes a projection light of the specified temperature whose intensity is
+        scaled so that minimum density of the current film will produce the specified
+        white point in linear rec. 709 on the maximum color channel. Also gives scaled
+        XYZ cmfs for use in conjunction with that light.
+
+        Args:
+            projector_kelvin: The light temperature of the projection lamp.
+            reference_kelvin: The reference temperature for the XYZ cmfs calibration.
+                Should be left unchanged under normal circumstances.
+            white_point: The targeted white point. Values above 1.0 can lead to
+                clipping.
+
+        Returns:
+            A tuple (projector_light, xyz_cmfs).
+        """
         reference_light = xp.asarray(
             colour.sd_blackbody(reference_kelvin)
             .align(spectral_shape)
@@ -682,6 +714,7 @@ class FilmSpectral:
         return projector_light, xyz_cmfs
 
     def plot_data(self, film_b=None, color_masking=None):
+        """Plots the spectral density, sensitivity, and sensiometric curve."""
         wavelengths = spectral_shape.wavelengths
         default_colors = ["r", "g", "b"]
 
@@ -792,6 +825,7 @@ class FilmSpectral:
         plt.show()
 
     def grain_transform(self, rgb, scale=1.0, std_div=1.0):
+        """Encoding for the grain intensity LUT."""
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm,
         # default for 3840 / 24mm
         # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay
@@ -837,6 +871,7 @@ class FilmSpectral:
         adx_scaling=1.0,
         **kwargs,
     ):
+        """The main function that performs the film simulation."""
         pipeline = []
 
         if color_masking is None:
@@ -1210,7 +1245,8 @@ class FilmSpectral:
         return convert
 
     @staticmethod
-    def CCT_to_XYZ(CCT, Y=1.0, tint=0.0):
+    def CCT_to_XYZ(CCT: float | int, Y=1.0, tint=0.0):
+        """Converts from a color temperature in kelvin to a XYZ triplet."""
         xy = CCT_to_xy(CCT)
         xyY = (xy[0], xy[1], Y)
         XYZ = colour.xyY_to_XYZ(xyY)
@@ -1220,17 +1256,8 @@ class FilmSpectral:
         return XYZ
 
     @staticmethod
-    def linear_gamut_compression(rgb, gamut_compression=0):
-        A = (
-            xp.identity(3, dtype=default_dtype) * (1 - gamut_compression)
-            + gamut_compression / 3
-        )
-        A_inv = xp.linalg.inv(A)
-        rgb = xp.clip(rgb @ A_inv, 0, None) @ A
-        return rgb
-
-    @staticmethod
     def add_photographic_inversion(add, negative_film, projector_kelvin, pipeline):
+        """Simualtes a simple inversion of a scan with a virtual camera."""
         XYZ_to_AP1 = xp.asarray(colour.RGB_COLOURSPACES["ACEScg"].matrix_XYZ_to_RGB)
         AP1_to_XYZ = xp.linalg.inv(XYZ_to_AP1)
         white = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin)) @ XYZ_to_AP1.T
@@ -1263,6 +1290,7 @@ class FilmSpectral:
         status_m_to_apd = DENSIOMETRY["apd"].T @ negative_film.get_spectral_density(
             color_masking
         )
+        """Inverts as if it was scanned with a perfect APD scanner."""
         output_gamma = 2.6
 
         projection_to_XYZ = xp.array(
@@ -1290,106 +1318,6 @@ class FilmSpectral:
             ),
             "output",
         )
-
-    @staticmethod
-    def add_status_inversion_old(
-        add, negative_film, add_black_offset, add_output_transform, color_masking=0
-    ):
-        status_m_to_apd = DENSIOMETRY["apd"].T @ negative_film.get_spectral_density(
-            color_masking
-        )
-        gray = 10**-negative_film.d_ref @ status_m_to_apd.T
-        target_gray = 0.15
-        output_gamma = 3.2
-
-        projection_to_XYZ = xp.array(
-            [
-                [0.39433440, 0.38861403, 0.15924151],
-                [0.21333715, 0.71804404, 0.06861880],
-                [0.04734647, 0.25670424, 0.70413210],
-            ]
-        )
-
-        add(lambda x: 10**-x, "project")
-        add(
-            lambda x: (
-                (gray * target_gray / (x @ status_m_to_apd.T)) ** output_gamma
-                * target_gray ** (1 - output_gamma)
-            ),
-            "invert",
-        )
-        add(lambda x: (x / (x + 1)) @ projection_to_XYZ.T, "rolloff")
-        add_black_offset()
-        add_output_transform()
-
-    @staticmethod
-    def compute_status_to_XYZ_matrix(print_film, saturation=1):
-        # compute target whipte point of print film
-        projection_light, xyz_cmfs = print_film.compute_projection_light()
-        white_point = (
-            xyz_cmfs * projection_light.reshape(-1, 1)
-        ).T @ 10**-print_film.d_ref_sd
-
-        # compute reference XYZ values for highly saturated red, green, and blue colors
-        layer_activation = (
-            saturation * 2.25 * print_film.d_ref / xp.linalg.norm(print_film.d_ref)
-        )
-        layer_activation = (
-            (xp.ones((3, 3)) - xp.identity(3)) * xp.ones(3) * layer_activation
-        )
-        projection_to_XYZ = densiometry.xyz_cmfs.T @ 10 ** -(
-            print_film.spectral_density @ layer_activation
-            + print_film.d_min_sd.reshape(-1, 1)
-        )
-
-        # adjust white_point and brightness
-        projection_to_XYZ = FilmSpectral.adapt_rgb_to_xyz_matrix(
-            projection_to_XYZ, white_point
-        )
-        projection_to_XYZ /= projection_to_XYZ.sum(1)[1]
-
-        return projection_to_XYZ
-
-    @staticmethod
-    def adapt_rgb_to_xyz_matrix(rgb_to_xyz, target_white_xyz):
-        rgb_to_xyz = to_numpy(rgb_to_xyz)
-        target_white_xyz = to_numpy(target_white_xyz)
-
-        # Step 1: Compute primaries in XYZ (columns of the matrix)
-        XYZ_primaries = rgb_to_xyz.T  # Shape (3, 3)
-
-        # Step 2: Convert XYZ primaries to xy chromaticities
-        xy_primaries = [colour.XYZ_to_xy(XYZ_primaries[i]) for i in range(3)]
-
-        # Step 3: Convert target white XYZ to xy
-        target_white_xy = colour.XYZ_to_xy(target_white_xyz)
-
-        # Step 4: Recompute RGB → XYZ matrix from primaries + new white
-        adapted_rgb_to_xyz = (
-            FilmSpectral.compute_rgb_to_xyz_matrix_from_primaries_and_white(
-                xy_primaries, target_white_xy
-            )
-        )
-
-        return xp.asarray(adapted_rgb_to_xyz)
-
-    @staticmethod
-    def compute_rgb_to_xyz_matrix_from_primaries_and_white(primaries_xy, white_xy):
-        """
-        Computes RGB to XYZ matrix from xy chromaticities and white point.
-        """
-        # Convert chromaticities to XYZ
-        primaries_XYZ = np.array([colour.xy_to_XYZ(xy) for xy in primaries_xy])
-        white_XYZ = colour.xy_to_XYZ(white_xy)
-
-        # Matrix of unscaled primaries
-        M = primaries_XYZ.T
-
-        # Solve for scaling factors
-        S = np.linalg.solve(M, white_XYZ)
-
-        # Apply scaling to columns
-        return M * S
 
     @staticmethod
     def output_to_density(y, a, b, x0=None, method="lm"):

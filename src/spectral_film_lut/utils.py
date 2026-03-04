@@ -1,3 +1,7 @@
+"""
+Utility functions.
+"""
+
 import os
 import sys
 import time
@@ -48,6 +52,9 @@ def create_lut(
     verbose=False,
     **kwargs,
 ):
+    """
+    Creates a cube LUT from using `.film_spectral.FilmSpectral.generate_conversion`.
+    """
     lut = colour.LUT3D(size=lut_size, name="test")
     transform = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
@@ -81,9 +88,8 @@ def multi_channel_interp(
     Resamples each (xp, fp) pair to a uniform grid for fast lookup.
 
     Returns:
-    --------
-    xp_common: np.ndarray, shape (num_bins,)
-    fp_uniform: np.ndarray, shape (n_channels, num_bins)
+        xp_common: np.ndarray, shape (num_bins,)
+        fp_uniform: np.ndarray, shape (n_channels, num_bins)
     """
     if cuda_available:
         extrapolation_distance = 100
@@ -142,33 +148,36 @@ def multi_channel_interp(
 
 @njit
 def uniform_multi_channel_interp(
-    x,
-    xp_common,
-    fp_uniform,
+    x: np.ndarray,
+    xp_common: np.ndarray,
+    fp_uniform: np.ndarray,
     interpolate=True,
     left_extrapolate=False,
     right_extrapolate=False,
-):
-    """
-    Interpolates values in an N-D array `x` over the last dimension (channels)
-    using a precomputed uniform grid (xp_common, fp_uniform), with optional
-    linear extrapolation on both ends.
+) -> np.ndarray:
+    """Interpolate values in an N-D array over the last dimension.
 
-    Parameters:
-    -----------
-    x : np.ndarray, shape (..., channels)
-    xp_common : np.ndarray, shape (num_bins,)
-    fp_uniform : np.ndarray, shape (channels, num_bins)
-    interpolate : bool
-        Whether to linearly interpolate or just pick the nearest neighbor.
-    left_extrapolate : bool
-        Whether to linearly extrapolate for values < xp_common[0]
-    right_extrapolate : bool
-        Whether to linearly extrapolate for values > xp_common[-1]
+    Interpolates values in an N-dimensional array ``x`` across the last
+    dimension (channels) using a precomputed uniform grid defined by
+    ``xp_common`` and ``fp_uniform``. Optionally performs linear
+    interpolation or nearest-neighbor selection, and supports linear
+    extrapolation on either end of the grid.
+
+    Args:
+        x : Input array of shape ``(..., channels)``.
+        xp_common: Monotonically increasing 1D array of shape
+            ``(num_bins,)`` representing the shared grid points.
+        fp_uniform: Array of shape ``(channels, num_bins)``
+            containing function values at each grid point for every channel.
+        interpolate: If ``True``, perform linear interpolation.
+            If ``False``, use nearest-neighbor selection.
+        left_extrapolate: If ``True``, apply linear extrapolation
+            for values less than ``xp_common[0]``.
+        right_extrapolate: If ``True``, apply linear extrapolation
+            for values greater than ``xp_common[-1]``.
 
     Returns:
-    --------
-    result : np.ndarray, same shape as `x`
+        Interpolated array with the same shape as ``x``.
     """
     shape = x.shape
     ndim = len(shape)
@@ -227,23 +236,23 @@ def uniform_multi_channel_interp(
 
 
 @njit(parallel=True)
-def apply_lut_tetrahedral_int(image, lut, bit_depth=16, out_bit_depth=8):
-    """
-    Apply a 3D LUT with tetrahedral interpolation.
-    Input: uint16 image in [0, 65535]
-    Output: uint8 image in [0, 255]
+def apply_lut_tetrahedral_int(
+    image: np.ndarray, lut, bit_depth=16, out_bit_depth=8
+) -> np.ndarray:
+    """Apply a 3D LUT using tetrahedral interpolation.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image of shape (H, W, 3), dtype=uint16.
-    lut : np.ndarray
-        LUT of shape (size, size, size, 3), dtype=uint8.
+    The input image is expected to have dtype ``uint16`` with values in
+    the range ``[0, 65535]``. The output image has dtype ``uint8`` with
+    values in the range ``[0, 255]``.
 
-    Returns
-    -------
-    out : np.ndarray
-        Output image of shape (H, W, 3), dtype=uint8.
+    Args:
+        image: Input image of shape ``(H, W, 3)``,
+            dtype ``uint16``.
+        lut: 3D lookup table of shape
+            ``(size, size, size, 3)``, dtype ``uint8``.
+
+    Returns:
+        Output image of shape ``(H, W, 3)``, dtype ``uint8``.
     """
     h, w, c = image.shape
     size = lut.shape[0]
@@ -467,7 +476,10 @@ if cuda_available:
         return d_out.copy_to_host()
 
 
-def construct_spectral_density(ref_density, sigma=25):
+def construct_spectral_density(
+    ref_density: colour.SpectralDistribution, sigma=25
+) -> xp.ndarray:
+    """Split single density curve into separate layers using local extrema."""
     red_peak = wavelength_argmax(ref_density, 600, min(750, spectral_shape.end))
     green_peak = wavelength_argmax(ref_density, 500, 600)
     blue_peak = wavelength_argmax(ref_density, max(400, spectral_shape.start), 500)
@@ -490,7 +502,10 @@ def construct_spectral_density(ref_density, sigma=25):
     return out
 
 
-def wavelength_argmax(distribution, low=None, high=None):
+def wavelength_argmax(
+    distribution: colour.SpectralDistribution, low=None, high=None
+) -> int:
+    """Gets the argmax of a spectral distribution."""
     range = distribution.copy()
     if low is not None and high is not None:
         range.trim(colour.SpectralShape(low, high, 1))
@@ -498,7 +513,10 @@ def wavelength_argmax(distribution, low=None, high=None):
     return peak
 
 
-def wavelength_argmin(distribution, low=None, high=None):
+def wavelength_argmin(
+    distribution: colour.SpectralDistribution, low=None, high=None
+) -> int:
+    """Gets the argmax of a spectral distribution."""
     range = distribution.copy()
     if low is not None and high is not None:
         range.trim(colour.SpectralShape(low, high, 1))
@@ -506,7 +524,8 @@ def wavelength_argmin(distribution, low=None, high=None):
     return peak
 
 
-def plot_gamuts(rgb_to_xyz, labels=None):
+def plot_gamuts(rgb_to_xyz: list[xp.ndarray], labels=None):
+    """Plots the gamut of CST matrices."""
     rgb_to_xyz = [to_numpy(x) for x in rgb_to_xyz]
 
     # RGB cube corners (R, G, B) in [0, 1]
@@ -542,15 +561,18 @@ def plot_gamuts(rgb_to_xyz, labels=None):
     plt.show()
 
 
-def plot_gamut(rgb_to_xyz, label=None):
+def plot_gamut(rgb_to_xyz: xp.ndarray, label=None):
+    """Plots the gamut of a CST matrix."""
     plot_gamuts([rgb_to_xyz], [label])
 
 
 def plot_chromaticity(chromaticity, label=None):
+    """Plot a chromaticity value."""
     plot_chromaticties([chromaticity], [label])
 
 
 def plot_chromaticties(chromaticies, labels=None):
+    """Plot a chromaticity values."""
     # Plot the CIE 1931 Chromaticity Diagram
     colour.plotting.plot_chromaticity_diagram_CIE1931(standalone=False)
 
@@ -1057,13 +1079,13 @@ def _rgb_to_hsl_pixel(r, g, b):
     diff = c_max - c_min
 
     # Value
-    l = (c_max + c_min) / 2
+    lum = (c_max + c_min) / 2
 
     # Saturation
-    if c_max == 0.0 or l == 1.0:
+    if c_max == 0.0 or lum == 1.0:
         s = 0.0
     else:
-        s = diff / (1 - abs(2 * l - 1))
+        s = diff / (1 - abs(2 * lum - 1))
 
     # Hue
     if diff == 0.0:
@@ -1077,15 +1099,15 @@ def _rgb_to_hsl_pixel(r, g, b):
 
     h /= 6.0  # normalize to [0,1]
 
-    return h, s, l
+    return h, s, lum
 
 
 @njit
-def _hsl_to_rgb_pixel(h, s, l):
+def _hsl_to_rgb_pixel(h, s, lum):
     """Convert one HSL pixel to RGB (all values in [0,1])."""
-    c = (1 - abs(2 * l - 1)) * s
+    c = (1 - abs(2 * lum - 1)) * s
     x = c * (1 - abs(h * 6 % 2 - 1))
-    m = l - c / 2
+    m = lum - c / 2
 
     # rgb temp
     if 0 <= h < 1 / 6:

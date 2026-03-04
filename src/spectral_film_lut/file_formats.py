@@ -1,3 +1,7 @@
+"""
+Here file formats and encoding parameters for the grain generation are defined.
+"""
+
 FILE_FORMATS = {
     # --- Apple ProRes ---
     "ProRes Proxy": {

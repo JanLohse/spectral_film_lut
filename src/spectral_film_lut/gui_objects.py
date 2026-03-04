@@ -56,6 +56,8 @@ from spectral_film_lut.css_theme import (
 
 
 class RoundedScrollArea(QScrollArea):
+    """A QScrollArea with rounded corners."""
+
     def __init__(self, radius=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if radius is None:
@@ -66,6 +68,8 @@ class RoundedScrollArea(QScrollArea):
 
 
 class WideComboBox(QComboBox):
+    """A combo box with animated hover and expanded and styled frame."""
+
     def __init__(self, parent=None, base_color=None):
         super().__init__(parent)
 
@@ -221,6 +225,8 @@ class Worker(QRunnable):
 
 
 class FileSelector(QWidget):
+    """A widget with a src line edit and a button to open a system file selector."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         layout = QHBoxLayout()
@@ -253,6 +259,8 @@ class FileSelector(QWidget):
 
 
 class GradientSlider(QSlider):
+    """A styled slider with float value support and customizable color gradients."""
+
     def __init__(self, *args, reference_value=0, modern_design=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.gradient = None
@@ -408,6 +416,8 @@ class GradientSlider(QSlider):
 
 
 class Slider(QWidget):
+    """A slider with float value support."""
+
     valueChanged = pyqtSignal(float)
 
     def __init__(self, *args, **kwargs):
@@ -509,6 +519,8 @@ class Slider(QWidget):
 
 
 class SliderLog(QWidget):
+    """A slider with float value support and a logarithmic value distribution."""
+
     valueChanged = pyqtSignal(float)
 
     def __init__(self, *args, **kwargs):
@@ -619,6 +631,8 @@ class SliderLog(QWidget):
 
 
 class AnimatedButton(QPushButton):
+    """A button with animated hover and press."""
+
     def __init__(self, text=None, base_color=None, *args, **kwargs):
         super().__init__(text=text, *args, **kwargs)
 
@@ -709,6 +723,8 @@ class AnimatedButton(QPushButton):
 
 
 class AnimatedToolButton(QToolButton):
+    """A tool button with animated hover and press."""
+
     def __init__(self, base_color=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -807,6 +823,8 @@ class AnimatedToolButton(QToolButton):
 
 
 class HoverLineEdit(QLineEdit):
+    """A line edit with animated hover."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

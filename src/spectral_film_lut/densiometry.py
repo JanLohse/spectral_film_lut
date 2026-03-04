@@ -1,3 +1,7 @@
+"""
+Here data and functions for handling and specifying density values is included.
+"""
+
 import colour
 import numpy as np
 
@@ -10,7 +14,17 @@ from spectral_film_lut.utils import (
 )
 
 
-def compute_xyz_dual(CCT=7000, spectral_shape=spectral_shape):
+def compute_xyz_dual(
+    CCT=7000, spectral_shape=spectral_shape
+) -> tuple[xp.ndarray, xp.ndarray]:
+    """
+    Computes XYZ color matching functions and their dual with a least squares fit to the
+    rawtoaces training data set. Is used to get a simple but physically based linear
+    conversion from XYZ values to a spectrum.
+
+    Returns:
+        A tuple (xyz_cmfs, xyz_dual).
+    """
     xyz_cmfs = xp.asarray(
         colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"]
         .align(spectral_shape)
@@ -327,7 +341,13 @@ apd = {
 }
 
 
-def interpolate_status_density(status):
+def interpolate_status_density(
+    status: list[dict[int, float]], spectral_shape=spectral_shape
+) -> xp.ndarray:
+    """
+    Converts logarithmic status density values to a normalized linear status density
+    matrix.
+    """
     result = []
     for i, density in enumerate(status):
         density = colour.SpectralDistribution(density).extrapolate(
@@ -357,7 +377,11 @@ DENSIOMETRY = {
 }
 
 
-def compute_printer_lights():
+def compute_printer_lights() -> xp.ndarray:
+    """
+    Converts the APD printer light to a three light matrix by splitting into separate
+    red, green, and blue lights.
+    """
     printer_light = colour.SpectralDistribution(
         {
             360: 0.0000,
@@ -595,7 +619,20 @@ COLORCHECKER_2005 = COLORCHECKER_2005[1:].reshape(4, 6, 3)
 COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005, default_dtype)
 
 
-def adx16_encode(apd, apd_min=None, scaling=1.0):
+def adx16_encode(apd: xp.ndarray, apd_min=None, scaling=1.0) -> xp.ndarray:
+    """
+    Converts from absolute APD density values to ADX16 values.
+    Instead of as 16 bit int the output is encoded as a float in the range [0, 1].
+
+    Args:
+        apd: The density values.
+        apd_min: The D-min values of the film to compensate for.
+        scaling: Linear scaling applied to the values.
+            For 1.0 it is ADX16-like and for 4.0 it is ADX10-like.
+
+    Returns:
+        ADX-like encoded values in the [0, 1] range.
+    """
     if apd_min is None:
         apd_min = xp.zeros(3, dtype=default_dtype)
     # Scaling factors per channel: R, G, B
@@ -615,7 +652,20 @@ def adx16_encode(apd, apd_min=None, scaling=1.0):
     return adx
 
 
-def adx16_decode(adx, apd_min=None, scaling=1.0):
+def adx16_decode(adx: xp.ndarray, apd_min=None, scaling=1.0):
+    """
+    Converts from ADX16 values to absolute APD density.
+    Instead of as 16 bit int the output is expected as a float in the range [0, 1].
+
+    Args:
+        adx: ADX16 values in the range [0, 1].
+        apd_min: The D-min values of the film that has been compensated for.
+        scaling: Linear scaling removed from the values.
+            For 1.0 it is ADX16-like and for 4.0 it is ADX10-like.
+
+    Returns:
+        Absolute APD density values.
+    """
     if apd_min is None:
         apd_min = xp.zeros(3, dtype=default_dtype)
     # Scaling factors per channel: R, G, B

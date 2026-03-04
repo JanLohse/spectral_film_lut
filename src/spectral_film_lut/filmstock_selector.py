@@ -1,3 +1,7 @@
+"""
+Widget to select film stocks.
+"""
+
 from PyQt6.QtCore import QEvent, QSize, Qt, QTimer
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import (

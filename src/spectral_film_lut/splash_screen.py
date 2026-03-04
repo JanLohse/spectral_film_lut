@@ -13,6 +13,8 @@ BUTTON_RADIUS = 6
 
 
 class SplashScreen(QWidget):
+    """Application splash screen with a progress bar."""
+
     def __init__(self, name, version, total_items=100):
         super().__init__()
         self.setWindowTitle(f"{name} {version}")
@@ -94,6 +96,7 @@ DWMWA_USE_IMMERSIVE_DARK_MODE = 20
 
 
 def set_dark_title_bar(hwnd):
+    """Activates the dark mode for a window on Windows so that the title bar is dark."""
     value = ctypes.c_int(1)
     ctypes.windll.dwmapi.DwmSetWindowAttribute(
         wintypes.HWND(hwnd),
@@ -104,6 +107,10 @@ def set_dark_title_bar(hwnd):
 
 
 class DarkApp(QApplication):
+    """
+    An application that ensures all windows are rendered in a dark theme on Windows.
+    """
+
     def notify(self, receiver, event):
         result = super().notify(receiver, event)
         if (
@@ -120,6 +127,7 @@ class DarkApp(QApplication):
 
 
 def launch_splash_screen(name, version):
+    """Creates the splash screen and starts it."""
     if sys.platform == "win32":
         app = DarkApp(sys.argv)
     else:

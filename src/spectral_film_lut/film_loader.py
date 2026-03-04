@@ -1,16 +1,20 @@
-import ctypes
+"""
+A helper function to load film stocks with a dynamic loading bar.
+"""
+
 import sys
-from ctypes import wintypes
 
 import colour
-from PyQt6.QtWidgets import QApplication, QWidget
 
 from spectral_film_lut import FILM_STOCKS
-from spectral_film_lut.css_theme import PRESSED_COLOR, TEXT_PRIMARY, THEME
+from spectral_film_lut.css_theme import THEME
 from spectral_film_lut.film_spectral import FilmSpectral
 
 
 def load_filmstocks(progress_callback, gray_value=None):
+    """
+    Processes film stock data in parallel and reports the progress to the progress bar.
+    """
     result = []
     total = len(FILM_STOCKS)
     for i, film_stock in enumerate(FILM_STOCKS, start=1):
@@ -28,39 +32,10 @@ def load_filmstocks(progress_callback, gray_value=None):
     return {stock.name: stock for stock in result}
 
 
-PROGRESS_BACKGROUND = PRESSED_COLOR
-PROGRESS_COLOR = TEXT_PRIMARY
-
-DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-
-
-def set_dark_title_bar(hwnd):
-    value = ctypes.c_int(1)
-    ctypes.windll.dwmapi.DwmSetWindowAttribute(
-        wintypes.HWND(hwnd),
-        wintypes.DWORD(DWMWA_USE_IMMERSIVE_DARK_MODE),
-        ctypes.byref(value),
-        ctypes.sizeof(value),
-    )
-
-
-class DarkApp(QApplication):
-    def notify(self, receiver, event):
-        result = super().notify(receiver, event)
-        if (
-            event.type() == event.Type.Show
-            and isinstance(receiver, QWidget)
-            and receiver.isWindow()
-        ):
-            try:
-                hwnd = int(receiver.winId())
-                set_dark_title_bar(hwnd)
-            except Exception:
-                pass
-        return result
-
-
 def load_ui(main_window, splash_screen, app, gray_value=None):
+    """
+    Helper function for loading UI elements in *spectral_film_lut* and *raw2film*.
+    """
     app.setStyleSheet(THEME)
 
     def update_progress(current, total, name):
