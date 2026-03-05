@@ -1,7 +1,14 @@
 # Spectral Film LUT
 
+[![Docs](https://img.shields.io/badge/docs-online-blue)](https://janlohse.github.io/spectral_film_lut/)
+[![CI](https://github.com/JanLohse/spectral_film_lut/actions/workflows/python-app.yml/badge.svg)](https://github.com/JanLohse/spectral_film_lut/actions/workflows/python-app.yml)
+[![Version](https://img.shields.io/github/v/release/JanLohse/spectral_film_lut)](https://github.com/JanLohse/spectral_film_lut/releases)
+[![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/JanLohse/spectral_film_lut?tab=MIT-1-ov-file#readme)
+[![Python](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13%20|%203.14-blue)](https://www.python.org/)
+
 Spectral Film LUT is a GUI application made to generate LUT files for film emulation in
-video editing.
+video editing. For more details take a look at
+the [documentation](https://janlohse.github.io/spectral_film_lut/).
 
 To emulate the look of a film stock its datasheet was digitized and a multistep color
 pipeline simulates its reaction to light to the final appearance of the print material.
