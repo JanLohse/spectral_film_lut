@@ -69,8 +69,10 @@ jobs:
           pip install .
 
       - name: Generate documentation
+        env:
+          PDOC_ALLOW_EXEC: "1"
         run: |
-          pdoc spectral_film_lut \
+          pdoc ./src/spectral_film_lut \
             --math \
             --docformat google \
             --logo "https://github.com/JanLohse/spectral_film_lut/blob/main/src/spectral_film_lut/resources/spectral_film_lut_128.png?raw=true" \
