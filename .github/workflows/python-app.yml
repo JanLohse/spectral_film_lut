@@ -109,8 +109,8 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      TAG: ${{ steps.bump.outputs.new_tag }}
-      VERSION: ${{ steps.set_version.outputs.version }}
+      TAG: ${{ steps.version.outputs.TAG }}
+      VERSION: ${{ steps.version.outputs.VERSION }}
 
     steps:
       - name: Checkout
@@ -118,7 +118,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create initial tag
+      - name: Create initial tag if none exists
         run: |
           if [ -z "$(git tag -l 'v*')" ]; then
             git tag v0.0.0
@@ -133,17 +133,14 @@ jobs:
           WITH_V: true
           DEFAULT_BUMP: patch
 
-      - name: Push tag
+      - name: Export version
+        id: version
         run: |
-          git push origin ${{ steps.bump.outputs.new_tag }}
-
-      - name: Set version output
-        id: set_version
-        run: |
-          TAG=${{ steps.bump.outputs.new_tag }}
+          TAG=${NEW_TAG}
           VERSION=${TAG#v}
-          echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
 
   build-artifacts:
@@ -154,9 +151,6 @@ jobs:
     strategy:
       matrix:
         os: [ windows-latest, ubuntu-latest ]
-
-    outputs:
-      ARTIFACTS: ${{ steps.set-output.outputs.artifacts }}
 
     steps:
       - name: Checkout
@@ -183,37 +177,35 @@ jobs:
       - name: Package binaries
         shell: bash
         run: |
+          VERSION=${{ needs.create-tag.outputs.VERSION }}
+
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            mv dist/SpectralFilmLUT.exe SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.exe
+            mv dist/SpectralFilmLUT.exe SpectralFilmLUT-${VERSION}.exe
           else
             chmod +x dist/SpectralFilmLUT
-            mv dist/SpectralFilmLUT SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.AppImage
+            mv dist/SpectralFilmLUT SpectralFilmLUT-${VERSION}.AppImage
           fi
 
-      - name: Upload artifacts for release
+      - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
           name: spectral-film-lut-${{ matrix.os }}
-          path: |
-            SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.exe
-            SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.AppImage
+          path: SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.*
 
   release:
     name: Create Release
-    needs: build-artifacts
+    needs: [ create-tag, build-artifacts ]
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
-      - name: Download artifacts
+    steps:
+      - name: Download Windows artifact
         uses: actions/download-artifact@v8
         with:
           name: spectral-film-lut-windows-latest
           path: dist/
-      - uses: actions/download-artifact@v8
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v8
         with:
           name: spectral-film-lut-ubuntu-latest
           path: dist/
