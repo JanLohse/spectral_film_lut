@@ -22,8 +22,8 @@ pipeline simulates its reaction to light to the final appearance of the print ma
 - There is especially little data available about the interlayer interaction, e.g., how
   aggressive the color masking couplers in a negative film are.
 
-<img src="https://github.com/user-attachments/assets/2eb00673-ac03-4fc3-a877-31e02372211b#gh-light-mode-only" alt="main gui" style="display:block; width:1087px; height:837px;" media="(prefers-color-scheme: light)">
-<img src="https://github.com/user-attachments/assets/9a4b7a74-5d87-487a-8bd5-1ea7361384fc" alt="main gui" style="display:none; width:1072px; height:823px;" media="(prefers-color-scheme: dark)">
+<img src="https://github.com/user-attachments/assets/2eb00673-ac03-4fc3-a877-31e02372211b#gh-light-mode-only" alt="main gui">
+<img src="https://github.com/user-attachments/assets/9a4b7a74-5d87-487a-8bd5-1ea7361384fc#gh-dark-mode-only" alt="main gui" style="display:none;">
 
 ## Installation
 
@@ -80,5 +80,5 @@ stage.
 When clicking on the magnifying glass a window opens to search and browse through the
 available film stocks.
 
-<img src="https://github.com/user-attachments/assets/54b82d41-9386-49e6-9d3e-b389e8f1585c#gh-light-mode-only" alt="filmstock selector" style="display:block; width:833px; height:595px;" media="(prefers-color-scheme: light)">
-<img src="https://github.com/user-attachments/assets/3886eea0-f21f-43de-a319-f84105daae50" alt="filmstock selector" style="display:none; width:848px; height:597px;" media="(prefers-color-scheme: dark)">
+<img src="https://github.com/user-attachments/assets/54b82d41-9386-49e6-9d3e-b389e8f1585c#gh-light-mode-only" alt="filmstock selector">
+<img src="https://github.com/user-attachments/assets/3886eea0-f21f-43de-a319-f84105daae50#gh-dark-mode-only" alt="filmstock selector" style="display:none;">
