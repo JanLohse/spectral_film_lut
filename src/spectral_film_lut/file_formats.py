@@ -1,30 +1,49 @@
+"""
+Here file formats and encoding parameters for the grain generation are defined.
+"""
+
 FILE_FORMATS = {
     # --- Apple ProRes ---
     "ProRes Proxy": {
         "extension": ".mov",
-        "kwargs": {"codec": "prores_ks", "macro_block_size": 1, "output_params": ["-profile:v", "proxy"]},
+        "kwargs": {
+            "codec": "prores_ks",
+            "macro_block_size": 1,
+            "output_params": ["-profile:v", "proxy"],
+        },
     },
     "ProRes LT": {
         "extension": ".mov",
-        "kwargs": {"codec": "prores_ks", "macro_block_size": 1, "output_params": ["-profile:v", "lt"]},
+        "kwargs": {
+            "codec": "prores_ks",
+            "macro_block_size": 1,
+            "output_params": ["-profile:v", "lt"],
+        },
     },
     "ProRes Standard": {
         "extension": ".mov",
-        "kwargs": {"codec": "prores_ks", "macro_block_size": 1, "output_params": ["-profile:v", "standard"]},
+        "kwargs": {
+            "codec": "prores_ks",
+            "macro_block_size": 1,
+            "output_params": ["-profile:v", "standard"],
+        },
     },
     "ProRes HQ": {
         "extension": ".mov",
-        "kwargs": {"codec": "prores_ks", "macro_block_size": 1, "output_params": ["-profile:v", "hq"]},
+        "kwargs": {
+            "codec": "prores_ks",
+            "macro_block_size": 1,
+            "output_params": ["-profile:v", "hq"],
+        },
     },
     "ProRes 4444": {
         "extension": ".mov",
         "kwargs": {
             "codec": "prores_ks",
             "macro_block_size": 1,
-            "output_params": ["-profile:v", "4444"]
+            "output_params": ["-profile:v", "4444"],
         },
     },
-
     # --- H.264 / H.265 ---
     "H.264": {
         "extension": ".mp4",
@@ -42,7 +61,6 @@ FILE_FORMATS = {
             "output_params": ["-crf", "18", "-preset", "slow"],
         },
     },
-
     # --- Image sequences ---
     "PNG Sequence": {
         "extension": ".png",
@@ -52,7 +70,6 @@ FILE_FORMATS = {
         "extension": ".tif",
         "kwargs": {},
     },
-
     # --- Lossless archival ---
     "FFV1": {
         "extension": ".mkv",

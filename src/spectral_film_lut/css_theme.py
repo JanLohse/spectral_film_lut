@@ -1,10 +1,15 @@
+"""
+Here the theming of the UI is specified.
+"""
+
 import colour
 
 from spectral_film_lut import BASE_DIR
 
 
-def oklch_to_hex(l, c=0., h=0.):
-    return colour.convert((l, c, h), "Oklch", "Hexadecimal")
+def oklch_to_hex(luminance: float, c=0.0, h=0.0) -> str:
+    """Convert from oklch to hex with default c and h values."""
+    return colour.convert((luminance, c, h), "Oklch", "Hexadecimal")
 
 
 BASE_COLOR = oklch_to_hex(0.2175)
@@ -68,7 +73,10 @@ QPushButton:pressed, QComboBox:pressed, QToolButton:pressed {{
     background-color: {PRESSED_COLOR};
 }}
 
-QPushButton:disabled, QComboBox:disabled, QToolButton:disabled, AnimatedButton:disabled {{
+QPushButton:disabled,
+QComboBox:disabled,
+QToolButton:disabled,
+AnimatedButton:disabled {{
     color: {TEXT_SECONDARY};
 }}
 
@@ -78,11 +86,12 @@ QComboBox QAbstractItemView {{
     outline: none;
     border: 1px solid {OUTLINE_COLOR};
     background-color: {MENU_COLOR};
+    border-radius: {BORDER_RADIUS}px;
 }}
 
 QComboBox QAbstractItemView::item {{
     background-color: transparent;
-    padding: 3px 4px;
+    padding: 0px 4px;
     border-radius: {BUTTON_RADIUS}px;
 }}
 
@@ -250,7 +259,7 @@ QScrollBar::add-page:horizontal,
 QScrollBar::sub-page:horizontal {{
     background: none;
 }}
-    
+
 /* Progress bar */
 QProgressDialog {{
     background-color: {BASE_COLOR}; color: {TEXT_PRIMARY};

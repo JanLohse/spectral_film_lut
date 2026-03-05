@@ -1,48 +1,106 @@
+"""
+Functions to simulate film grain and to export film grain overlays.
+"""
+
+import math
+import os
+import sys
 from functools import cache
 
 import imageio
 import imageio.v3 as iio
-from PyQt6.QtCore import QRegularExpression
+import numpy as np
+from PyQt6.QtCore import QRegularExpression, Qt
 from PyQt6.QtGui import QIntValidator, QRegularExpressionValidator
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QCheckBox, QProgressDialog, QApplication)
+from PyQt6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QProgressDialog,
+    QVBoxLayout,
+)
 
-from spectral_film_lut.css_theme import *
+from spectral_film_lut.css_theme import (
+    BASE_COLOR,
+    BUTTON_RADIUS,
+    HOVER_COLOR,
+    OUTLINE_COLOR,
+    PRESSED_COLOR,
+    SCROLLBAR_HOVER_COLOR,
+    TEXT_PRIMARY,
+)
 from spectral_film_lut.file_formats import FILE_FORMATS
-from spectral_film_lut.gui_objects import *
+from spectral_film_lut.gui_objects import (
+    AnimatedButton,
+    HoverLineEdit,
+    SliderLog,
+    WideComboBox,
+)
+from spectral_film_lut.utils import (
+    convolution_filter,
+    cuda_available,
+    default_dtype,
+    to_numpy,
+    xp,
+)
 
 
 @cache
 def gaussian_noise_cache(shape):
+    """Computes and pre caches gaussian noise."""
     return xp.random.default_rng().standard_normal(shape, dtype=default_dtype)
 
 
 def gaussian_noise(shape, cached=False):
+    """
+    Computes gaussian noise.
+    If cached noise is used a random crop is used to not get identical noise every time.
+    """
     if not cached:
         return xp.random.default_rng().standard_normal(shape, dtype=default_dtype)
     noise_size = ((max(shape[:2]) + 100) // 1024 + 1) * 1024
     noise_map = gaussian_noise_cache((noise_size, noise_size))
     if cuda_available:
         offsets = xp.stack(
-            [xp.random.randint(0, x, size=shape[2]) for x in [noise_size - shape[0] + 1, noise_size - shape[1] + 1]]).T
+            [
+                xp.random.randint(0, x, size=shape[2])
+                for x in [noise_size - shape[0] + 1, noise_size - shape[1] + 1]
+            ]
+        ).T
     else:
-        offsets = xp.random.randint([0, 0], [noise_size - shape[0] + 1, noise_size - shape[1] + 1], size=(shape[2], 2))
-    noise = xp.stack([noise_map[x:shape[0] + x, y:shape[1] + y] for x, y in offsets], axis=-1)
+        offsets = xp.random.randint(
+            [0, 0],
+            [noise_size - shape[0] + 1, noise_size - shape[1] + 1],
+            size=(shape[2], 2),
+        )
+    noise = xp.stack(
+        [noise_map[x : shape[0] + x, y : shape[1] + y] for x, y in offsets], axis=-1
+    )
     return noise
 
-def two_component_params(grain_size_mm, sigma, p=2):
-    """
-    Return D1, D2, W1, W2 for a 2-component approximation of a LogNormal(mu, sigma^2).
-    - D1 = exp(mu - sigma)
-    - D2 = exp(mu + sigma)
-    - Split point = geometric mean = exp(mu)
-    - Weights W1, W2 derived for weighting ~ D^p * pdf(D)
-      (p=0 -> number weighting, p=2 -> area weighting, p=3 -> volume/scattering)
-    All returned as floats: (D1, D2, W1, W2).
-    """
-    mu = np.log(grain_size_mm) - 0.5 * sigma ** 2
 
-    D1 = math.exp(mu - sigma)
-    D2 = math.exp(mu + sigma)
+def two_component_params(
+    grain_size_mm: float, sigma: float, p=2
+) -> tuple[float, float, float, float]:
+    r"""
+    Return :math:`d_1`, :math:`d_2`, :math:`w_1`, :math:`w_2` for a 2-component
+    approximation of :math:`LogNormal(\mu, \sigma^2)`.
+    - :math:`d_1 = \exp(\mu - \sigma)`
+    - :math:`d_2 = \exp(\mu + \sigma)`
+    - Split point :math:`=` geometric mean :math:`= \exp(\mu)`
+    - Weights :math:`w_1, w_2` derived for weighting :math:`~ d^p \cdot \text{pdf}(d)`
+      (:math:`p=0 \rightarrow` number weighting, :math:`p=2 \rightarrow` area weighting,
+      :math:`p=3 \rightarrow` volume/scattering)
+
+    All returned as floats: :math:`(d_1, d_2, w_1, w_2)`.
+    """
+    mu = np.log(grain_size_mm) - 0.5 * sigma**2
+
+    d1 = math.exp(mu - sigma)
+    d2 = math.exp(mu + sigma)
 
     # Normal CDF using erf
     def std_norm_cdf(x):
@@ -50,15 +108,28 @@ def two_component_params(grain_size_mm, sigma, p=2):
 
     # Using closed-form: W1 = Phi( (ln(split) - (mu + p*sigma^2)) / sigma )
     # with ln(split)=mu -> argument = -p*sigma
-    W1 = std_norm_cdf(-p * sigma)
-    W2 = 1.0 - W1
+    w1 = std_norm_cdf(-p * sigma)
+    w2 = 1.0 - w1
 
-    return D1, D2, W1, W2
+    return d1, d2, w1, w2
 
-def grain_kernel(pixel_size_mm, grain_size_mm=0.006, grain_sigma=0.3):
-    # based on the paper:
-    # Simulating Film Grain using the Noise-Power Spectrum by Ian Stephenson and Arthur Saunders
-    dye_size1_mm, dye_size2_mm, w1, w2 = two_component_params(grain_size_mm, grain_sigma)
+
+def grain_kernel(
+    pixel_size_mm: float, grain_size_mm=0.006, grain_sigma=0.3
+) -> xp.ndarray:
+    r"""
+    Computes a convolution kernel for film grain.
+    Based on the paper *Simulating Film Grain using the Noise-Power Spectrum* by Ian
+    Stephenson and Arthur Saunders.
+
+    Args:
+        pixel_size_mm: The side length of the pixels in mm.
+        grain_size_mm: The grain diameter in mm.
+        grain_sigma: The grain size distribution standard variance
+    """
+    dye_size1_mm, dye_size2_mm, w1, w2 = two_component_params(
+        grain_size_mm, grain_sigma
+    )
 
     kernel_size_mm = 4.24 * max(dye_size1_mm, dye_size2_mm)
     kernel_size = round(kernel_size_mm / pixel_size_mm)
@@ -71,14 +142,14 @@ def grain_kernel(pixel_size_mm, grain_size_mm=0.006, grain_sigma=0.3):
     fx = xp.fft.fftfreq(kernel_size, d=pixel_size_mm)
     fy = xp.fft.fftfreq(kernel_size, d=pixel_size_mm)
     FX, FY = xp.meshgrid(fx, fy)
-    f = xp.sqrt(FX ** 2 + FY ** 2)  # radial frequency
+    f = xp.sqrt(FX**2 + FY**2)  # radial frequency
 
     # Gaussian model for dye NPS: exp(-(pi*f*D)^2)
-    nps1 = xp.exp(-(xp.pi * f * dye_size1_mm) ** 2) * w1
-    nps2 = xp.exp(-(xp.pi * f * dye_size2_mm) ** 2) * w2
+    nps1 = xp.exp(-((xp.pi * f * dye_size1_mm) ** 2)) * w1
+    nps2 = xp.exp(-((xp.pi * f * dye_size2_mm) ** 2)) * w2
 
     # Total NPS (weighted sum)
-    nps = (nps1 + nps2)
+    nps = nps1 + nps2
     # generate convolution kernel
     # Get spatial kernel by inverse FFT
     kernel = xp.fft.ifft2(xp.sqrt(nps))
@@ -90,12 +161,39 @@ def grain_kernel(pixel_size_mm, grain_size_mm=0.006, grain_sigma=0.3):
     return kernel
 
 
-def generate_grain(shape, scale, grain_size_mm=0.006, bw_grain=False, cached=False, grain_sigma=0.3, **kwargs):
+def generate_grain(
+    shape,
+    scale: float,
+    grain_size_mm=0.006,
+    bw_grain=False,
+    cached=False,
+    grain_sigma=0.3,
+    **kwargs,
+) -> xp.ndarray:
+    """
+    Computes random grain somewhat efficiently with the grain smoothing inspired by
+    the paper *Simulating Film Grain using the Noise-Power Spectrum* by Ian Stephenson
+    and Arthur Saunders.
+
+    Args:
+        shape: The shape of the output ndarry.
+        scale: The pixel scale in pixels per mm.
+        grain_size_mm: The diameter of the individual grains in mm.
+        bw_grain: Is the grain monochromatic or per channel?
+        cached: Should cached noise be used for grain generation?
+        grain_sigma: The grain size distribution standard variance.
+        **kwargs:
+
+    Returns:
+        An ndarray that is essentially a grain overlay.
+    """
     # compute scaling factor of exposure rms in regard to measuring device size
     if bw_grain:
         shape = (shape[0], shape[1], 1)
     noise = gaussian_noise(shape, cached=cached)
-    kernel = grain_kernel(1 / scale, grain_size_mm=grain_size_mm, grain_sigma=grain_sigma)
+    kernel = grain_kernel(
+        1 / scale, grain_size_mm=grain_size_mm, grain_sigma=grain_sigma
+    )
     if kernel is not None:
         noise = convolution_filter(noise, kernel)
     if len(noise.shape) == 2:
@@ -105,45 +203,62 @@ def generate_grain(shape, scale, grain_size_mm=0.006, bw_grain=False, cached=Fal
     return noise
 
 
-def generate_grain_frame(width, height, channels, scale, grain_size_mm=.06, std_div=0.001, grain_sigma=0.3):
-    noise = generate_grain((height, width, channels), scale, grain_size_mm=grain_size_mm, grain_sigma=grain_sigma) * scale
+def generate_grain_frame(
+    width, height, channels, scale, grain_size_mm=0.06, std_div=0.001, grain_sigma=0.3
+) -> np.ndarray:
+    """Generates a single frame of grain scaled to 8 bit int values."""
+    noise = (
+        generate_grain(
+            (height, width, channels),
+            scale,
+            grain_size_mm=grain_size_mm,
+            grain_sigma=grain_sigma,
+        )
+        * scale
+    )
     noise = (xp.clip(noise * std_div + 0.5, 0, 1) * 255).astype(xp.uint8)
     noise = to_numpy(noise)
     return noise
 
 
-def output_file(noise, file_format, filename, ext):
+def output_file(noise: np.ndarray, file_format: str, filename: str, ext: str):
+    """
+    Writes the noise array to an image or video file. Formats specified in
+    `.file_formats`.
+    """
     kwargs = FILE_FORMATS[file_format]["kwargs"]
-    # --- Write output ---
+    # Write output
     if file_format.endswith("Sequence"):
         os.makedirs(filename, exist_ok=True)
         for i, frame in enumerate(noise):
-            frame_filename = os.path.join(filename, f"{os.path.basename(filename).split('.')[0]}_{i:04d}{ext}")
+            frame_filename = os.path.join(
+                filename, f"{os.path.basename(filename).split('.')[0]}_{i:04d}{ext}"
+            )
             iio.imwrite(frame_filename, frame, **kwargs)
     else:
         iio.imwrite(filename, noise, fps=24, **kwargs)
 
 
 class ExportGrainDialog(QDialog):
-    """Dialog for exporting random noise (grain) as images or video."""
+    """Dialog for exporting random grain overlays as images or video."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Export Noise")
         self.setStyleSheet(f"""
         QWidget {{
-            border-radius: {BUTTON_RADIUS}px; 
+            border-radius: {BUTTON_RADIUS}px;
             background-color: {BASE_COLOR};
         }}
-        
+
         HoverLineEdit {{
             background-color: {SCROLLBAR_HOVER_COLOR};
         }}
-        
+
         AnimatedButton, QComboBox, QToolButton {{
             padding: 3px;
         }}
-        
+
         AnimatedButton::hover, QComboBox::hover, HoverLineEdit::hover {{
             background-color: {HOVER_COLOR};
         }}
@@ -187,7 +302,9 @@ class ExportGrainDialog(QDialog):
         layout.addWidget(QLabel("Frame rate:"))
         self.frame_rate = WideComboBox()
         self.frame_rate.setEditable(True)
-        self.frame_rate.addItems(["23.976", "24", "25", "29.97", "30", "50", "59.94", "60"])
+        self.frame_rate.addItems(
+            ["23.976", "24", "25", "29.97", "30", "50", "59.94", "60"]
+        )
         self.frame_rate.setValidator(double_validator)
         self.frame_rate.setCurrentText("24")
         layout.addWidget(self.frame_rate)
@@ -195,7 +312,9 @@ class ExportGrainDialog(QDialog):
         layout.addWidget(QLabel("Frame width (mm):"))
         self.frame_width_field = WideComboBox()
         self.frame_width_field.setEditable(True)
-        self.frame_width_field.addItems(["5.79", "6.30", "12.42", "24.90", "36", "52.15", "70.41"])
+        self.frame_width_field.addItems(
+            ["5.79", "6.30", "12.42", "24.90", "36", "52.15", "70.41"]
+        )
         self.frame_width_field.setValidator(double_validator)
         self.frame_width_field.setCurrentText("36")
         layout.addWidget(self.frame_width_field)
@@ -230,13 +349,26 @@ class ExportGrainDialog(QDialog):
         frame_rate = float(self.frame_rate.currentText())
         scale = width / float(self.frame_width_field.currentText())
         grain_size = float(self.grain_size_field.getValue()) / 1000
-        return width, height, frames, channels, file_format, frame_rate, scale, grain_size
+        return (
+            width,
+            height,
+            frames,
+            channels,
+            file_format,
+            frame_rate,
+            scale,
+            grain_size,
+        )
 
     def export_noise(self):
-        width, height, frames, channels, file_format, frame_rate, scale, grain_size = self.get_values()
+        width, height, frames, channels, file_format, frame_rate, scale, grain_size = (
+            self.get_values()
+        )
         ext = FILE_FORMATS[file_format]["extension"]
 
-        filename, ok = QFileDialog.getSaveFileName(self, "Choose output file", "", "*" + ext)
+        filename, ok = QFileDialog.getSaveFileName(
+            self, "Choose output file", "", "*" + ext
+        )
         if not ok or not filename:
             return
 
@@ -244,7 +376,9 @@ class ExportGrainDialog(QDialog):
             filename += ext
 
         # --- Setup QProgressDialog ---
-        self.progress_dialog = QProgressDialog("Preparing export...", "Cancel", 0, frames + 1, self)
+        self.progress_dialog = QProgressDialog(
+            "Preparing export...", "Cancel", 0, frames + 1, self
+        )
         self.progress_dialog.setWindowTitle("Export grain overlay")
         self.progress_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.progress_dialog.setMinimumDuration(0)
@@ -278,7 +412,9 @@ QProgressBar::chunk {{
                 if self.cancelled:
                     break
                 frame = generate_grain_frame(width, height, channels, scale, grain_size)
-                frame_filename = os.path.join(filename, f"{os.path.basename(filename).split('.')[0]}_{i:04d}{ext}")
+                frame_filename = os.path.join(
+                    filename, f"{os.path.basename(filename).split('.')[0]}_{i:04d}{ext}"
+                )
                 iio.imwrite(frame_filename, frame, **kwargs)
                 self.progress_dialog.setLabelText(f"Exported {i + 1}/{frames} frames")
                 self.progress_dialog.setValue(i + 1)
@@ -287,9 +423,13 @@ QProgressBar::chunk {{
                 for i in range(frames):
                     if self.cancelled:
                         break
-                    frame = generate_grain_frame(width, height, channels, scale, grain_size)
+                    frame = generate_grain_frame(
+                        width, height, channels, scale, grain_size
+                    )
                     writer.append_data(frame)
-                    self.progress_dialog.setLabelText(f"Exported {i + 1}/{frames} frames")
+                    self.progress_dialog.setLabelText(
+                        f"Exported {i + 1}/{frames} frames"
+                    )
                     self.progress_dialog.setValue(i + 1)
                 self.progress_dialog.setLabelText("Finishing up video file")
                 QApplication.processEvents()

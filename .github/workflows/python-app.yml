@@ -1,27 +1,101 @@
-name: Build and Release Artifacts
+name: CI, Docs, and Release
 
 on:
   push:
-    branches:
-      - main
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
+  checks:
+    name: Lint and Build Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [ "3.11", "3.12", "3.13", "3.14" ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Lint with Ruff
+        uses: astral-sh/ruff-action@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build pyinstaller
+          pip install .
+
+      - name: Build package
+        run: python -m build
+
+
+  docs:
+    name: Build and Deploy Docs
+    needs: checks
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pdoc
+          pip install .
+
+      - name: Generate documentation
+        run: |
+          pdoc -o site --html spectral_film_lut
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+
   tag-and-release:
     name: Tag and Create Release
+    needs: checks
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+
     outputs:
       TAG: ${{ steps.bump.outputs.new_tag }}
       VERSION: ${{ steps.set_version.outputs.version }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      # Create initial tag if none exists
       - name: Create initial tag
         run: |
           if [ -z "$(git tag -l 'v*')" ]; then
@@ -29,7 +103,6 @@ jobs:
             git push origin v0.0.0
           fi
 
-      # Bump version
       - name: Bump version
         id: bump
         uses: anothrNick/github-tag-action@1.75.0
@@ -38,7 +111,6 @@ jobs:
           WITH_V: true
           DEFAULT_BUMP: patch
 
-      # Strip leading 'v' for artifact filenames
       - name: Set version output
         id: set_version
         run: |
@@ -47,8 +119,7 @@ jobs:
           echo "TAG=$TAG" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # Create GitHub Release
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.bump.outputs.new_tag }}
@@ -58,27 +129,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+
   build:
     name: Build Artifacts
     needs: tag-and-release
+    runs-on: ${{ matrix.os }}
+
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+        os: [ windows-latest, ubuntu-latest ]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.tag-and-release.outputs.TAG }}
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-
-      - name: Checkout release tag
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ needs.tag-and-release.outputs.TAG }}
-          fetch-depth: 0
+          cache: "pip"
 
       - name: Install dependencies
         run: |
@@ -89,14 +161,12 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller spectral_film_lut.spec
 
-      # Package Windows EXE
       - name: Package Windows EXE
         if: matrix.os == 'windows-latest'
         shell: bash
         run: |
           mv dist/SpectralFilmLUT.exe SpectralFilmLUT-${{ needs.tag-and-release.outputs.VERSION }}.exe
 
-      # Package Linux AppImage
       - name: Package Linux binary
         if: matrix.os == 'ubuntu-latest'
         shell: bash
@@ -104,7 +174,6 @@ jobs:
           chmod +x dist/SpectralFilmLUT
           mv dist/SpectralFilmLUT SpectralFilmLUT-${{ needs.tag-and-release.outputs.VERSION }}.AppImage
 
-      # Upload artifacts to the release
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:

@@ -1,10 +1,31 @@
-from PyQt6.QtCore import QSize, QEvent, QTimer
-from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QStackedWidget, QGridLayout,
-                             QSizePolicy, QSplitter)
+"""
+Widget to select film stocks.
+"""
 
-from spectral_film_lut.gui_objects import *
+from PyQt6.QtCore import QEvent, QSize, Qt, QTimer
+from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtWidgets import (
+    QDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QSplitter,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
 from spectral_film_lut import BASE_DIR
+from spectral_film_lut.css_theme import BACKGROUND_COLOR, PRESSED_COLOR
+from spectral_film_lut.gui_objects import (
+    AnimatedButton,
+    AnimatedToolButton,
+    HoverLineEdit,
+    RoundedScrollArea,
+    WideComboBox,
+)
 
 icon_path = f"{BASE_DIR}/resources/search.svg"
 
@@ -12,8 +33,9 @@ icon_path = f"{BASE_DIR}/resources/search.svg"
 class FilmStockSelector(QWidget):
     def __init__(self, film_stocks, main_parent, parent, **kwargs):
         """
-        Combobox style UI element that lets you select a film stock and can open a pop-up window for more
-        detailed information on the various film stocks.
+        Combobox style UI element that lets you select a film stock and can open a
+        pop-up window for more detailed information on the various film stocks.
+
         Args:
             film_stocks: lList of film stocks to choose from.
             **kwargs: Arguments passed to FilmStockSelectorWindow.
@@ -24,7 +46,6 @@ class FilmStockSelector(QWidget):
 
         self.film_combo = WideComboBox(parent)
         self.film_combo.addItems(self.film_stocks.keys())
-        # self.film_combo.setStyleSheet(f"QComboBox QAbstractItemView {{background-color: {MENU_COLOR};}}")
         self.select_button = AnimatedButton()
         self.select_button.setIcon(QIcon(icon_path))
         self.select_button.setFixedWidth(25)
@@ -46,7 +67,12 @@ class FilmStockSelector(QWidget):
         Opens the FilmStockSelectorWindow when clicking on the looking-glass button.
         """
         current_stock = self.film_combo.currentText()
-        dialog = FilmStockSelectorWindow(self.main_parent, self.film_stocks, highlighted_stock=current_stock, **self.kwargs)
+        dialog = FilmStockSelectorWindow(
+            self.main_parent,
+            self.film_stocks,
+            highlighted_stock=current_stock,
+            **self.kwargs,
+        )
         if dialog.exec():
             selected_stock = dialog.get_selected_film_stock()
             self.film_combo.setCurrentText(selected_stock)
@@ -64,13 +90,25 @@ class FilmStockSelector(QWidget):
 class FilmStockSelectorWindow(QDialog):
     UNKNOWN_LABEL = "Unknown"
 
-    def __init__(self, parent=None, film_stocks=None, sort_keys=None, group_keys=None, list_keys=None,
-                 sidebar_keys=None, default_sort=None, default_group=None, default_filter=None, highlighted_stock=None,
-                 image_key=None, view_state=None):
+    def __init__(
+        self,
+        parent=None,
+        film_stocks=None,
+        sort_keys=None,
+        group_keys=None,
+        list_keys=None,
+        sidebar_keys=None,
+        default_sort=None,
+        default_group=None,
+        default_filter=None,
+        highlighted_stock=None,
+        image_key=None,
+        view_state=None,
+    ):
         """
         Popup window which lets you choose a film stock with more detailed info.
-        Has a tabular view with some details and a grid view with thumbnail color checkers.
-        Lets you sort and group by keys and has a search field.
+        Has a tabular view with some details and a grid view with thumbnail color
+        checkers. Lets you sort and group by keys and has a search field.
         Shows detailed info of the currently selected film stock on the sidebar.
 
         Args:
@@ -93,14 +131,20 @@ class FilmStockSelectorWindow(QDialog):
         self.highlighted_stock = None
 
         self.film_stocks = film_stocks
-        self.film_tags = {x: x.lower() + " " + " ".join((str(z).lower() for z in y.values())) + " " + x for x, y in
-                          self.film_stocks.items()}
+        self.film_tags = {
+            x: x.lower()
+            + " "
+            + " ".join((str(z).lower() for z in y.values()))
+            + " "
+            + x
+            for x, y in self.film_stocks.items()
+        }
 
         if type(film_stocks) is dict:
             all_keys = list({key for d in self.film_stocks.values() for key in d})
         else:
             all_keys = []
-        self.sort_keys = sort_keys or ['Name'] + all_keys
+        self.sort_keys = sort_keys or ["Name"] + all_keys
         self.group_keys = group_keys or all_keys
         self.list_keys = list_keys or all_keys
         self.sidebar_keys = sidebar_keys or all_keys
@@ -114,7 +158,7 @@ class FilmStockSelectorWindow(QDialog):
         self.sort_combo = WideComboBox(base_color=BACKGROUND_COLOR)
         self.group_combo = WideComboBox(base_color=BACKGROUND_COLOR)
         self.sort_combo.addItems(self.sort_keys)
-        self.group_combo.addItems(['none'] + self.group_keys)
+        self.group_combo.addItems(["none"] + self.group_keys)
         if default_group is not None and default_group in self.group_keys:
             self.group_combo.setCurrentText(default_group)
         if default_sort is not None and default_sort in self.sort_keys:
@@ -244,16 +288,22 @@ class FilmStockSelectorWindow(QDialog):
             return (val is not None, val)
 
         def filter_search(tags, filter_key):
-            return all([x in tags for x in filter_key.split(' ')])
+            return all([x in tags for x in filter_key.split(" ")])
 
-        filtered_stocks = {x: y for x, y in self.film_stocks.items() if filter_search(self.film_tags[x], filter_key)}
+        filtered_stocks = {
+            x: y
+            for x, y in self.film_stocks.items()
+            if filter_search(self.film_tags[x], filter_key)
+        }
 
-        if sort_key.lower() in ['', 'name', 'id', 'none'] or sort_key is None:
+        if sort_key.lower() in ["", "name", "id", "none"] or sort_key is None:
             sorted_stocks = sorted(filtered_stocks)
         else:
-            sorted_stocks = sorted(filtered_stocks, key=lambda x: safe_key(filtered_stocks[x], sort_key))
+            sorted_stocks = sorted(
+                filtered_stocks, key=lambda x: safe_key(filtered_stocks[x], sort_key)
+            )
 
-        if group_key == 'none' or group_key is None:
+        if group_key == "none" or group_key is None:
             return [(None, sorted_stocks)]
 
         groups = {}
@@ -267,7 +317,8 @@ class FilmStockSelectorWindow(QDialog):
     def update_sidebar(self, stock):
         if self.image_key is not None and self.image_key in self.film_stocks[stock]:
             original_pixmap = QPixmap.fromImage(self.film_stocks[stock][self.image_key])
-            scaled_pixmap = original_pixmap.scaled(self.detail_image.size(),  # Target size
+            scaled_pixmap = original_pixmap.scaled(
+                self.detail_image.size(),  # Target size
             )
             self.detail_image.setPixmap(scaled_pixmap)
         else:
@@ -288,11 +339,19 @@ class FilmStockSelectorWindow(QDialog):
                 return
             if self.highlighted_stock is not None:
                 if self.highlighted_stock in self.grid_widgets:
-                    self.grid_widgets[self.highlighted_stock].setStyleSheet("background-color: transparent;")
+                    self.grid_widgets[self.highlighted_stock].setStyleSheet(
+                        "background-color: transparent;"
+                    )
                 if self.highlighted_stock in self.list_widgets:
-                    self.list_widgets[self.highlighted_stock].setStyleSheet("background-color: transparent;")
+                    self.list_widgets[self.highlighted_stock].setStyleSheet(
+                        "background-color: transparent;"
+                    )
             self.highlighted_stock = stock
-        elif self.highlighted_stock is not None and self.highlighted_stock in self.grid_widgets and self.highlighted_stock in self.list_widgets:
+        elif (
+            self.highlighted_stock is not None
+            and self.highlighted_stock in self.grid_widgets
+            and self.highlighted_stock in self.list_widgets
+        ):
             grid_widget = self.grid_widgets[self.highlighted_stock]
             list_widget = self.list_widgets[self.highlighted_stock]
         else:
@@ -337,16 +396,24 @@ class FilmStockSelectorWindow(QDialog):
                     attr_label = QLabel(val_str)
                     attr_label.setMinimumWidth(2)
                     attr_label.setMaximumWidth(70)
-                    attr_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                    attr_label.setSizePolicy(
+                        QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+                    )
                     attr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     item_layout.addWidget(attr_label)
 
                 item_widget.setLayout(item_layout)
                 item_widget.setFrameStyle(QLabel.Shape.Box)
-                item_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                item_widget.setSizePolicy(
+                    QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+                )
                 item_widget.setMinimumHeight(40)
-                item_widget.mousePressEvent = lambda e, s=stock: self.highlight_widget(s)
-                item_widget.mouseDoubleClickEvent = lambda e, s=stock: self.confirm_selection()
+                item_widget.mousePressEvent = lambda e, s=stock: self.highlight_widget(
+                    s
+                )
+                item_widget.mouseDoubleClickEvent = lambda e, s=stock: (
+                    self.confirm_selection()
+                )
 
                 self.list_layout.addWidget(item_widget)
 
@@ -392,7 +459,9 @@ class FilmStockSelectorWindow(QDialog):
                     image_label.setFixedHeight(70)
                     original_image = self.film_stocks[stock][self.image_key]
                     pixmap = QPixmap.fromImage(original_image)
-                    scaled_pixmap = pixmap.scaled(col_width, 70, Qt.AspectRatioMode.KeepAspectRatio)
+                    scaled_pixmap = pixmap.scaled(
+                        col_width, 70, Qt.AspectRatioMode.KeepAspectRatio
+                    )
                     image_label.setPixmap(scaled_pixmap)
                     layout.addWidget(image_label)
 
@@ -401,11 +470,15 @@ class FilmStockSelectorWindow(QDialog):
                 layout.addWidget(text_label)
 
                 container.setFixedSize(QSize(col_width, col_height))
-                container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                container.setSizePolicy(
+                    QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+                )
 
                 # Mouse events
                 container.mousePressEvent = lambda e, s=stock: self.highlight_widget(s)
-                container.mouseDoubleClickEvent = lambda e, s=stock: self.confirm_selection()
+                container.mouseDoubleClickEvent = lambda e, s=stock: (
+                    self.confirm_selection()
+                )
 
                 self.grid_layout.addWidget(container, row, col)
                 self.grid_widgets[stock] = container
@@ -418,7 +491,9 @@ class FilmStockSelectorWindow(QDialog):
             if col != 0:
                 row += 1
 
-        self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.grid_layout.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
+        )
         self.grid_container.adjustSize()
 
         self.highlight_widget()

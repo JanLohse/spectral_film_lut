@@ -3,25 +3,31 @@ import sys
 from ctypes import wintypes
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QProgressBar, QVBoxLayout, QWidget, QLabel
+from PyQt6.QtWidgets import QApplication, QLabel, QProgressBar, QVBoxLayout, QWidget
 
 PROGRESS_BACKGROUND = "#2d2d2d"
 PROGRESS_COLOR = "#dddddd"
-BACKGROUND_COLOR = '#272727'
-TEXT_PRIMARY = '#dddddd'
+BACKGROUND_COLOR = "#272727"
+TEXT_PRIMARY = "#dddddd"
 BUTTON_RADIUS = 6
 
 
 class SplashScreen(QWidget):
+    """Application splash screen with a progress bar."""
+
     def __init__(self, name, version, total_items=100):
         super().__init__()
         self.setWindowTitle(f"{name} {version}")
         self.setFixedSize(400, 180)
-        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.CoverWindow)
+        self.setWindowFlags(
+            Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.CoverWindow
+        )
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
 
         # Background color
-        self.setStyleSheet(f"background-color: {BACKGROUND_COLOR}; color: {TEXT_PRIMARY};")
+        self.setStyleSheet(
+            f"background-color: {BACKGROUND_COLOR}; color: {TEXT_PRIMARY};"
+        )
 
         # Layout
         layout = QVBoxLayout(self)
@@ -57,7 +63,9 @@ class SplashScreen(QWidget):
     def update_style_sheet(self, progress, colour=None):
         # Style the progress bar
         if colour is not None and progress:
-            progress_color = colour.convert((0.5, 0.08, progress), "Oklch", "Hexadecimal")
+            progress_color = colour.convert(
+                (0.5, 0.08, progress), "Oklch", "Hexadecimal"
+            )
         else:
             progress_color = "transparent"
         self.progress.setStyleSheet(f"""
@@ -88,15 +96,28 @@ DWMWA_USE_IMMERSIVE_DARK_MODE = 20
 
 
 def set_dark_title_bar(hwnd):
+    """Activates the dark mode for a window on Windows so that the title bar is dark."""
     value = ctypes.c_int(1)
-    ctypes.windll.dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), wintypes.DWORD(DWMWA_USE_IMMERSIVE_DARK_MODE),
-                                               ctypes.byref(value), ctypes.sizeof(value))
+    ctypes.windll.dwmapi.DwmSetWindowAttribute(
+        wintypes.HWND(hwnd),
+        wintypes.DWORD(DWMWA_USE_IMMERSIVE_DARK_MODE),
+        ctypes.byref(value),
+        ctypes.sizeof(value),
+    )
 
 
 class DarkApp(QApplication):
+    """
+    An application that ensures all windows are rendered in a dark theme on Windows.
+    """
+
     def notify(self, receiver, event):
         result = super().notify(receiver, event)
-        if event.type() == event.Type.Show and isinstance(receiver, QWidget) and receiver.isWindow():
+        if (
+            event.type() == event.Type.Show
+            and isinstance(receiver, QWidget)
+            and receiver.isWindow()
+        ):
             try:
                 hwnd = int(receiver.winId())
                 set_dark_title_bar(hwnd)
@@ -106,6 +127,7 @@ class DarkApp(QApplication):
 
 
 def launch_splash_screen(name, version):
+    """Creates the splash screen and starts it."""
     if sys.platform == "win32":
         app = DarkApp(sys.argv)
     else:
