@@ -130,7 +130,7 @@ jobs:
           pip install .
 
       - name: Install PyInstaller cache
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pyinstaller
           key: pyinstaller-${{ runner.os }}-${{ hashFiles('**/spectral_film_lut.spec') }}
@@ -149,7 +149,7 @@ jobs:
           fi
 
       - name: Upload artifacts for release
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: spectral-film-lut-${{ matrix.os }}
           path: |
@@ -192,11 +192,11 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8
         with:
           name: spectral-film-lut-windows-latest
           path: dist/
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v8
         with:
           name: spectral-film-lut-ubuntu-latest
           path: dist/
