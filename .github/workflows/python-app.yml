@@ -221,14 +221,3 @@ jobs:
             dist/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  cleanup-tag:
-    name: Cleanup tag if pipeline fails
-    needs: [ create-tag, build-artifacts, release ]
-    if: failure()
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Delete failed tag
-        run: |
-          git push --delete origin ${{ needs.create-tag.outputs.TAG }}
