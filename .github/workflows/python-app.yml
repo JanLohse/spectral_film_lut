@@ -133,6 +133,10 @@ jobs:
           WITH_V: true
           DEFAULT_BUMP: patch
 
+      - name: Push tag
+        run: |
+          git push origin ${{ steps.bump.outputs.new_tag }}
+
       - name: Set version output
         id: set_version
         run: |
@@ -158,6 +162,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ needs.create-tag.outputs.TAG }}
           fetch-depth: 0
 
       - name: Setup Python
