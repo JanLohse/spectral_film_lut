@@ -22,10 +22,10 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Lint with Ruff
-        uses: astral-sh/ruff-action@v2
+        uses: astral-sh/ruff-action@v3
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -40,22 +40,19 @@ jobs:
         run: python -m build
 
 
-  docs:
-    name: Build and Deploy Docs
+  build-docs:
+    name: Build Docs
     needs: checks
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: "pip"
@@ -68,15 +65,31 @@ jobs:
 
       - name: Generate documentation
         run: |
-          pdoc -o site --html spectral_film_lut
+          pdoc spectral_film_lut \
+            --math \
+            --docformat google \
+            --logo "https://github.com/JanLohse/spectral_film_lut/blob/main/src/spectral_film_lut/resources/spectral_film_lut_128.png?raw=true" \
+            -o docs/
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
-          path: site
+          path: docs/
 
-      - name: Deploy to GitHub Pages
-        id: deployment
+
+  deploy-docs:
+    name: Deploy Docs
+    needs: build-docs
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
         uses: actions/deploy-pages@v4
 
 
@@ -147,7 +160,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: "pip"
