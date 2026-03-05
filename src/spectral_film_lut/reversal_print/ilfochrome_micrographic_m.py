@@ -1,19 +1,15 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_spectral import FilmData
 
-
-class IlfochromeMicrographicM(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.lad = [0.91030324, 1.0133907, 0.9813101]
-        self.density_measure = "status_a"
-        self.manufacturer = "Ilford"
-        self.stage = "print"
-        self.type = "positive"
-        self.medium = "photo"
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+ILFOCHROME_MICROGRAPHIC_M = FilmData(
+    name="Ilfochrome Micrographic M",
+    lad=[0.91030324, 1.0133907, 0.9813101],
+    density_measure="status_a",
+    manufacturer="Ilford",
+    stage="print",
+    film_type="positive",
+    medium="photo",
+    log_sensitivity=[
+        {
             586.2032: 0.1181,
             589.2634: 0.1931,
             592.1196: 0.2683,
@@ -60,8 +56,8 @@ class IlfochromeMicrographicM(FilmSpectral):
             671.4806: 0.1543,
             674.7448: 0.0712,
             678.2130: 0.0114,
-        }
-        green_log_sensitivity = {
+        },
+        {
             466.2436: 0.0961,
             469.7119: 0.1810,
             472.3640: 0.2566,
@@ -125,8 +121,8 @@ class IlfochromeMicrographicM(FilmSpectral):
             575.5945: 0.1293,
             578.2467: 0.0706,
             582.9390: 0.0611,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             401.8341: 1.2345,
             404.1921: 1.3389,
             407.0015: 1.4316,
@@ -163,15 +159,10 @@ class IlfochromeMicrographicM(FilmSpectral):
             504.3940: 0.1283,
             508.0209: 0.0636,
             511.6157: 0.0000,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             0.0010: 2.0643,
             0.0411: 2.0617,
             0.1008: 2.0606,
@@ -215,8 +206,8 @@ class IlfochromeMicrographicM(FilmSpectral):
             2.2739: 0.0374,
             2.4055: 0.0277,
             2.9932: 0.0158,
-        }
-        green_curve = {
+        },
+        {
             0.0411: 2.3973,
             0.1008: 2.3953,
             0.1606: 2.3925,
@@ -266,8 +257,8 @@ class IlfochromeMicrographicM(FilmSpectral):
             2.6089: 0.0217,
             2.8302: 0.0158,
             2.9977: 0.0128,
-        }
-        blue_curve = {
+        },
+        {
             0.0525: 2.4545,
             0.1122: 2.4523,
             0.1719: 2.4492,
@@ -315,22 +306,10 @@ class IlfochromeMicrographicM(FilmSpectral):
             2.5311: 0.0433,
             2.7509: 0.0433,
             2.9962: 0.0381,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             406.7273: 0.0984,
             413.2482: 0.0866,
             419.7691: 0.0764,
@@ -404,8 +383,8 @@ class IlfochromeMicrographicM(FilmSpectral):
             716.6280: 0.3521,
             718.5073: 0.3161,
             720.1666: 0.2893,
-        }
-        green_sd = {
+        },
+        {
             403.4669: 0.2618,
             409.9878: 0.2270,
             416.5087: 0.2025,
@@ -469,8 +448,8 @@ class IlfochromeMicrographicM(FilmSpectral):
             647.1851: 0.0036,
             653.7060: -0.0045,
             658.3929: -0.0077,
-        }
-        blue_sd = {
+        },
+        {
             403.9528: 0.8493,
             406.5236: 0.8908,
             409.5802: 0.9245,
@@ -513,9 +492,6 @@ class IlfochromeMicrographicM(FilmSpectral):
             571.3798: -0.0062,
             577.9007: -0.0069,
             581.9762: -0.0074,
-        }
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-
-        self.calibrate()
+        },
+    ],
+)

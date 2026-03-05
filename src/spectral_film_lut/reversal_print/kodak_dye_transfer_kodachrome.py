@@ -1,27 +1,18 @@
-from spectral_film_lut.bw_negative_film.kodak_5222 import *
-from spectral_film_lut.wratten_filters import WRATTEN
+from spectral_film_lut.film_data import FilmData
 
-
-class KodakDyeTransferKodachrome(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.lad = [0.95] * 3
-        self.density_measure = "absolute"
-        self.manufacturer = "Kodak"
-        self.stage = "print"
-        self.type = "positive"
-        self.medium = "photo"
-        self.year = 1946
-        self.comment = "Very experimental and unreliable results. Needs more testing and refinement."
-
-        separation_neg = Kodak5222()
-        sensitivity = separation_neg.sensitivity
-        filters = xp.stack([WRATTEN["24"], WRATTEN["61"], WRATTEN["47"]])
-        self.sensitivity = sensitivity * filters.T
-
-        # spectral dye density
-        red_sd = {
+KODAK_DYE_TRANSFER_KODACHROME = FilmData(
+    name="Kodak Dye Transfer for Kodachrome",
+    lad=[0.95] * 3,
+    density_measure="absolute",
+    manufacturer="Kodak",
+    stage="print",
+    film_type="positive",
+    medium="photo",
+    year=1946,
+    comment="Very experimental and unreliable results. Needs more tests and "
+    "refinement.",
+    spectral_density=[
+        {
             399.9333: 0.1744,
             416.2330: 0.1563,
             437.2710: 0.1569,
@@ -43,8 +34,8 @@ class KodakDyeTransferKodachrome(FilmSpectral):
             672.2905: 0.9171,
             685.8420: 0.8424,
             699.9621: 0.7477,
-        }
-        green_sd = {
+        },
+        {
             399.7438: 0.1771,
             406.7564: 0.1627,
             412.8214: 0.1549,
@@ -68,8 +59,8 @@ class KodakDyeTransferKodachrome(FilmSpectral):
             661.8662: 0.0441,
             683.0938: 0.0354,
             699.1092: 0.0273,
-        }
-        blue_sd = {
+        },
+        {
             400.1228: 0.9301,
             405.8088: 0.9509,
             412.2529: 0.9664,
@@ -93,23 +84,10 @@ class KodakDyeTransferKodachrome(FilmSpectral):
             679.1136: 0.0340,
             693.7075: 0.0318,
             699.7726: 0.0306,
-        }
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-        self.spectral_density = xp.stack(
-            [
-                xp.asarray(self.gaussian_extrapolation(x).values)
-                for x in self.spectral_density
-            ]
-        ).T
-        density_measurements = xp.sum(
-            densiometry.status_a * self.spectral_density, axis=0
-        )
-        density_measurements /= density_measurements[0]
-
-        # sensiometry curve from kodak matrix film 4150
-        curve = {
+        },
+    ],
+    sensiometric_curve=[  # sensiometry curve from kodak matrix film 4150
+        {
             -0.8901: 0.0337,
             -0.8083: 0.0450,
             -0.7327: 0.0582,
@@ -139,29 +117,51 @@ class KodakDyeTransferKodachrome(FilmSpectral):
             1.8457: 2.6357,
             1.9573: 2.6437,
         }
-        log_exposure_matrix = xp.array(list(curve.keys()), dtype=default_dtype)
-        density_curve_matrix = xp.array(list(curve.values()), dtype=default_dtype)
-        log_H_ref_mat = xp.interp(
-            xp.asarray(self.lad[0]), density_curve_matrix, log_exposure_matrix
-        )
-        separation_curve = separation_neg.density_curve[0]
-        separation_exposure = separation_neg.log_exposure[0]
-        slope = (separation_curve[-1] - separation_curve[-2]) / (
-            separation_exposure[-1] - separation_exposure[-2]
-        )
-        separation_curve = xp.append(separation_curve, separation_curve[-1] + slope * 1)
-        separation_exposure = xp.append(
-            separation_exposure, separation_exposure[-1] + 1
-        )
-        density_curve = xp.interp(
-            log_H_ref_mat - separation_curve + separation_neg.d_ref,
-            log_exposure_matrix,
-            density_curve_matrix,
-        )
+    ]
+    * 3,
+)
 
-        # TODO: highlight_mask
-
-        self.log_exposure = [separation_exposure] * 3
-        self.density_curve = [density_curve * scale for scale in density_measurements]
-
-        self.calibrate()
+# TODO: integrate
+# separation_neg = Kodak5222()
+#         sensitivity = separation_neg.sensitivity
+#         filters = xp.stack([WRATTEN["24"], WRATTEN["61"], WRATTEN["47"]])
+#         self.sensitivity = sensitivity * filters.T
+#
+#         self.spectral_density = [
+#             colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
+#         ]
+#         self.spectral_density = xp.stack(
+#             [
+#                 xp.asarray(self.gaussian_extrapolation(x).values)
+#                 for x in self.spectral_density
+#             ]
+#         ).T
+#         density_measurements = xp.sum(
+#             densiometry.status_a * self.spectral_density, axis=0
+#         )
+#         density_measurements /= density_measurements[0]
+#
+# log_exposure_matrix = xp.array(list(curve.keys()), dtype=default_dtype)
+#         density_curve_matrix = xp.array(list(curve.values()), dtype=default_dtype)
+#         log_H_ref_mat = xp.interp(
+#             xp.asarray(self.lad[0]), density_curve_matrix, log_exposure_matrix
+#         )
+#         separation_curve = separation_neg.density_curve[0]
+#         separation_exposure = separation_neg.log_exposure[0]
+#         slope = (separation_curve[-1] - separation_curve[-2]) / (
+#             separation_exposure[-1] - separation_exposure[-2]
+#         )
+#         separation_curve = xp.append(separation_curve, separation_curve[-1] + slope *
+#         1)
+#         separation_exposure = xp.append(
+#             separation_exposure, separation_exposure[-1] + 1
+#         )
+#         density_curve = xp.interp(
+#             log_H_ref_mat - separation_curve + separation_neg.d_ref,
+#             log_exposure_matrix,
+#             density_curve_matrix,
+#         )
+#
+# self.density_curve = [density_curve * scale for scale in density_measurements]
+#
+# TODO: highlight_mask

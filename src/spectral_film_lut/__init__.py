@@ -103,6 +103,15 @@ from spectral_film_lut.reversal_film.fuji_velvia_50 import FUJI_VELVIA_50
 from spectral_film_lut.reversal_film.kodachrome_64 import KODACHROME_64
 from spectral_film_lut.reversal_film.kodak_aerochrome_iii import KODAK_AEROCHROME_III
 from spectral_film_lut.reversal_film.kodak_ektachrome_100d import KODAK_EKTACHROME_100D
+from spectral_film_lut.reversal_print.ilfochrome_micrographic_m import (
+    ILFOCHROME_MICROGRAPHIC_M,
+)
+from spectral_film_lut.reversal_print.ilfochrome_micrographic_p import (
+    ILFOCHROME_MICROGRAPHIC_P,
+)
+from spectral_film_lut.reversal_print.kodak_ektachrome_radiance_iii import (
+    KODAK_EKTACHROME_RADIANCE_III,
+)
 
 try:
     from ._version import __version__
@@ -199,7 +208,11 @@ PRINT_FILM = [
     KODAK_PORTRA_ENDURA,
     KODAK_SUPRA_ENDURA,
 ]
-REVERSAL_PRINT = []
+REVERSAL_PRINT = [
+    ILFOCHROME_MICROGRAPHIC_M,
+    ILFOCHROME_MICROGRAPHIC_P,
+    KODAK_EKTACHROME_RADIANCE_III,
+]
 REVERSAL_FILM = [
     FUJI_FP100C,
     FUJI_INSTAX_COLOR,

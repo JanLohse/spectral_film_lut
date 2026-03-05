@@ -1,19 +1,15 @@
-from spectral_film_lut.film_spectral import *
+from spectral_film_lut.film_spectral import FilmData
 
-
-class KodakEktachromeRadianceIIIPaper(FilmSpectral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.lad = [1] * 3
-        self.density_measure = "status_a"
-        self.manufacturer = "Kodak"
-        self.stage = "print"
-        self.type = "positive"
-        self.medium = "photo"
-
-        # spectral sensitivity
-        red_log_sensitivity = {
+KODAK_EKTACHROME_RADIANCE_III = FilmData(
+    name="Kodak Ektachrome Radiance III Paper",
+    lad=[1] * 3,
+    density_measure="status_a",
+    manufacturer="Kodak",
+    stage="print",
+    film_type="positive",
+    medium="photo",
+    log_sensitivity=[
+        {
             564.4379: -0.6577,
             572.7240: -0.5664,
             581.0101: -0.4747,
@@ -44,8 +40,8 @@ class KodakEktachromeRadianceIIIPaper(FilmSpectral):
             694.8239: -1.0555,
             696.0000: -1.1552,
             697.5503: -1.2684,
-        }
-        green_log_sensitivity = {
+        },
+        {
             482.1113: -0.6265,
             486.3880: -0.5273,
             490.3974: -0.4341,
@@ -72,8 +68,8 @@ class KodakEktachromeRadianceIIIPaper(FilmSpectral):
             559.6266: 0.0704,
             560.1612: -0.0742,
             560.4285: -0.1611,
-        }
-        blue_log_sensitivity = {
+        },
+        {
             355.1466: -0.1935,
             360.2252: -0.1032,
             363.9673: -0.0146,
@@ -111,15 +107,10 @@ class KodakEktachromeRadianceIIIPaper(FilmSpectral):
             504.8313: -0.7697,
             507.5042: -0.8735,
             509.9099: -0.9550,
-        }
-        self.log_sensitivity = [
-            red_log_sensitivity,
-            green_log_sensitivity,
-            blue_log_sensitivity,
-        ]
-
-        # sensiometry
-        red_curve = {
+        },
+    ],
+    sensiometric_curve=[
+        {
             0.0000: 2.5171,
             0.1634: 2.5206,
             0.3578: 2.5171,
@@ -158,8 +149,8 @@ class KodakEktachromeRadianceIIIPaper(FilmSpectral):
             3.6387: 0.0862,
             3.7363: 0.0862,
             3.7921: 0.0862,
-        }
-        green_curve = {
+        },
+        {
             0.0057: 2.4181,
             0.2567: 2.4199,
             0.4668: 2.4026,
@@ -197,8 +188,8 @@ class KodakEktachromeRadianceIIIPaper(FilmSpectral):
             3.6387: 0.0862,
             3.7363: 0.0862,
             3.7921: 0.0862,
-        }
-        blue_curve = {
+        },
+        {
             0.0000: 2.4510,
             0.2023: 2.4549,
             0.3851: 2.4564,
@@ -237,22 +228,10 @@ class KodakEktachromeRadianceIIIPaper(FilmSpectral):
             3.6387: 0.0862,
             3.7363: 0.0862,
             3.7921: 0.0862,
-        }
-        red_log_exposure = xp.array(list(red_curve.keys()), dtype=default_dtype)
-        red_density_curve = xp.array(list(red_curve.values()), dtype=default_dtype)
-        green_log_exposure = xp.array(list(green_curve.keys()), dtype=default_dtype)
-        green_density_curve = xp.array(list(green_curve.values()), dtype=default_dtype)
-        blue_log_exposure = xp.array(list(blue_curve.keys()), dtype=default_dtype)
-        blue_density_curve = xp.array(list(blue_curve.values()), dtype=default_dtype)
-        self.log_exposure = [red_log_exposure, green_log_exposure, blue_log_exposure]
-        self.density_curve = [
-            red_density_curve,
-            green_density_curve,
-            blue_density_curve,
-        ]
-
-        # spectral dye density
-        red_sd = {
+        },
+    ],
+    spectral_density=[
+        {
             401.4909: 1.1497,
             402.8855: 1.0876,
             404.4544: 1.0279,
@@ -306,8 +285,8 @@ class KodakEktachromeRadianceIIIPaper(FilmSpectral):
             687.2062: 1.4387,
             692.9589: 1.3761,
             698.0956: 1.3167,
-        }
-        green_sd = {
+        },
+        {
             402.5369: 0.7877,
             404.1058: 0.7195,
             405.6747: 0.6515,
@@ -373,8 +352,8 @@ class KodakEktachromeRadianceIIIPaper(FilmSpectral):
             684.5914: 0.1256,
             691.9130: 0.1191,
             697.1426: 0.1160,
-        }
-        blue_sd = {
+        },
+        {
             404.6287: 1.3741,
             410.5557: 1.3312,
             417.8773: 1.3446,
@@ -423,9 +402,6 @@ class KodakEktachromeRadianceIIIPaper(FilmSpectral):
             677.2698: 0.1040,
             684.5914: 0.0988,
             696.4454: 0.0977,
-        }
-        self.spectral_density = [
-            colour.SpectralDistribution(x) for x in (red_sd, green_sd, blue_sd)
-        ]
-
-        self.calibrate()
+        },
+    ],
+)
