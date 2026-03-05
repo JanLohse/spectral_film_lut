@@ -101,67 +101,17 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-  build-artifacts:
-    name: Build Artifacts
+
+  create-tag:
+    name: Create New Tag
     needs: checks
     if: github.ref == 'refs/heads/main'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ windows-latest, ubuntu-latest ]
-    outputs:
-      ARTIFACTS: ${{ steps.set-output.outputs.artifacts }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-          cache: "pip"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller build
-          pip install .
-
-      - name: Install PyInstaller cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/pyinstaller
-          key: pyinstaller-${{ runner.os }}-${{ hashFiles('**/spectral_film_lut.spec') }}
-
-      - name: Build with PyInstaller
-        run: pyinstaller --noconfirm --clean --log-level WARN spectral_film_lut.spec
-
-      - name: Package binaries
-        shell: bash
-        run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            mv dist/SpectralFilmLUT.exe SpectralFilmLUT-${{ github.run_number }}.exe
-          else
-            chmod +x dist/SpectralFilmLUT
-            mv dist/SpectralFilmLUT SpectralFilmLUT-${{ github.run_number }}.AppImage
-          fi
-
-      - name: Upload artifacts for release
-        uses: actions/upload-artifact@v6
-        with:
-          name: spectral-film-lut-${{ matrix.os }}
-          path: |
-            SpectralFilmLUT-${{ github.run_number }}.exe
-            SpectralFilmLUT-${{ github.run_number }}.AppImage
-
-  tag-and-release:
-    name: Tag and Create Release
-    needs: build-artifacts
     runs-on: ubuntu-latest
+
     outputs:
-      TAG: ${{ steps.set_version.outputs.version }}
+      TAG: ${{ steps.bump.outputs.new_tag }}
+      VERSION: ${{ steps.set_version.outputs.version }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -191,6 +141,68 @@ jobs:
           echo "TAG=$TAG" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+
+  build-artifacts:
+    name: Build Artifacts
+    needs: create-tag
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
+
+    outputs:
+      ARTIFACTS: ${{ steps.set-output.outputs.artifacts }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller build
+          pip install .
+
+      - name: Build with PyInstaller
+        run: pyinstaller spectral_film_lut.spec
+
+      - name: Package binaries
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            mv dist/SpectralFilmLUT.exe SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.exe
+          else
+            chmod +x dist/SpectralFilmLUT
+            mv dist/SpectralFilmLUT SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.AppImage
+          fi
+
+      - name: Upload artifacts for release
+        uses: actions/upload-artifact@v6
+        with:
+          name: spectral-film-lut-${{ matrix.os }}
+          path: |
+            SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.exe
+            SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.AppImage
+
+  release:
+    name: Create Release
+    needs: build-artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
@@ -204,12 +216,12 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.bump.outputs.new_tag }}
-          name: Version ${{ steps.bump.outputs.new_tag }}
+          tag_name: ${{ needs.create-tag.outputs.TAG }}
+          name: Version ${{ needs.create-tag.outputs.VERSION }}
           draft: false
           prerelease: false
           files: |
-            dist/SpectralFilmLUT-${{ github.run_number }}.exe
-            dist/SpectralFilmLUT-${{ github.run_number }}.AppImage
+            dist/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.exe
+            dist/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
