@@ -136,7 +136,7 @@ jobs:
       - name: Export version
         id: version
         run: |
-          TAG=${NEW_TAG}
+          TAG=${{ steps.bump.outputs.new_tag }}
           VERSION=${TAG#v}
 
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
@@ -153,7 +153,7 @@ jobs:
         os: [ windows-latest, ubuntu-latest ]
 
     steps:
-      - name: Checkout
+      - name: Checkout tagged commit
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.create-tag.outputs.TAG }}
@@ -186,11 +186,12 @@ jobs:
             mv dist/SpectralFilmLUT SpectralFilmLUT-${VERSION}.AppImage
           fi
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v6
         with:
           name: spectral-film-lut-${{ matrix.os }}
           path: SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.*
+
 
   release:
     name: Create Release
@@ -215,8 +216,6 @@ jobs:
         with:
           tag_name: ${{ needs.create-tag.outputs.TAG }}
           name: Version ${{ needs.create-tag.outputs.VERSION }}
-          draft: false
-          prerelease: false
           files: |
             dist/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.exe
             dist/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.AppImage
