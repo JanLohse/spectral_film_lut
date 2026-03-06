@@ -40,8 +40,8 @@ from spectral_film_lut.gui_objects import (
     WideComboBox,
 )
 from spectral_film_lut.utils import (
+    CUDA_AVAILABLE,
     convolution_filter,
-    cuda_available,
     default_dtype,
     to_numpy,
     xp,
@@ -63,7 +63,7 @@ def gaussian_noise(shape, cached=False):
         return xp.random.default_rng().standard_normal(shape, dtype=default_dtype)
     noise_size = ((max(shape[:2]) + 100) // 1024 + 1) * 1024
     noise_map = gaussian_noise_cache((noise_size, noise_size))
-    if cuda_available:
+    if CUDA_AVAILABLE:
         offsets = xp.stack(
             [
                 xp.random.randint(0, x, size=shape[2])

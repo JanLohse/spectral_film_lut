@@ -15,6 +15,9 @@ from numba import cuda, njit, prange
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+CUDA_AVAILABLE = False
+"""Whether cuda is available through cupy."""
+
 try:
     if "--no-cuda" in sys.argv:
         raise ImportError()
@@ -22,17 +25,15 @@ try:
     from cupyx.scipy import ndimage as xdimage
     from cupyx.scipy import signal
 
-    cuda_available = True
+    CUDA_AVAILABLE = True
 except ImportError:
     import numpy as xp
     from scipy import ndimage as xdimage
     from scipy import signal
 
-    cuda_available = False
-
 
 def to_numpy(x):
-    if cuda_available:
+    if CUDA_AVAILABLE:
         return xp.asnumpy(x)
     else:
         return x
@@ -91,7 +92,7 @@ def multi_channel_interp(
         xp_common: np.ndarray, shape (num_bins,)
         fp_uniform: np.ndarray, shape (n_channels, num_bins)
     """
-    if cuda_available:
+    if CUDA_AVAILABLE:
         extrapolation_distance = 100
         if right_extrapolate:
             slopes = [
@@ -349,7 +350,7 @@ def apply_lut_tetrahedral_int(
     return out
 
 
-if cuda_available:
+if CUDA_AVAILABLE:
 
     @cuda.jit
     def apply_lut_tetrahedral_int_cuda(image, lut, out, size, scale, scale_out):
@@ -1387,7 +1388,7 @@ def saturation_adjust_oklch(
 
 
 def convolution_filter(rgb, kernel, padding=False):
-    if not cuda_available:
+    if not CUDA_AVAILABLE:
         return cv2.filter2D(rgb, -1, kernel)
     else:
         if len(kernel.shape) == 2:

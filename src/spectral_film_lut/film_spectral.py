@@ -21,9 +21,9 @@ from spectral_film_lut.densiometry import (
 )
 from spectral_film_lut.film_data import FilmData
 from spectral_film_lut.utils import (
+    CUDA_AVAILABLE,
     CCT_to_xy,
     construct_spectral_density,
-    cuda_available,
     default_dtype,
     gamut_compression_matrices,
     multi_channel_interp,
@@ -33,7 +33,7 @@ from spectral_film_lut.utils import (
     xp,
 )
 
-if cuda_available:
+if CUDA_AVAILABLE:
     from cupyx.scipy.interpolate import PchipInterpolator
 else:
     from scipy.interpolate import PchipInterpolator
@@ -935,7 +935,7 @@ class FilmSpectral:
                     ),
                     "input",
                 )
-            elif cuda_available:
+            elif CUDA_AVAILABLE:
                 add(lambda x: xp.asarray(x), "cast to cuda")
 
             exp_comp = 2**exp_comp
@@ -997,7 +997,7 @@ class FilmSpectral:
                 add(lambda x: x @ layer_activation_to_apd.T, "encode APD")
             add(lambda x: adx16_encode(x, scaling=adx_scaling), "scale density")
         elif mode == "print":
-            if cuda_available:
+            if CUDA_AVAILABLE:
                 add(lambda x: xp.asarray(x), "cast to cuda")
             if negative_film.density_measure == "bw":
                 add(lambda x: x[..., 0][..., xp.newaxis], "reduce dim")
@@ -1218,7 +1218,7 @@ class FilmSpectral:
                 add(lambda x: xp.clip(x, 0, 1), "clipping")
 
         if mode == "grain":
-            if cuda_available:
+            if CUDA_AVAILABLE:
                 add(lambda x: xp.asarray(x), "cast to cuda")
             if adx:
                 layer_activation_to_apd = (
