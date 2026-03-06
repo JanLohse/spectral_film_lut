@@ -69,7 +69,6 @@ class MainWindow(QMainWindow):
             QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         )
         self.image.setMinimumSize(QSize(256, 256))
-        self.pixmap = QPixmap()
 
         pagelayout.addWidget(self.image)
         pagelayout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignBottom)
@@ -562,17 +561,8 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
 
         self.threadpool = QThreadPool()
 
-    def scale_pixmap(self):
-        if not self.pixmap.isNull():
-            scaled_pixmap = self.pixmap.scaled(
-                self.image.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self.image.setPixmap(scaled_pixmap)
-
     def resizeEvent(self, event):
-        self.scale_pixmap()
+        self.update_preview()
         super().resizeEvent(event)
 
     def generate_lut(self, name="temp", cube=True):
@@ -700,9 +690,15 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
         image = self.load_image_data(src)
         bit_depth = 16
         height, width, _ = image.shape
-        height_target = self.image.height()
-        width_target = self.image.width()
-        scale_factor = min(max(width_target / width, height_target / height), 1)
+        image_widget_size = self.image.size() * self.devicePixelRatioF()
+        height_target = image_widget_size.height()
+        width_target = image_widget_size.width()
+        target_ratio = width_target / height_target
+        image_ratio = width / height
+        if target_ratio > image_ratio:
+            scale_factor = min(height_target / height, 1)
+        else:
+            scale_factor = min(width_target / width, 1)
         scale_factor = math.floor(1 / scale_factor)
         image = image[::scale_factor, ::scale_factor, :]
         height, width, _ = image.shape
@@ -714,13 +710,13 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
         pixmap = QPixmap.fromImage(image)
 
         scaled_pixmap = pixmap.scaled(
-            self.image.size(),
+            image_widget_size,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
+        scaled_pixmap.setDevicePixelRatio(self.devicePixelRatioF())
 
         self.image.setPixmap(scaled_pixmap)
-        self.pixmap = pixmap
         if verbose:
             print(f"applied lut in {time.time() - start:.2f} seconds")
 
