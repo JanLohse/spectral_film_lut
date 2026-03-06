@@ -22,8 +22,7 @@ pipeline simulates its reaction to light to the final appearance of the print ma
 - There is especially little data available about the interlayer interaction, e.g., how
   aggressive the color masking couplers in a negative film are.
 
-<img src="https://github.com/user-attachments/assets/2eb00673-ac03-4fc3-a877-31e02372211b#gh-light-mode-only" alt="main gui" width="100%">
-<img src="https://github.com/user-attachments/assets/9a4b7a74-5d87-487a-8bd5-1ea7361384fc#gh-dark-mode-only" alt="main gui" style="display:none;" width="100%">
+<img width="100%" alt="Spectral Film LUT main ui" src="https://github.com/user-attachments/assets/b7e31c74-d522-42dd-97e8-9374c9efa8ee" />
 
 ## Installation
 
@@ -80,5 +79,5 @@ stage.
 When clicking on the magnifying glass a window opens to search and browse through the
 available film stocks.
 
-<img src="https://github.com/user-attachments/assets/54b82d41-9386-49e6-9d3e-b389e8f1585c#gh-light-mode-only" alt="filmstock selector" width="100%">
-<img src="https://github.com/user-attachments/assets/3886eea0-f21f-43de-a319-f84105daae50#gh-dark-mode-only" alt="filmstock selector" style="display:none;" width="100%">
+<img width="100%" alt="Film stock selection ui" src="https://github.com/user-attachments/assets/5af71ab0-3802-4d22-b9e7-6f9e09efc7c4" />
+
