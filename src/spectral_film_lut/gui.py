@@ -392,22 +392,17 @@ inversion is simulated.
             """,
         )
 
-        self.white_point = SliderLog()
+        self.white_comp = QCheckBox()
         """
-        At what level to clip in the output. If the image looks bright and faded this
-        can be lowered. Might be the case for low contrast print materials. Values above
-        1 might lead clipped highlights.
+        Whether to scale the output to clip at 1.0 or to have the natural white point.
         """
-        self.white_point.setMinMaxSteps(0.5, 2.0, 100, 1.0)
         add_option(
-            self.white_point,
-            "White point",
-            1.0,
-            self.white_point.setValue,
+            self.white_comp,
+            "White comp.",
+            True,
+            self.white_comp.setChecked,
             tool_tip="""
-At what level to clip in the output. If the image looks bright and faded this can be
-lowered. Might be the case for low contrast print materials. Values above 1 might lead
-clipped highlights.
+Whether to scale the output to clip at 1.0 or to have the natural white point.
         """,
         )
 
@@ -546,7 +541,7 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
         self.lut_size.valueChanged.connect(self.parameter_changed)
         self.black_offset.valueChanged.connect(self.parameter_changed)
         self.color_masking.valueChanged.connect(self.parameter_changed)
-        self.white_point.valueChanged.connect(self.parameter_changed)
+        self.white_comp.stateChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
         self.sat_adjust.valueChanged.connect(self.parameter_changed)
 
@@ -580,7 +575,7 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
         if output_colourspace == "CIE XYZ 1931":
             output_colourspace = None
         size = int(self.lut_size.getValue())
-        white_point = self.white_point.getValue()
+        white_comp = self.white_comp.isChecked()
         black_offset = self.black_offset.getValue()
         color_masking = self.color_masking.getValue()
         mode = self.mode.currentText()
@@ -598,7 +593,7 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
             output_colourspace=output_colourspace,
             projector_kelvin=projector_kelvin,
             exp_comp=exp_comp,
-            white_point=white_point,
+            white_comp=white_comp,
             exposure_kelvin=exp_wb,
             mode=mode,
             red_light=red_light,

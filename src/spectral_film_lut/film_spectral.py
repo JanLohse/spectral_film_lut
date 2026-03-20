@@ -670,7 +670,7 @@ class FilmSpectral:
         return printer_light
 
     def compute_projection_light(
-        self, projector_kelvin=5500, reference_kelvin=6504, white_point=1.0
+        self, projector_kelvin=5500, reference_kelvin=6504, white_comp=True
     ) -> tuple[xp.ndarray, xp.ndarray]:
         """
         Computes a projection light of the specified temperature whose intensity is
@@ -682,8 +682,7 @@ class FilmSpectral:
             projector_kelvin: The light temperature of the projection lamp.
             reference_kelvin: The reference temperature for the XYZ cmfs calibration.
                 Should be left unchanged under normal circumstances.
-            white_point: The targeted white point. Values above 1.0 can lead to
-                clipping.
+            white_comp: Whether to scale the output to clip at 1.0 in sRGB gamut.
 
         Returns:
             A tuple (projector_light, xyz_cmfs).
@@ -706,11 +705,12 @@ class FilmSpectral:
         xyz_cmfs = densiometry.xyz_cmfs * (
             reference_white / (densiometry.xyz_cmfs.T @ reference_light)
         )
-        peak_rgb = colour.XYZ_to_RGB(
-            to_numpy(xyz_cmfs.T @ (projector_light * 10**-self.d_min_sd)), "sRGB"
-        )
-        peak = peak_rgb.max()
-        projector_light *= white_point / peak
+        if white_comp:
+            peak_rgb = colour.XYZ_to_RGB(
+                to_numpy(xyz_cmfs.T @ (projector_light * 10**-self.d_min_sd)), "sRGB"
+            )
+            peak = peak_rgb.max()
+            projector_light *= 1 / peak
         return projector_light, xyz_cmfs
 
     def plot_data(self, film_b=None, color_masking=None):
@@ -852,7 +852,7 @@ class FilmSpectral:
         projector_kelvin=6500,
         matrix_method=False,
         exp_comp=0,
-        white_point=1.0,
+        white_comp=True,
         mode="full",
         exposure_kelvin=5500,
         gamma=1,
@@ -1081,7 +1081,7 @@ class FilmSpectral:
 
             if output_film.density_measure == "bw":
                 add(
-                    lambda x: white_point / 10**-output_film.d_min * 10**-x,
+                    lambda x: 1 / 10**-output_film.d_min * 10**-x,
                     "projection",
                 )
                 if print_film is None:
@@ -1134,7 +1134,7 @@ class FilmSpectral:
                     elif negative_film.density_measure == "status_a":
                         projector_kelvin = negative_film.projection_kelvin
                 projection_light, xyz_cmfs = output_film.compute_projection_light(
-                    projector_kelvin=projector_kelvin, white_point=white_point
+                    projector_kelvin=projector_kelvin, white_comp=white_comp
                 )
                 d_min_sd = output_film.d_min_sd
                 if print_film is None:
@@ -1363,7 +1363,7 @@ class FilmSpectral:
 
     def compute_lad(self, luminance=0.1):
         projection_light, xyz_cmfs = self.compute_projection_light(
-            projector_kelvin=6504, white_point=1
+            projector_kelvin=6504
         )
         d_min_sd = self.d_min_sd
         density_mat = self.get_spectral_density()
