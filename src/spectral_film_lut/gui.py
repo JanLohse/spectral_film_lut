@@ -431,15 +431,19 @@ A simple post processing saturation slider. Not physically based.
             """,
         )
 
-        self.black_offset = Slider()
-        """Lift or lower the black point in post processing."""
-        self.black_offset.setMinMaxTicks(-2, 2, 1, 50)
+        self.shadow_comp = Slider()
+        """
+        Lift or lower dark areas. For 1 or -1 it acts like an OOTF or inverse OOTF
+        respectively.
+        """
+        self.shadow_comp.setMinMaxTicks(-2, 2, 1, 50)
         add_option(
-            self.black_offset,
-            "Black offset %",
+            self.shadow_comp,
+            "Black offset",
             0.0,
-            self.black_offset.setValue,
-            tool_tip="""Lift or lower the black point in post processing.""",
+            self.shadow_comp.setValue,
+            tool_tip="""Lift or lower dark areas. For 1 or -1 it acts like an OOTF or
+inverse OOTF respectively.""",
         )
 
         self.output_colourspace_selector = WideComboBox(self)
@@ -539,7 +543,7 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
         self.green_light.valueChanged.connect(self.lights_changed)
         self.blue_light.valueChanged.connect(self.lights_changed)
         self.lut_size.valueChanged.connect(self.parameter_changed)
-        self.black_offset.valueChanged.connect(self.parameter_changed)
+        self.shadow_comp.valueChanged.connect(self.parameter_changed)
         self.color_masking.valueChanged.connect(self.parameter_changed)
         self.white_comp.stateChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
@@ -576,7 +580,7 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
             output_colourspace = None
         size = int(self.lut_size.getValue())
         white_comp = self.white_comp.isChecked()
-        black_offset = self.black_offset.getValue()
+        shadow_comp = self.shadow_comp.getValue()
         color_masking = self.color_masking.getValue()
         mode = self.mode.currentText()
         exp_wb = self.exp_wb.getValue()
@@ -599,7 +603,7 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
             red_light=red_light,
             green_light=green_light,
             blue_light=blue_light,
-            black_offset=black_offset,
+            shadow_comp=shadow_comp,
             color_masking=color_masking,
             tint=tint,
             sat_adjust=sat_adjust,

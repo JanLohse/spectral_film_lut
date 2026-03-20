@@ -861,8 +861,7 @@ class FilmSpectral:
         pre_flash_print=-4,
         gamut_compression=0.2,
         output_transform=None,
-        black_offset=0,
-        black_pivot=0.18,
+        shadow_comp=0,
         photo_inversion=False,
         color_masking=None,
         tint=0,
@@ -891,34 +890,12 @@ class FilmSpectral:
             elif output_transform is not None:
                 add(output_transform, "output")
 
-        def add_black_offset():
-            if not black_offset:
+        def add_shadow_comp():
+            if not shadow_comp:
                 return
-            offset = xp.asarray(
-                negative_film.CCT_to_XYZ(projector_kelvin) * black_offset / 100
-            )
 
-            if black_offset < 0:
-
-                def func(x):
-                    return np.nan_to_num(
-                        np.clip(
-                            np.where(
-                                x >= black_pivot,
-                                x,
-                                black_pivot
-                                * ((x + offset) / (black_pivot + offset))
-                                ** ((black_pivot + offset) / black_pivot),
-                            ),
-                            0,
-                            None,
-                        ),
-                        nan=0,
-                    )
-            else:
-
-                def func(x):
-                    return x * (1 - offset) + offset
+            def func(x):
+                return FilmSpectral.shadow_compensation(x, shadow_comp)
 
             add(func, "black_offset")
 
@@ -1099,7 +1076,7 @@ class FilmSpectral:
                         "invert",
                     )
                     add(lambda x: x / (x + 1), "roll-off")
-                add_black_offset()
+                add_shadow_comp()
                 if not 6500 <= projector_kelvin <= 6505:
                     wb = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin))
                     add(lambda x: x * wb, "projection color")
@@ -1167,7 +1144,7 @@ class FilmSpectral:
                         )
                     )
 
-                add_black_offset()
+                add_shadow_comp()
                 if sat_adjust != 1:
                     luminance_factors = colour.RGB_COLOURSPACES[
                         output_colourspace
@@ -1190,7 +1167,7 @@ class FilmSpectral:
                 else:
                     add_output_transform()
             else:
-                add_black_offset()
+                add_shadow_comp()
                 FilmSpectral.add_status_inversion(add, negative_film, color_masking)
                 if sat_adjust != 1:
                     luminance_factors = colour.RGB_COLOURSPACES[
@@ -1372,3 +1349,50 @@ class FilmSpectral:
             self.CCT_to_XYZ(6504, luminance), density_mat, output_mat
         )
         return lad
+
+    @staticmethod
+    def shadow_compensation(
+        image: xp.ndarray, intensity, gamma=1.2, black_level=0.035
+    ) -> xp.ndarray:
+        """
+        Raises or lowers shadows. The math has been reverse engineered from the OOTF
+        in Davinci Resolve for Rec. 709. It seems to take both a black level offset
+        of 3.5% and the typical viewing gamma shift of 1.2 into account. As not to
+        overcompensate they are weighted against each other slightly, giving a gamma
+        adjustment of only roughly 1.15. All of this is pure speculation, but for
+        intensity values of 1 and -1 respectively it should match the forward and
+        inverse OOTF respectively quite closely.
+
+        Args:
+            image: The image to transform. Assumed to be in linear gamma.
+            intensity: How much to lift or lower particularly dark areas. For 0 no
+                effect, 1 and -1 act as forward and inverse OOTFs respectively.
+            gamma: The assumed viewing gamma for the OOTF modeling.
+            black_level: The assumed viewing black level for OOTF modeling.
+
+        Returns:
+            The shadow compensated image.
+        """
+        # TODO: has to be applied in display refered gamut
+        actual_gamma = gamma / (1 + gamma * black_level)
+
+        applied_gamma = (actual_gamma - 1) * abs(intensity) + 1
+        applied_black_level = black_level * abs(intensity)
+
+        if intensity > 0:
+            image **= 1 / applied_gamma
+            image = (
+                image * (1 - applied_black_level)
+                + xp.sqrt(
+                    image
+                    * (image * (1 - applied_black_level) ** 2 + 4 * applied_black_level)
+                )
+            ) / 2
+
+        else:
+            image = image**2 / (
+                image - image * applied_black_level + applied_black_level
+            )
+            image **= applied_gamma
+
+        return image
