@@ -1337,56 +1337,6 @@ def smooth_piecewise(x, threshold, max_value):
     return x
 
 
-def saturation_adjust_oklch(
-    rgb, sat_adjust, white_point=None, luminance_factors=None, color_space="sRGB"
-):
-    if luminance_factors is None:
-        luminance_factors = np.ones(3, dtype=default_dtype) / 3
-    else:
-        luminance_factors = luminance_factors.astype(default_dtype)
-    if white_point is None:
-        white_point = xp.array([0.95047, 1.00000, 1.08883], dtype=default_dtype)
-    else:
-        white_point = xp.asarray(white_point, default_dtype)
-
-    samples_lab = COLORCHECKER_OKLAB.copy()
-    samples_lab[..., 1:3] *= sat_adjust
-    samples_rgb = colour.convert(
-        samples_lab, "Oklab", "RGB", colourspace=color_space, apply_cctf_encoding=False
-    )
-    samples_rgb = xp.asarray(samples_rgb, default_dtype)
-
-    M = xp.linalg.lstsq(COLORCHECKER_2005, samples_rgb, rcond=None)[0].T
-    white = M @ white_point
-    M = (M.T / white).T
-
-    if sat_adjust > 1:
-        # Compute original luminance
-        Y = rgb[..., 1:2]
-        rgb = rgb @ M.T
-
-        # Apply gamut compression (your existing steps)
-        a = rgb.max(axis=-1, keepdims=True)
-        d = xp.where(a != 0, (a - rgb) / xp.abs(a), 0)
-        d = smooth_piecewise(d, 0.8, 1.35)
-        rgb_compressed = a - d * np.abs(a)
-
-        # Compute new luminance
-        Y_new = rgb_compressed @ xp.asarray(
-            luminance_factors.reshape(-1, 1), dtype=default_dtype
-        )
-
-        # Avoid division by zero
-        scale = xp.where(Y_new != 0, Y / Y_new, 1.0) ** 2
-
-        # Rescale to preserve luminance
-        rgb = rgb_compressed * scale
-    else:
-        rgb = rgb @ M.T
-
-    return rgb
-
-
 def convolution_filter(rgb, kernel, padding=False):
     if not CUDA_AVAILABLE:
         return cv2.filter2D(rgb, -1, kernel)

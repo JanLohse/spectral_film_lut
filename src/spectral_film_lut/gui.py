@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
 )
 
 from spectral_film_lut import BASE_DIR, __version__
+from spectral_film_lut.color_space import COLOR_SPACES, GAMMA_FUNCTIONS
 from spectral_film_lut.css_theme import BASE_COLOR, BORDER_RADIUS
 from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.grain_generation import ExportGrainDialog
@@ -446,15 +447,26 @@ A simple post processing saturation slider. Not physically based.
 inverse OOTF respectively.""",
         )
 
-        self.output_colourspace_selector = WideComboBox(self)
+        self.output_gamut = WideComboBox(self)
         """In what color space to encode the output."""
-        self.output_colourspace_selector.addItems(colourspaces)
+        self.output_gamut.addItems(COLOR_SPACES.keys())
         add_option(
-            self.output_colourspace_selector,
-            "Output colourspace",
-            "sRGB",
-            self.output_colourspace_selector.setCurrentText,
+            self.output_gamut,
+            "Output gamut",
+            "Rec. 709",
+            self.output_gamut.setCurrentText,
             tool_tip="""In what color space to encode the output.""",
+        )
+
+        self.output_gamma = WideComboBox(self)
+        """Gamma function to apply for encoding."""
+        self.output_gamma.addItems(GAMMA_FUNCTIONS.keys())
+        add_option(
+            self.output_gamma,
+            "Output gamma",
+            "Gamma 2.4",
+            self.output_gamma.setCurrentText,
+            tool_tip="""Gamma function to apply for encoding.""",
         )
 
         self.lut_size = Slider()
@@ -530,9 +542,8 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
             self.parameter_changed
         )
         self.negative_selector.currentTextChanged.connect(self.negative_changed)
-        self.output_colourspace_selector.currentTextChanged.connect(
-            self.parameter_changed
-        )
+        self.output_gamut.currentTextChanged.connect(self.parameter_changed)
+        self.output_gamma.currentTextChanged.connect(self.parameter_changed)
         self.print_selector.currentTextChanged.connect(self.print_light_changed)
         self.image_selector.textChanged.connect(self.parameter_changed)
         self.projector_kelvin.valueChanged.connect(self.parameter_changed)
@@ -575,9 +586,10 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
         blue_light = self.blue_light.getValue()
         if input_colourspace == "CIE XYZ 1931":
             input_colourspace = None
-        output_colourspace = self.output_colourspace_selector.currentText()
-        if output_colourspace == "CIE XYZ 1931":
-            output_colourspace = None
+        output_gamut = self.output_gamut.currentText()
+        gamma_func = self.output_gamma.currentText()
+        if output_gamut == "CIE XYZ 1931":
+            output_gamut = None
         size = int(self.lut_size.getValue())
         white_comp = self.white_comp.isChecked()
         shadow_comp = self.shadow_comp.getValue()
@@ -594,7 +606,8 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
             lut_size=size,
             cube=cube,
             input_colourspace=input_colourspace,
-            output_colourspace=output_colourspace,
+            output_gamut=output_gamut,
+            gamma_func=gamma_func,
             projector_kelvin=projector_kelvin,
             exp_comp=exp_comp,
             white_comp=white_comp,

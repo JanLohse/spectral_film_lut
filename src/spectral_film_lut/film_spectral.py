@@ -13,21 +13,22 @@ from matplotlib import pyplot as plt
 from scipy.optimize import least_squares
 
 from spectral_film_lut import densiometry
+from spectral_film_lut.color_space import COLOR_SPACES, GAMMA_FUNCTIONS
 from spectral_film_lut.densiometry import (
-    COLORCHECKER_2005,
     DENSIOMETRY,
     adx16_decode,
     adx16_encode,
 )
 from spectral_film_lut.film_data import FilmData
 from spectral_film_lut.utils import (
+    COLORCHECKER_2005,
+    COLORCHECKER_OKLAB,
     CUDA_AVAILABLE,
     CCT_to_xy,
     construct_spectral_density,
     default_dtype,
     gamut_compression_matrices,
     multi_channel_interp,
-    saturation_adjust_oklch,
     spectral_shape,
     to_numpy,
     xp,
@@ -848,7 +849,8 @@ class FilmSpectral:
         print_film=None,
         input_colourspace: None | str = "ARRI Wide Gamut 4",
         measure_time=False,
-        output_colourspace="sRGB",
+        output_gamut="Rec. 709",
+        gamma_func="Gamma 2.4",
         projector_kelvin=6500,
         matrix_method=False,
         exp_comp=0,
@@ -860,7 +862,6 @@ class FilmSpectral:
         pre_flash_neg=-4,
         pre_flash_print=-4,
         gamut_compression=0.2,
-        output_transform=None,
         shadow_comp=0,
         photo_inversion=False,
         color_masking=None,
@@ -880,24 +881,30 @@ class FilmSpectral:
             pipeline.append((func, name))
 
         def add_output_transform():
-            if output_colourspace is not None and output_transform is None:
+            if sat_adjust != 1:
                 add(
-                    lambda x: colour.XYZ_to_RGB(
-                        to_numpy(x), output_colourspace, apply_cctf_encoding=True
+                    lambda x: FilmSpectral.saturation_adjust_oklch(
+                        x,
+                        sat_adjust,
                     ),
-                    "output",
+                    "saturation",
                 )
-            elif output_transform is not None:
-                add(output_transform, "output")
 
-        def add_shadow_comp():
-            if not shadow_comp:
-                return
+            if output_gamut != "CIE XYZ":
+                add(
+                    lambda x: x @ COLOR_SPACES[output_gamut].xyz_to_rgb.T,
+                    "output_gamut",
+                )
 
-            def func(x):
-                return FilmSpectral.shadow_compensation(x, shadow_comp)
+            add(FilmSpectral.gamut_compression, "gamut compression")
 
-            add(func, "black_offset")
+            if shadow_comp:
+                add(
+                    lambda x: FilmSpectral.shadow_compensation(x, shadow_comp),
+                    "shadow_comp",
+                )
+
+            add(GAMMA_FUNCTIONS[gamma_func], "output_gamut")
 
         if mode == "negative" or mode == "full":
             if gamma != 1:
@@ -1076,25 +1083,11 @@ class FilmSpectral:
                         "invert",
                     )
                     add(lambda x: x / (x + 1), "roll-off")
-                add_shadow_comp()
                 if not 6500 <= projector_kelvin <= 6505:
                     wb = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin))
                     add(lambda x: x * wb, "projection color")
-                    add_output_transform()
-                elif output_colourspace is not None and output_transform is None:
-                    add(
-                        lambda x: colour.models.RGB_COLOURSPACES[
-                            output_colourspace
-                        ].cctf_encoding(to_numpy(x).repeat(3, axis=-1)),
-                        "output",
-                    )
-                elif output_transform is not None:
-                    add(
-                        lambda x: output_transform(x, apply_matrix=False).repeat(
-                            3, axis=-1
-                        ),
-                        "output",
-                    )
+                else:
+                    add(lambda x: x.repeat(3, axis=-1), "repeat axis")
             elif (
                 print_film is not None
                 or negative_film.density_measure == "status_a"
@@ -1144,55 +1137,7 @@ class FilmSpectral:
                         )
                     )
 
-                add_shadow_comp()
-                if sat_adjust != 1:
-                    luminance_factors = colour.RGB_COLOURSPACES[
-                        output_colourspace
-                    ].matrix_RGB_to_XYZ[1]
-                    add(
-                        lambda x: saturation_adjust_oklch(
-                            x,
-                            sat_adjust,
-                            luminance_factors=luminance_factors,
-                            color_space=output_colourspace,
-                        ),
-                        "saturation",
-                    )
-                    add(
-                        lambda x: colour.models.RGB_COLOURSPACES[
-                            output_colourspace
-                        ].cctf_encoding(to_numpy(x)),
-                        "output",
-                    )
-                else:
-                    add_output_transform()
-            else:
-                add_shadow_comp()
-                FilmSpectral.add_status_inversion(add, negative_film, color_masking)
-                if sat_adjust != 1:
-                    luminance_factors = colour.RGB_COLOURSPACES[
-                        output_colourspace
-                    ].matrix_RGB_to_XYZ[1]
-                    add(
-                        lambda x: saturation_adjust_oklch(
-                            x,
-                            sat_adjust,
-                            luminance_factors=luminance_factors,
-                            color_space=output_colourspace,
-                        ),
-                        "saturation",
-                    )
-                    add(
-                        lambda x: colour.models.RGB_COLOURSPACES[
-                            output_colourspace
-                        ].cctf_encoding(to_numpy(x)),
-                        "output",
-                    )
-                else:
-                    add_output_transform()
-
-            if output_transform is None:
-                add(lambda x: xp.clip(x, 0, 1), "clipping")
+            add_output_transform()
 
         if mode == "grain":
             if CUDA_AVAILABLE:
@@ -1351,17 +1296,13 @@ class FilmSpectral:
         return lad
 
     @staticmethod
-    def shadow_compensation(
-        image: xp.ndarray, intensity, gamma=1.2, black_level=0.035
-    ) -> xp.ndarray:
+    def shadow_compensation(image: xp.ndarray, intensity) -> xp.ndarray:
         """
-        Raises or lowers shadows. The math has been reverse engineered from the OOTF
-        in Davinci Resolve for Rec. 709. It seems to take both a black level offset
-        of 3.5% and the typical viewing gamma shift of 1.2 into account. As not to
-        overcompensate they are weighted against each other slightly, giving a gamma
-        adjustment of only roughly 1.15. All of this is pure speculation, but for
-        intensity values of 1 and -1 respectively it should match the forward and
-        inverse OOTF respectively quite closely.
+        Raises or lowers shadows. Has been computed to act as an OOTF for the ITU-R
+        BT.1886 curve. Setting gamma to Gamma 2.4 and Black offset to 1.0 will yield
+        essentially Rec. 709. Setting gamma to Rec. 709 and Black offset to -1.0 in turn
+        gives essentially Gamma 2.4. Has been computed from BT.1886 as to not be
+        piecewise, and to not overfit to Rec. 709.
 
         Args:
             image: The image to transform. Assumed to be in linear gamma.
@@ -1373,26 +1314,78 @@ class FilmSpectral:
         Returns:
             The shadow compensated image.
         """
-        # TODO: has to be applied in display refered gamut
-        actual_gamma = gamma / (1 + gamma * black_level)
+        # Make the intensity less sensitive close to 0.
+        intensity *= abs(intensity)
 
-        applied_gamma = (actual_gamma - 1) * abs(intensity) + 1
-        applied_black_level = black_level * abs(intensity)
+        # black of 1.2% and gamma 2.4 chosen to match Rec. 709 closely
+        black = 0.012 * abs(intensity)
+        gamma = 2.4
+
+        # a and b from ITU-R BT.1886
+        a = (1 - black ** (1 / gamma)) ** gamma
+        b = (black ** (1 / gamma)) / (1 - black ** (1 / gamma))
 
         if intensity > 0:
-            image **= 1 / applied_gamma
-            image = (
-                image * (1 - applied_black_level)
-                + xp.sqrt(
-                    image
-                    * (image * (1 - applied_black_level) ** 2 + 4 * applied_black_level)
-                )
-            ) / 2
+            image = (a * (image ** (1 / gamma) + b) ** gamma - black) / (1 - black)
+        elif intensity < 0:
+            image = (((image * (1 - black) + black) / a) ** (1 / gamma) - b) ** gamma
 
-        else:
-            image = image**2 / (
-                image - image * applied_black_level + applied_black_level
-            )
-            image **= applied_gamma
+        return image
+
+    @staticmethod
+    def gamut_compression(image: xp.ndarray, strength=0.95):
+        """
+        A simple gamut compression that limits the maximal relative distance from the
+        achromatic. Inspired by ACES Reference Gamut Compression. Has been simplified
+        to be color space agnostic and use a simple clipping function instead of a
+        roll-off. It is not perceptually neutral and should be used conservatively. It
+        is intended to fix numeric issues in highly saturated colors, and not to be part
+        of look creation.
+
+        Args:
+            image: The image to transform.
+            strength: How strong to compress. strength=1 is uncompressed and strength=0
+                is fully desaturated.
+
+        Returns:
+
+        """
+        # Clip negative values.
+        image = np.clip(image, 0, None)
+
+        # Get achromatic value
+        a = image.max(axis=-1, keepdims=True)
+
+        # Compute and limit distance from achromatic value.
+        d = np.where(a > 0, (a - image) / np.abs(a), 0)
+        d = np.clip(d, 0, strength)
+
+        # Reconstruct image with limited distance, resulting in limited saturation.
+        image = a - d * np.abs(a)
+
+        return image
+
+    @staticmethod
+    def saturation_adjust_oklch(image, sat_adjust: float):
+        """
+        Adjust saturation using a simple matrix transform. Matrix is derived by
+        adjusting saturation of colorchecker values in Oklab, transforming to XYZ, and
+        fitting a transformation matrix in XYZ space with least-squares. Should be used
+        in conjunction with a later gamut compression.
+
+        Args:
+            image: The image to transform. Expects XYZ input.
+            sat_adjust: Multiplicative saturation factor. 1 leaves unchanged.
+
+        Returns:
+
+        """
+        samples_lab = COLORCHECKER_OKLAB.copy()
+        samples_lab[..., 1:3] *= sat_adjust
+        samples_rgb = colour.Oklab_to_XYZ(samples_lab)
+        samples_rgb = xp.asarray(samples_rgb, default_dtype)
+
+        M = xp.linalg.lstsq(COLORCHECKER_2005, samples_rgb, rcond=None)[0].T
+        image = image @ M.T
 
         return image
