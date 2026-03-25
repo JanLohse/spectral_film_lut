@@ -530,6 +530,31 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
         """,
         )
 
+        self.adx_scale = WideComboBox(self)
+        """
+        What density does 100% output of the negative LUT respond to. Matching values
+        have to be used for print and grain LUTs. No effect when using the full mode.
+
+        Density 2 matches ADX10 and should be used for Cineon like workflows. Density 8
+        matches ADX16. When using density 2 there is risk of clipping for some negative
+        film stocks.
+        """
+        self.adx_scale.addItems(["Density 2", "Density 4", "Density 8"])
+        add_option(
+            self.adx_scale,
+            "ADX d-max",
+            "Density 2",
+            self.adx_scale.setCurrentText,
+            tool_tip="""
+What density does 100% output of the negative LUT respond to. Matching values
+have to be used for print and grain LUTs. No effect when using the full mode.
+
+Density 2 matches ADX10 and should be used for Cineon like workflows. Density 8
+matches ADX16. When using density 2 there is risk of clipping for some negative
+film stocks.
+            """,
+        )
+
         self.save_lut_button = AnimatedButton("Save LUT")
         """Export the LUT."""
         self.save_lut_button.clicked.connect(self.save_lut)
@@ -563,6 +588,7 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
         self.white_comp.stateChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
         self.sat_adjust.valueChanged.connect(self.parameter_changed)
+        self.adx_scale.currentTextChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -602,6 +628,9 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
         exp_wb = self.exp_wb.getValue()
         tint = self.tint.getValue()
         sat_adjust = self.sat_adjust.getValue()
+        adx_scaling = {"Density 2": 4.0, "Density 4": 2.0, "Density 8": 1.0}[
+            self.adx_scale.currentText()
+        ]
         lut = create_lut(
             negative_film,
             print_film,
@@ -624,6 +653,7 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
             color_masking=color_masking,
             tint=tint,
             sat_adjust=sat_adjust,
+            adx_scaling=adx_scaling,
         )
         return lut
 
