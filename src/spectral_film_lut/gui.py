@@ -395,15 +395,19 @@ inversion is simulated.
 
         self.white_comp = QCheckBox()
         """
-        Whether to scale the output to clip at 1.0 or to have the natural white point.
+        When viewing print film brightness will be increased to clip at exactly 1.0.
+        When viewing slide film white balancing is applied, so that a gray patch will
+        actually produce the color temperature specified by the  projector kelvin.
         """
         add_option(
             self.white_comp,
-            "White comp.",
+            "White adjust",
             True,
             self.white_comp.setChecked,
             tool_tip="""
-Whether to scale the output to clip at 1.0 or to have the natural white point.
+When viewing print film brightness will be increased to clip at exactly 1.0.
+When viewing slide film white balancing is applied, so that a gray patch will
+actually produce the color temperature specified by the  projector kelvin.
         """,
         )
 

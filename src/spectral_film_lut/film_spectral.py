@@ -857,7 +857,6 @@ class FilmSpectral:
         white_comp=True,
         mode="full",
         exposure_kelvin=5500,
-        gamma=1,
         halation_func=None,
         pre_flash_neg=-4,
         pre_flash_print=-4,
@@ -907,9 +906,6 @@ class FilmSpectral:
             add(GAMMA_FUNCTIONS[gamma_func], "output_gamut")
 
         if mode == "negative" or mode == "full":
-            if gamma != 1:
-                add(lambda x: x**gamma, "gamma")
-
             if input_colourspace is not None:
                 add(
                     lambda x: xp.asarray(
@@ -1101,8 +1097,10 @@ class FilmSpectral:
                             if negative_film.projection_kelvin is not None
                             else 8500
                         )
-                    elif negative_film.density_measure == "status_a":
-                        projector_kelvin = negative_film.projection_kelvin
+                    # elif negative_film.density_measure == "status_a":
+                    #     projector_kelvin = negative_film.projection_kelvin
+                if output_film.density_measure == "status_a" and print_film is None:
+                    white_balance, white_comp = white_comp, False
                 projection_light, xyz_cmfs = output_film.compute_projection_light(
                     projector_kelvin=projector_kelvin, white_comp=white_comp
                 )
@@ -1124,7 +1122,11 @@ class FilmSpectral:
                         add, negative_film, output_kelvin, pipeline
                     )
                 add(lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix")
-                if output_film.density_measure == "status_a" and print_film is None:
+                if (
+                    output_film.density_measure == "status_a"
+                    and print_film is None
+                    and white_balance
+                ):
                     mid_gray = to_numpy(
                         pipeline[-1][0](output_film.get_d_ref(color_masking))
                     )
@@ -1136,6 +1138,8 @@ class FilmSpectral:
                             to_numpy(output_mat), mid_gray, to_numpy(out_gray)
                         )
                     )
+            else:
+                FilmSpectral.add_status_inversion(add, negative_film, color_masking)
 
             add_output_transform()
 
@@ -1180,6 +1184,7 @@ class FilmSpectral:
     @staticmethod
     def add_photographic_inversion(add, negative_film, projector_kelvin, pipeline):
         """Simualtes a simple inversion of a scan with a virtual camera."""
+        print("photographic_inversion")
         XYZ_to_AP1 = xp.asarray(colour.RGB_COLOURSPACES["ACEScg"].matrix_XYZ_to_RGB)
         AP1_to_XYZ = xp.linalg.inv(XYZ_to_AP1)
         white = xp.asarray(negative_film.CCT_to_XYZ(projector_kelvin)) @ XYZ_to_AP1.T
@@ -1333,7 +1338,7 @@ class FilmSpectral:
         return image
 
     @staticmethod
-    def gamut_compression(image: xp.ndarray, strength=0.95):
+    def gamut_compression(image: xp.ndarray, strength=0.95, clip_highlights=True):
         """
         A simple gamut compression that limits the maximal relative distance from the
         achromatic. Inspired by ACES Reference Gamut Compression. Has been simplified
@@ -1346,12 +1351,13 @@ class FilmSpectral:
             image: The image to transform.
             strength: How strong to compress. strength=1 is uncompressed and strength=0
                 is fully desaturated.
+            clip_highlights: Whether to clip highlights at 1.
 
         Returns:
-
+            The compressed image.
         """
         # Clip negative values.
-        image = np.clip(image, 0, None)
+        image = np.clip(image, 0, 1 if clip_highlights else None)
 
         # Get achromatic value
         a = image.max(axis=-1, keepdims=True)
