@@ -835,10 +835,7 @@ class FilmSpectral:
             8000.0 / 65535.0
         )
         std_factor = math.sqrt(math.pi) * 0.024 * scale * adx_density_scale / std_div
-        xps = [
-            rms_density * adx_density_scale[i] + 1520.0 / 65535.0
-            for i, rms_density in enumerate(self.rms_density)
-        ]
+        xps = [rms_density for rms_density in self.rms_density]
         fps = [rms * std_factor[i] for i, rms in enumerate(self.rms_curve)]
         noise_factors = multi_channel_interp(rgb, xps, fps)
         return noise_factors
@@ -981,6 +978,7 @@ class FilmSpectral:
                 add(lambda x: xp.asarray(x), "cast to cuda")
             if negative_film.density_measure == "bw":
                 add(lambda x: x[..., 0][..., xp.newaxis], "reduce dim")
+            add(lambda x: adx16_decode(x, scaling=adx_scaling), "scale density")
             if adx:
                 layer_activation_to_apd = (
                     densiometry.apd.T
@@ -988,7 +986,6 @@ class FilmSpectral:
                 )
                 apd_to_layer_activation = xp.linalg.inv(layer_activation_to_apd)
                 add(lambda x: x @ apd_to_layer_activation.T, "decode APD")
-            add(lambda x: adx16_decode(x, scaling=adx_scaling), "scale density")
 
         if mode == "print" or mode == "full":
             if print_film is not None:
@@ -1146,6 +1143,7 @@ class FilmSpectral:
         if mode == "grain":
             if CUDA_AVAILABLE:
                 add(lambda x: xp.asarray(x), "cast to cuda")
+            add(lambda x: adx16_decode(x, scaling=adx_scaling), "scale density")
             if adx:
                 layer_activation_to_apd = (
                     densiometry.apd.T
@@ -1153,7 +1151,12 @@ class FilmSpectral:
                 )
                 apd_to_layer_activation = xp.linalg.inv(layer_activation_to_apd)
                 add(lambda x: x @ apd_to_layer_activation.T, "decode APD")
-            add(lambda x: negative_film.grain_transform(x, std_div=0.001), "grain_map")
+            add(
+                lambda x: negative_film.grain_transform(
+                    x, std_div=0.001, scale=adx_scaling
+                ),
+                "grain_map",
+            )
 
         def convert(x):
             start = time.time()

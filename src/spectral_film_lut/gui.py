@@ -444,7 +444,7 @@ A simple post processing saturation slider. Not physically based.
         self.shadow_comp.setMinMaxTicks(-2, 2, 1, 50)
         add_option(
             self.shadow_comp,
-            "Black offset",
+            "Shadow comp.",
             0.0,
             self.shadow_comp.setValue,
             tool_tip="""Lift or lower dark areas. For 1 or -1 it acts like an OOTF or
