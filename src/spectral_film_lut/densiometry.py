@@ -10,13 +10,12 @@ from spectral_film_lut.utils import (
     construct_spectral_density,
     default_dtype,
     spectral_shape,
-    xp,
 )
 
 
 def compute_xyz_dual(
     CCT=7000, spectral_shape=spectral_shape
-) -> tuple[xp.ndarray, xp.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Computes XYZ color matching functions and their dual with a least squares fit to the
     rawtoaces training data set. Is used to get a simple but physically based linear
@@ -25,21 +24,21 @@ def compute_xyz_dual(
     Returns:
         A tuple (xyz_cmfs, xyz_dual).
     """
-    xyz_cmfs = xp.asarray(
+    xyz_cmfs = np.asarray(
         colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"]
         .align(spectral_shape)
         .values,
         dtype=default_dtype,
     )
-    reference_sds = xp.asarray(
+    reference_sds = np.asarray(
         colour.characterisation.read_training_data_rawtoaces_v1()
         .align(spectral_shape)
         .values
     )
-    illuminant = xp.asarray(CCT_to_illuminant_D(CCT, spectral_shape).values)
+    illuminant = np.asarray(CCT_to_illuminant_D(CCT, spectral_shape).values)
     reference_sds *= illuminant.reshape(-1, 1)
-    reference_xyz = xp.asarray(reference_sds.T @ xyz_cmfs)
-    xyz_dual = xp.linalg.lstsq(reference_xyz, reference_sds.T, rcond=None)[0].T
+    reference_xyz = np.asarray(reference_sds.T @ xyz_cmfs)
+    xyz_dual = np.linalg.lstsq(reference_xyz, reference_sds.T, rcond=None)[0].T
 
     return xyz_cmfs, xyz_dual
 
@@ -343,7 +342,7 @@ apd = {
 
 def interpolate_status_density(
     status: list[dict[int, float]], spectral_shape=spectral_shape
-) -> xp.ndarray:
+) -> np.ndarray:
     """
     Converts logarithmic status density values to a normalized linear status density
     matrix.
@@ -361,13 +360,13 @@ def interpolate_status_density(
     return result.values
 
 
-status_a = xp.asarray(interpolate_status_density(status_a))
-status_m = xp.asarray(interpolate_status_density(status_m))
-apd = xp.asarray(
+status_a = np.asarray(interpolate_status_density(status_a))
+status_m = np.asarray(interpolate_status_density(status_m))
+apd = np.asarray(
     colour.MultiSpectralDistributions(apd).align(spectral_shape).values,
     dtype=default_dtype,
 )
-apd /= xp.sum(apd, axis=0)
+apd /= np.sum(apd, axis=0)
 
 DENSIOMETRY = {
     "status_a": status_a,
@@ -377,7 +376,7 @@ DENSIOMETRY = {
 }
 
 
-def compute_printer_lights() -> xp.ndarray:
+def compute_printer_lights() -> np.ndarray:
     """
     Converts the APD printer light to a three light matrix by splitting into separate
     red, green, and blue lights.
@@ -616,10 +615,10 @@ COLORCHECKER_2005 = np.array(
 COLORCHECKER_2005 = colour.xyY_to_XYZ(COLORCHECKER_2005)
 COLORCHECKER_2005 *= np.array([0.95047, 1.00000, 1.08883]) / COLORCHECKER_2005[0]
 COLORCHECKER_2005 = COLORCHECKER_2005[1:].reshape(4, 6, 3)
-COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005, default_dtype)
+COLORCHECKER_2005 = np.asarray(COLORCHECKER_2005, default_dtype)
 
 
-def adx16_encode(apd: xp.ndarray, apd_min=None, scaling=1.0) -> xp.ndarray:
+def adx16_encode(apd: np.ndarray, apd_min=None, scaling=1.0) -> np.ndarray:
     """
     Converts from absolute APD density values to ADX16 values.
     Instead of as 16 bit int the output is encoded as a float in the range [0, 1].
@@ -634,9 +633,9 @@ def adx16_encode(apd: xp.ndarray, apd_min=None, scaling=1.0) -> xp.ndarray:
         ADX-like encoded values in the [0, 1] range.
     """
     if apd_min is None:
-        apd_min = xp.zeros(3, dtype=default_dtype)
+        apd_min = np.zeros(3, dtype=default_dtype)
     # Scaling factors per channel: R, G, B
-    scale = xp.array([1.00, 0.92, 0.95], dtype=default_dtype)
+    scale = np.array([1.00, 0.92, 0.95], dtype=default_dtype)
 
     if apd.shape[-1] != 3:
         scale = 1
@@ -646,13 +645,13 @@ def adx16_encode(apd: xp.ndarray, apd_min=None, scaling=1.0) -> xp.ndarray:
     adx = scale * (8000.0 / 65535.0) * (apd - apd_min) + (1520.0 / 65535.0)
 
     # Round to nearest integer and clip to 0–65535 range
-    adx = xp.clip(adx * scaling, 0, 1)
+    adx = np.clip(adx * scaling, 0, 1)
 
     # Convert to uint16 to save space (fits ADX10 range)
     return adx
 
 
-def adx16_decode(adx: xp.ndarray, apd_min=None, scaling=1.0):
+def adx16_decode(adx: np.ndarray, apd_min=None, scaling=1.0):
     """
     Converts from ADX16 values to absolute APD density.
     Instead of as 16 bit int the output is expected as a float in the range [0, 1].
@@ -667,9 +666,9 @@ def adx16_decode(adx: xp.ndarray, apd_min=None, scaling=1.0):
         Absolute APD density values.
     """
     if apd_min is None:
-        apd_min = xp.zeros(3, dtype=default_dtype)
+        apd_min = np.zeros(3, dtype=default_dtype)
     # Scaling factors per channel: R, G, B
-    scale = xp.array([1.00, 0.92, 0.95], dtype=default_dtype)
+    scale = np.array([1.00, 0.92, 0.95], dtype=default_dtype)
 
     if adx.shape[-1] != 3:
         scale = 1

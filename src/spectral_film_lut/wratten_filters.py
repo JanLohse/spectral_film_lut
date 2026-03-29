@@ -3,8 +3,9 @@ Spectral data on the Kodak Wratten filters.
 """
 
 import colour
+import numpy as np
 
-from spectral_film_lut.utils import spectral_shape, xp
+from spectral_film_lut.utils import spectral_shape
 
 WRATTEN = {
     "2A": {
@@ -3958,8 +3959,8 @@ def cleanup(curve):
     ).align(spectral_shape)
 
     # convert to array and then to transmission factor
-    density = xp.asarray(spectral_distribution.values)
-    transmission = xp.clip(10**-density, 0, 1)
+    density = np.asarray(spectral_distribution.values)
+    transmission = np.clip(10**-density, 0, 1)
 
     return transmission
 

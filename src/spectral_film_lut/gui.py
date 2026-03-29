@@ -32,7 +32,7 @@ from spectral_film_lut.gui_objects import (
     WideComboBox,
     Worker,
 )
-from spectral_film_lut.utils import apply_lut_tetrahedral_int, create_lut, to_numpy, xp
+from spectral_film_lut.utils import apply_lut_tetrahedral_int, create_lut
 
 
 class MainWindow(QMainWindow):
@@ -718,8 +718,8 @@ film stocks.
     @lru_cache(maxsize=8)
     def load_image_data(self, src):
         image = iio.imread(src)
-        if image.dtype == xp.uint8:
-            image = image.astype(xp.uint16) * 255
+        if image.dtype == np.uint8:
+            image = image.astype(np.uint16) * 255
         return image
 
     def update_preview(self, verbose=False, *args, **kwargs):
@@ -749,7 +749,6 @@ film stocks.
         image = image[::scale_factor, ::scale_factor, :]
         height, width, _ = image.shape
         lut = (lut * (2**bit_depth - 1)).astype(np.uint)
-        lut = to_numpy(lut)
         image = apply_lut_tetrahedral_int(image, lut, bit_depth=bit_depth)
 
         image = QImage(image, width, height, 3 * width, QImage.Format.Format_RGB888)

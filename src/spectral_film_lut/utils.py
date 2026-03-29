@@ -3,7 +3,6 @@ Utility functions.
 """
 
 import os
-import sys
 import time
 import warnings
 
@@ -11,35 +10,13 @@ import colour
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
-from numba import cuda, njit, prange
+from numba import njit, prange
+from scipy import ndimage
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-CUDA_AVAILABLE = False
-"""Whether cuda is available through cupy."""
 
-try:
-    if "--no-cuda" in sys.argv:
-        raise ImportError()
-    import cupy as xp
-    from cupyx.scipy import ndimage as xdimage
-    from cupyx.scipy import signal
-
-    CUDA_AVAILABLE = True
-except ImportError:
-    import numpy as xp
-    from scipy import ndimage as xdimage
-    from scipy import signal
-
-
-def to_numpy(x):
-    if CUDA_AVAILABLE:
-        return xp.asnumpy(x)
-    else:
-        return x
-
-
-default_dtype = xp.float32
+default_dtype = np.float32
 colour.utilities.set_default_float_dtype(default_dtype)
 spectral_shape = colour.SpectralShape(380, 780, 5)
 
@@ -62,9 +39,7 @@ def create_lut(
     table = transform(lut.table)
     if table.shape[-1] == 1:
         table = table.repeat(3, -1)
-    if cube:
-        lut.table = to_numpy(table)
-    else:
+    if not cube:
         return table
     end = time.time()
     path = f"{name}.cube"
@@ -92,56 +67,14 @@ def multi_channel_interp(
         xp_common: np.ndarray, shape (num_bins,)
         fp_uniform: np.ndarray, shape (n_channels, num_bins)
     """
-    if CUDA_AVAILABLE:
-        extrapolation_distance = 100
-        if right_extrapolate:
-            slopes = [
-                (f_p[-1] - f_p[-2]) / (x_p[-1] - x_p[-2]) for x_p, f_p in zip(xps, fps)
-            ]
-            xps = [
-                xp.concatenate((x_p, xp.array([x_p[-1] + extrapolation_distance])))
-                for x_p in xps
-            ]
-            fps = [
-                xp.concatenate(
-                    (f_p, xp.array([f_p[-1] + extrapolation_distance * slope]))
-                )
-                for f_p, slope in zip(fps, slopes)
-            ]
-        if left_extrapolate:
-            slopes = [
-                (f_p[0] - f_p[1]) / (x_p[0] - x_p[1]) for x_p, f_p in zip(xps, fps)
-            ]
-            xps = [
-                xp.concatenate((xp.array([x_p[0] - extrapolation_distance]), x_p))
-                for x_p in xps
-            ]
-            fps = [
-                xp.concatenate(
-                    (xp.array([f_p[0] - extrapolation_distance * slope])), f_p
-                )
-                for f_p, slope in zip(fps, slopes)
-            ]
-        return xp.stack(
-            [
-                xp.interp(
-                    xp.ascontiguousarray(x[..., i]),
-                    xp.ascontiguousarray(x_p),
-                    xp.ascontiguousarray(f_p),
-                )
-                for i, (x_p, f_p) in enumerate(zip(xps, fps))
-            ],
-            dtype=default_dtype,
-            axis=-1,
-        )
     n_channels = len(xps)
     xp_min = min(x[0] for x in xps)
     xp_max = max(x[-1] for x in xps)
-    xp_common = xp.linspace(xp_min, xp_max, num_bins).astype(default_dtype)
+    xp_common = np.linspace(xp_min, xp_max, num_bins).astype(default_dtype)
 
-    fp_uniform = xp.empty((n_channels, num_bins), dtype=default_dtype)
+    fp_uniform = np.empty((n_channels, num_bins), dtype=default_dtype)
     for ch in range(n_channels):
-        fp_uniform[ch] = xp.interp(xp_common, xps[ch], fps[ch])
+        fp_uniform[ch] = np.interp(xp_common, xps[ch], fps[ch])
     return uniform_multi_channel_interp(
         x, xp_common, fp_uniform, interpolate, left_extrapolate, right_extrapolate
     )
@@ -350,136 +283,9 @@ def apply_lut_tetrahedral_int(
     return out
 
 
-if CUDA_AVAILABLE:
-
-    @cuda.jit
-    def apply_lut_tetrahedral_int_cuda(image, lut, out, size, scale, scale_out):
-        """
-        CUDA kernel: Apply a 3D LUT with tetrahedral interpolation.
-        Input : uint16 image in [0, 65535]
-        Output: uint8 image in [0, 255]
-        """
-        idx = cuda.grid(1)
-        h, w, _ = image.shape
-        total = h * w
-
-        if idx >= total:
-            return
-
-        y = idx // w
-        x = idx % w
-
-        r = image[y, x, 0]
-        g = image[y, x, 1]
-        b = image[y, x, 2]
-
-        r0 = r // scale
-        g0 = g // scale
-        b0 = b // scale
-
-        dr = r % scale
-        dg = g % scale
-        db = b % scale
-
-        r1 = min(r0 + 1, size - 1)
-        g1 = min(g0 + 1, size - 1)
-        b1 = min(b0 + 1, size - 1)
-
-        # Fetch cube corners
-        c000 = lut[r0, g0, b0]
-        c100 = lut[r1, g0, b0]
-        c010 = lut[r0, g1, b0]
-        c001 = lut[r0, g0, b1]
-        c110 = lut[r1, g1, b0]
-        c101 = lut[r1, g0, b1]
-        c011 = lut[r0, g1, b1]
-        c111 = lut[r1, g1, b1]
-
-        c = cuda.local.array(3, dtype=default_dtype)
-
-        # Tetrahedral interpolation in float
-        for ch in range(3):
-            if dr >= dg:
-                if dg >= db:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + dr * (c100[ch] - c000[ch])
-                        + dg * (c110[ch] - c100[ch])
-                        + db * (c111[ch] - c110[ch])
-                    )
-                elif dr >= db:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + dr * (c100[ch] - c000[ch])
-                        + db * (c101[ch] - c100[ch])
-                        + dg * (c111[ch] - c101[ch])
-                    )
-                else:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + db * (c001[ch] - c000[ch])
-                        + dr * (c101[ch] - c001[ch])
-                        + dg * (c111[ch] - c101[ch])
-                    )
-            else:
-                if db >= dg:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + db * (c001[ch] - c000[ch])
-                        + dg * (c011[ch] - c001[ch])
-                        + dr * (c111[ch] - c011[ch])
-                    )
-                elif db >= dr:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + dg * (c010[ch] - c000[ch])
-                        + db * (c011[ch] - c010[ch])
-                        + dr * (c111[ch] - c011[ch])
-                    )
-                else:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + dg * (c010[ch] - c000[ch])
-                        + dr * (c110[ch] - c010[ch])
-                        + db * (c111[ch] - c110[ch])
-                    )
-
-        # Normalize back to uint8
-        out[y, x, 0] = min(255, max(0, int(c[0] / scale_out)))
-        out[y, x, 1] = min(255, max(0, int(c[1] / scale_out)))
-        out[y, x, 2] = min(255, max(0, int(c[2] / scale_out)))
-
-    def run_lut_cuda(
-        image: np.ndarray, lut: np.ndarray, exponent=16, out_exponent=8
-    ) -> np.ndarray:
-        """
-        Wrapper: runs the CUDA kernel on an image + LUT.
-        """
-        h, w, _ = image.shape
-        size = lut.shape[0]
-
-        max_value = 2**exponent - 1
-        scale = max_value // (size - 1)
-        scale_out = scale * 2 ** (exponent - out_exponent)
-
-        # Allocate GPU arrays
-        d_image = cuda.to_device(image)
-        d_lut = cuda.to_device(lut)
-        d_out = cuda.device_array((h, w, 3), dtype=np.uint8)
-
-        threads = 256
-        blocks = (h * w + threads - 1) // threads
-
-        apply_lut_tetrahedral_int_cuda[blocks, threads](
-            d_image, d_lut, d_out, size, scale, scale_out
-        )
-
-        return d_out.copy_to_host()
-
-
 def construct_spectral_density(
     ref_density: colour.SpectralDistribution, sigma=25
-) -> xp.ndarray:
+) -> np.ndarray:
     """Split single density curve into separate layers using local extrema."""
     red_peak = wavelength_argmax(ref_density, 600, min(750, spectral_shape.end))
     green_peak = wavelength_argmax(ref_density, 500, 600)
@@ -487,19 +293,19 @@ def construct_spectral_density(
     bg_cutoff = wavelength_argmin(ref_density, blue_peak, green_peak)
     gr_cutoff = wavelength_argmin(ref_density, green_peak, red_peak)
 
-    wavelengths = xp.asarray(ref_density.wavelengths)
-    factors = xp.stack(
+    wavelengths = np.asarray(ref_density.wavelengths)
+    factors = np.stack(
         (
-            xp.where(gr_cutoff <= wavelengths, 1.0, 0.0),
-            xp.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1.0, 0.0),
-            xp.where(wavelengths <= bg_cutoff, 1.0, 0.0),
+            np.where(gr_cutoff <= wavelengths, 1.0, 0.0),
+            np.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1.0, 0.0),
+            np.where(wavelengths <= bg_cutoff, 1.0, 0.0),
         )
     )
-    factors = xdimage.gaussian_filter(
+    factors = ndimage.gaussian_filter(
         factors, sigma=(0, sigma / spectral_shape.interval)
     ).astype(default_dtype)
 
-    out = (factors * xp.asarray(ref_density.values)).T
+    out = (factors * np.asarray(ref_density.values)).T
     return out
 
 
@@ -525,10 +331,8 @@ def wavelength_argmin(
     return peak
 
 
-def plot_gamuts(rgb_to_xyz: list[xp.ndarray], labels=None):
+def plot_gamuts(rgb_to_xyz: list[np.ndarray], labels=None):
     """Plots the gamut of CST matrices."""
-    rgb_to_xyz = [to_numpy(x) for x in rgb_to_xyz]
-
     # RGB cube corners (R, G, B) in [0, 1]
     rgb_primaries = np.identity(3)
 
@@ -562,7 +366,7 @@ def plot_gamuts(rgb_to_xyz: list[xp.ndarray], labels=None):
     plt.show()
 
 
-def plot_gamut(rgb_to_xyz: xp.ndarray, label=None):
+def plot_gamut(rgb_to_xyz: np.ndarray, label=None):
     """Plots the gamut of a CST matrix."""
     plot_gamuts([rgb_to_xyz], [label])
 
@@ -581,8 +385,6 @@ def plot_chromaticties(chromaticies, labels=None):
         labels = list(range(len(chromaticies)))
 
     for chromaticity, label in zip(chromaticies, labels):
-        chromaticity = to_numpy(chromaticity)
-
         if chromaticity.ndim == 1:
             chromaticity = chromaticity.reshape(1, -1)
 
@@ -615,7 +417,7 @@ def generate_combinations(steps):
         b = 1 - a
         result.append([b, 0.0, a])
 
-    return xp.array(result)
+    return np.array(result)
 
 
 def generate_all_summing_to_one(steps):
@@ -634,7 +436,7 @@ def generate_all_summing_to_one(steps):
         for j in range(steps + 1 - i):
             k = steps - i - j
             result.append([i / steps, j / steps, k / steps])
-    return xp.array(result)
+    return np.array(result)
 
 
 def CCT_to_xy(CCT):
@@ -1001,7 +803,7 @@ def xy_to_illuminant_D(xy, spectral_shape=None):
     )
     if spectral_shape is not None:
         illuminant = colour.SpectralDistribution(
-            to_numpy(illuminant), colour.SpectralShape(300, 830, 5)
+            illuminant, colour.SpectralShape(300, 830, 5)
         ).align(spectral_shape)
     return illuminant
 
@@ -1252,9 +1054,9 @@ def saturation_adjust_hsl_density(rgb, sat_adjust, density=1):
 
 
 def linear_gamut_compression(rgb, gamut_compression=0):
-    A = xp.identity(3, rgb.dtype) * (1 - gamut_compression) + gamut_compression / 3
-    A_inv = xp.linalg.inv(A)
-    rgb = xp.clip(rgb @ A_inv, -0.1, None) @ A
+    A = np.identity(3, rgb.dtype) * (1 - gamut_compression) + gamut_compression / 3
+    A_inv = np.linalg.inv(A)
+    rgb = np.clip(rgb @ A_inv, -0.1, None) @ A
     return rgb
 
 
@@ -1281,10 +1083,10 @@ def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=Non
 
 def gamut_compression_matrices(matrix, gamut_compression=0.0):
     A = (
-        xp.identity(3, dtype=default_dtype) * (1 - gamut_compression)
+        np.identity(3, dtype=default_dtype) * (1 - gamut_compression)
         + gamut_compression / 3
     )
-    A_inv = xp.linalg.inv(A)
+    A_inv = np.linalg.inv(A)
     return matrix @ A_inv, A
 
 
@@ -1322,13 +1124,13 @@ COLORCHECKER_2005 = colour.xyY_to_XYZ(COLORCHECKER_2005)
 COLORCHECKER_2005 *= np.array([0.95047, 1.00000, 1.08883]) / COLORCHECKER_2005[0]
 COLORCHECKER_2005 = COLORCHECKER_2005[1:]
 COLORCHECKER_OKLAB = colour.convert(COLORCHECKER_2005, "CIE XYZ", "Oklab")
-COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005, default_dtype)
+COLORCHECKER_2005 = np.asarray(COLORCHECKER_2005, default_dtype)
 
 
 def smooth_piecewise(x, threshold, max_value):
     k = 1 / (max_value - threshold)
 
-    x = xp.where(
+    x = np.where(
         x < threshold,
         x,
         max_value - (max_value - threshold) * np.exp(-k * (x - threshold)),
@@ -1338,15 +1140,4 @@ def smooth_piecewise(x, threshold, max_value):
 
 
 def convolution_filter(rgb, kernel, padding=False):
-    if not CUDA_AVAILABLE:
-        return cv2.filter2D(rgb, -1, kernel)
-    else:
-        if len(kernel.shape) == 2:
-            kernel = kernel[..., xp.newaxis]
-        if padding:
-            pad_h = kernel.shape[0] // 2
-            pad_w = kernel.shape[1] // 2
-            rgb = xp.pad(rgb, ((pad_h, pad_h), (pad_w, pad_w), (0, 0)), "reflect")
-            return signal.oaconvolve(rgb, kernel, mode="valid", axes=(0, 1))
-        else:
-            return signal.oaconvolve(rgb, kernel, mode="same", axes=(0, 1))
+    return cv2.filter2D(rgb, -1, kernel)
