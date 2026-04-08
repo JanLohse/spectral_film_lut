@@ -10,7 +10,7 @@ If you plan to use it
     Download the `.AppImage` from the [releases](../../releases) page and make it executable:
 
     ```bash
-    chmod +x spectral_film_lut.AppImage
+    chmod +x spectral_film_lut-{version}.AppImage
     ./spectral_film_lut.AppImage
     ```
 
