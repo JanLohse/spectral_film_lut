@@ -26,9 +26,6 @@ pipeline simulates its reaction to light to the final appearance of the print ma
 
 ## Installation
 
-Here we describe how to install and run it as an end-user GUI application.
-If you plan to use it
-
 ### Windows
 Download the latest `.exe` from the [releases](../../releases) page and run it.
 
