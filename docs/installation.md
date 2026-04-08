@@ -2,12 +2,12 @@ Here we describe how to install and run it as an end-user GUI application.
 If you plan to use it
 
 === "Windows"
-    Download the latest `.exe` from the [releases](../../releases) page and run it.
+    Download the latest `.exe` from the [releases](https://github.com/JanLohse/spectral_film_lut/releases) page and run it.
 
     Alternatively, install via Python (see [below](#python-package)).
 
 === "Linux"
-    Download the `.AppImage` from the [releases](../../releases) page and make it executable:
+    Download the `.AppImage` from the [releases](https://github.com/JanLohse/spectral_film_lut/releases) page and make it executable:
 
     ```bash
     chmod +x spectral_film_lut-{version}.AppImage
