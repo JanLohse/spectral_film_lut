@@ -1,0 +1,119 @@
+[project]
+site_name = "Spectral Film LUT"
+site_url = "https://janlohse.github.io/spectral_film_lut/spectral_film_lut"
+site_description = "A simple GUI tool for generating custom datasheet-based film emulation LUTs."
+site_author = "Jan Lohse"
+copyright = "&copy; 2026 Jan Lohse"
+docs_dir = "docs"
+site_dir = "site"
+repo_url = "https://github.com/JanLohse/spectral_film_lut"
+repo_name = "JanLohse/spectral_film_lut"
+nav = [
+    {"Guide" = [
+        "index.md",
+        "installation.md",
+        "usage.md",
+        "explanation.md",
+        "contributing.md",
+    ]},
+    {"Reference" = [
+        "color_space.md",
+        "css_theme.md",
+        "densiometry.md",
+        "file_formats.md",
+        "film_data.md",
+        "film_loader.md",
+        "film_spectral.md",
+        "filmstock_selector.md",
+        "filmstocks.md",
+        "grain_generation.md",
+        "gui.md",
+        "gui_objects.md",
+        "reference.md",
+        "splash_screen.md",
+        "utils.md",
+        "wratten_filters.md",
+    ]}
+]
+
+[project.theme]
+font.text = "Inter"
+font.code = "JetBrains Mono"
+language = "en"
+logo = "images/spectral_film_lut.ico"
+favicon = "images/spectral_film_lut.ico"
+features = [
+    "navigation.instant",
+    "navigation.instant.prefetch",
+    "navigation.instant.progress",
+    "navigation.prune",
+    "navigation.top",
+    "search.highlight",
+    "content.code.copy",
+    "content.tooltips",
+    "content.footnote.tooltips",
+    "navigation.footer",
+#    "content.action.edit",
+#    "content.action.view",
+]
+[project.theme.icon]
+previous = "fontawesome/solid/angle-left"
+next = "fontawesome/solid/angle-right"
+repo = "fontawesome/brands/git-alt"
+
+# Palette toggle for automatic mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+# Palette toggle for light mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+# Palette toggle for dark mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+name = "Spectral Film LUT on GitHub"
+link = "https://github.com/JanLohse/spectral_film_lut"
+
+[project.plugins.mkdocstrings.handlers.python]
+inventories = ["https://docs.python.org/3/objects.inv"]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+inherited_members = true
+show_source = false
+docstring_section_style = "list"
+signature_crossrefs = true
+summary = true
+show_root_heading = true
+show_root_full_path = false
+parameter_headings = true
+type_parameter_headings = true
+show_symbol_type_heading = true
+show_symbol_type_toc = true
+line_length = 88
+merge_init_into_class = true
+separate_signature = true
+show_signature_annotations = true
+show_signature_type_parameters = true
+show_bases = true
+# show_inheritance_diagram = true
+allow_inspection = true
+backlinks = true
+modernize_annotations = true
+
+[project.markdown_extensions.pymdownx.superfences]
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true

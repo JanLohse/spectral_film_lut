@@ -1,9 +1,3 @@
-"""
-[![GitHub](https://img.shields.io/badge/GitHub-repo-blue?logo=github)](https://github.com/JanLohse/spectral_film_lut)
-.. include:: ../../README.md
-   :start-line: 3
-"""
-
 from pathlib import Path
 
 from spectral_film_lut.bw_negative_film.kodak_5222 import (

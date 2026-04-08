@@ -22,9 +22,10 @@ dependencies = ["colour-science>=0.4.7",
 
 [dependency-groups]
 dev = [
-    "pdoc>=16.0.0",
+    "mkdocstrings-python>=2.0.3",
     "pre-commit>=4.5.1",
     "ruff>=0.15.2",
+    "zensical>=0.0.31",
 ]
 
 [project.urls]
