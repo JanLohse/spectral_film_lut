@@ -9,7 +9,8 @@ authors = [{ name = "Jan Lohse" }]
 description = "GUI to create LUTs to emulate film from spectral datasheets."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["colour-science>=0.4.7",
+dependencies = [
+    "colour-science>=0.4.7",
     "imageio>=2.37.2",
     "matplotlib>=3.10.8",
     "networkx>=3.6.1",
@@ -22,9 +23,10 @@ dependencies = ["colour-science>=0.4.7",
 
 [dependency-groups]
 dev = [
-    "pdoc>=16.0.0",
+    "mkdocstrings-python>=2.0.3",
     "pre-commit>=4.5.1",
     "ruff>=0.15.2",
+    "zensical>=0.0.32",
 ]
 
 [project.urls]

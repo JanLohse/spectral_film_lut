@@ -1,9 +1,3 @@
-"""
-[![GitHub](https://img.shields.io/badge/GitHub-repo-blue?logo=github)](https://github.com/JanLohse/spectral_film_lut)
-.. include:: ../../README.md
-   :start-line: 3
-"""
-
 from pathlib import Path
 
 from spectral_film_lut.bw_negative_film.kodak_5222 import (
@@ -170,6 +164,8 @@ NEGATIVE_FILM = [
     KODAK_ULTRAMAX_400,
     KODAK_VERICOLOR_III,
 ]
+"""All available negative film stocks."""
+
 PRINT_FILM = [
     KODAK_2383,
     KODAK_2302,
@@ -209,11 +205,15 @@ PRINT_FILM = [
     KODAK_PORTRA_ENDURA,
     KODAK_SUPRA_ENDURA,
 ]
+"""All available print film stocks."""
+
 REVERSAL_PRINT = [
     ILFOCHROME_MICROGRAPHIC_M,
     ILFOCHROME_MICROGRAPHIC_P,
     KODAK_EKTACHROME_RADIANCE_III,
 ]
+"""All available reversal print stocks."""
+
 REVERSAL_FILM = [
     FUJI_FP100C,
     FUJI_INSTAX_COLOR,
@@ -223,5 +223,8 @@ REVERSAL_FILM = [
     KODAK_AEROCHROME_III,
     KODAK_EKTACHROME_100D,
 ]
+"""All available reversal (slide) film stocks."""
+
 FILM_STOCKS = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM + REVERSAL_PRINT
 FILM_STOCKS = sorted(FILM_STOCKS, key=lambda x: x.name)
+"""All film stocks."""

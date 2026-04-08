@@ -80,3 +80,4 @@ FILE_FORMATS = {
         "kwargs": {"codec": "rawvideo", "macro_block_size": 1},
     },
 }
+"""Parameter for ffmpeg to encode grain overlays."""

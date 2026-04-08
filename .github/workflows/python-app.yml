@@ -59,31 +59,19 @@ jobs:
           python-version: "3.13"
           cache: "pip"
 
-      - name: Install Qt runtime dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libegl1 libgl1
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pdoc
-          pip install .
+          pip install --group dev
 
       - name: Generate documentation
-        env:
-          PDOC_ALLOW_EXEC: "1"
         run: |
-          pdoc ./src/spectral_film_lut \
-            --math \
-            --docformat google \
-            --logo "https://github.com/JanLohse/spectral_film_lut/blob/main/src/spectral_film_lut/resources/spectral_film_lut_128.png?raw=true" \
-            -o docs/
+          zensical build --clean
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: docs/
+          path: site/
 
 
   deploy-docs:
@@ -91,12 +79,15 @@ jobs:
     needs: build-docs
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+
     permissions:
       pages: write
       id-token: write
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
