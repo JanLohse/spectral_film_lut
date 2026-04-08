@@ -17,22 +17,21 @@ nav = [
         "contributing.md",
     ]},
     {"Reference" = [
-        "color_space.md",
-        "css_theme.md",
-        "densiometry.md",
-        "file_formats.md",
-        "film_data.md",
-        "film_loader.md",
-        "film_spectral.md",
-        "filmstock_selector.md",
-        "filmstocks.md",
-        "grain_generation.md",
-        "gui.md",
-        "gui_objects.md",
-        "reference.md",
-        "splash_screen.md",
-        "utils.md",
-        "wratten_filters.md",
+        "reference/index.md",
+        "reference/color_space.md",
+        "reference/css_theme.md",
+        "reference/densiometry.md",
+        "reference/file_formats.md",
+        "reference/film_data.md",
+        "reference/film_loader.md",
+        "reference/film_spectral.md",
+        "reference/filmstock_selector.md",
+        "reference/grain_generation.md",
+        "reference/gui.md",
+        "reference/gui_objects.md",
+        "reference/splash_screen.md",
+        "reference/utils.md",
+        "reference/wratten_filters.md",
     ]}
 ]
 
@@ -43,6 +42,7 @@ language = "en"
 logo = "images/spectral_film_lut.ico"
 favicon = "images/spectral_film_lut.ico"
 features = [
+    "navigation.indexes",
     "navigation.instant",
     "navigation.instant.prefetch",
     "navigation.instant.progress",
