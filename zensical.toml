@@ -10,7 +10,7 @@ repo_url = "https://github.com/JanLohse/spectral_film_lut"
 repo_name = "JanLohse/spectral_film_lut"
 nav = [
     {"Guide" = [
-        "index.md",
+        { "Guide" = "index.md" },
         "installation.md",
         "usage.md",
         "explanation.md",
