@@ -97,6 +97,6 @@ Printer light controlls should be done after the additive mixer and before the p
 
 ### Filmstock Selector
 
-When clicking on the magnifying, glass a window opens to search and browse through the
+When clicking on the magnifying glass a window opens to search and browse through the
 available film stocks.
 <img width="100%" alt="Film stock selection ui" src="https://github.com/user-attachments/assets/5af71ab0-3802-4d22-b9e7-6f9e09efc7c4" />

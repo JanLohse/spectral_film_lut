@@ -13,7 +13,7 @@ nav = [
         { "Guide" = "index.md" },
         "installation.md",
         "usage.md",
-        "explanation.md",
+        "processing_explanation.md",
         "contributing.md",
     ]},
     {"Reference" = [
