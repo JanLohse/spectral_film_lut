@@ -1,3 +1,5 @@
+"""Additional GUI objects used by Spectral Film LUT."""
+
 import math
 import sys
 import traceback

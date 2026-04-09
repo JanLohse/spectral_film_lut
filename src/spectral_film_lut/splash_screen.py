@@ -1,3 +1,5 @@
+"""The splash screen shown at boot."""
+
 import ctypes
 import sys
 from ctypes import wintypes
