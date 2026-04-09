@@ -1,7 +1,7 @@
 from pathlib import Path
 
 PROJECT_NAME = "spectral_film_lut"
-SPECIAL_CAPS = {"GUI", "CSS", "BW"}  # always uppercase
+SPECIAL_CAPS = {"GUI", "CSS", "BW", "EXR", "CA"}  # always uppercase
 
 SRC_DIR = Path("src") / PROJECT_NAME
 OUT_DIR = Path("docs/reference")

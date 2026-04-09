@@ -1,6 +1,6 @@
 [project]
 site_name = "Spectral Film LUT"
-site_url = "https://janlohse.github.io/spectral_film_lut/spectral_film_lut"
+site_url = "https://janlohse.github.io/spectral_film_lut"
 site_description = "A simple GUI tool for generating custom datasheet-based film emulation LUTs."
 site_author = "Jan Lohse"
 copyright = "&copy; 2026 Jan Lohse"
