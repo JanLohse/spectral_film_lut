@@ -1,3 +1,5 @@
+# Installation
+
 === "Windows"
     Download the latest `.exe` from the [releases](https://github.com/JanLohse/spectral_film_lut/releases) page and run it.
 
