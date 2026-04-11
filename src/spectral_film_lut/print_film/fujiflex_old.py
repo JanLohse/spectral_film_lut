@@ -1,3 +1,5 @@
+"""Fujiflex Crystal Archive Old Version"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJIFLEX_OLD = FilmData(
@@ -327,3 +329,4 @@ FUJIFLEX_OLD = FilmData(
         },
     ],
 )
+"""Fujiflex Crystal Archive Old Version"""

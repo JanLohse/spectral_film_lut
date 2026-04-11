@@ -1,3 +1,5 @@
+"""Fuji FP-100C"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_FP100C = FilmData(
@@ -485,3 +487,4 @@ FUJI_FP100C = FilmData(
     ],
     color_masking=0.20,
 )
+"""Fuji FP-100C"""

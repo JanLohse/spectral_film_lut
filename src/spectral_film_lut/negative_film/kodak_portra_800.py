@@ -1,3 +1,5 @@
+"""Kodak Portra 800 @3200"""
+
 from dataclasses import replace
 
 from spectral_film_lut.film_data import FilmData
@@ -528,6 +530,7 @@ KODAK_PORTRA_800 = FilmData(
     ],
     rms=4.8,  # guessed
 )
+"""Kodak Portra 800"""
 
 KODAK_PORTRA_800_AT_1600 = replace(
     KODAK_PORTRA_800,
@@ -535,6 +538,7 @@ KODAK_PORTRA_800_AT_1600 = replace(
     sensiometric_curve=curve[1600],
     rms=6,  # guessed
 )
+"""Kodak Portra 800 @1600"""
 
 KODAK_PORTRA_800_AT_3200 = replace(
     KODAK_PORTRA_800,
@@ -542,3 +546,4 @@ KODAK_PORTRA_800_AT_3200 = replace(
     sensiometric_curve=curve[3200],
     rms=7,  # guessed
 )
+"""Kodak Portra 800 @3200"""

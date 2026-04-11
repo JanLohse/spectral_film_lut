@@ -1,3 +1,5 @@
+"""Kodak Dye Transfer for Kodachrome"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_DYE_TRANSFER_KODACHROME = FilmData(
@@ -120,7 +122,7 @@ KODAK_DYE_TRANSFER_KODACHROME = FilmData(
     ]
     * 3,
 )
-
+"""Kodak Dye Transfer for Kodachrome"""
 # TODO: integrate
 # separation_neg = Kodak5222()
 #         sensitivity = separation_neg.sensitivity

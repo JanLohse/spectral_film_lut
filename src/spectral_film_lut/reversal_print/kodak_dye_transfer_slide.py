@@ -1,3 +1,5 @@
+"""Kodak Dye Transfer for Slides"""
+
 from dataclasses import replace
 
 from spectral_film_lut.reversal_print.kodak_dye_transfer_kodachrome import (
@@ -8,7 +10,7 @@ KODAK_DYE_TRANSFER_SLIDE = replace(
     KODAK_DYE_TRANSFER_KODACHROME,
     name="Kodak Dye Transfer for Slides",
 )
-
+"""Kodak Dye Transfer for Slides"""
 
 # TODO: integrate
 # separation_neg = Kodak5222Dev6()

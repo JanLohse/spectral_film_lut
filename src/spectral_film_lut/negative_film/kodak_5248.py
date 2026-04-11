@@ -1,3 +1,5 @@
+"""Kodak 5248"""
+
 from spectral_film_lut.film_data import FilmData
 
 # corrective factors
@@ -395,3 +397,4 @@ KODAK_5248 = FilmData(
     ],
     rms=5,  # guessed
 )
+"""Kodak 5248"""

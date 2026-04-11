@@ -1,3 +1,5 @@
+"""Kodak Ektachrome Radiance III Paper"""
+
 from spectral_film_lut.film_spectral import FilmData
 
 KODAK_EKTACHROME_RADIANCE_III = FilmData(
@@ -405,3 +407,4 @@ KODAK_EKTACHROME_RADIANCE_III = FilmData(
         },
     ],
 )
+"""Kodak Ektachrome Radiance III Paper"""

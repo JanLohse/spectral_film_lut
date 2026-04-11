@@ -1,3 +1,5 @@
+"""Kodak Dye Transfer Negative"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_DYE_TRANSFER_NEGATIVE = FilmData(
@@ -118,7 +120,7 @@ KODAK_DYE_TRANSFER_NEGATIVE = FilmData(
         },
     ],
 )
-
+"""Kodak Dye Transfer Negative"""
 # TODO: implement
 # sensitivity = Kodak5222().sensitivity
 # filters = xp.stack([WRATTEN["29"], WRATTEN["99"], WRATTEN["98"]])

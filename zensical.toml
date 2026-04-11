@@ -85,7 +85,7 @@ show_signature_annotations = true
 show_signature_type_parameters = true
 show_bases = true
 # show_inheritance_diagram = true
-allow_inspection = true
+#allow_inspection = true
 backlinks = true
 modernize_annotations = true
 

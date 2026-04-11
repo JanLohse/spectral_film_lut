@@ -1,3 +1,5 @@
+"""Fuji Instax color"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_INSTAX_COLOR = FilmData(
@@ -447,3 +449,4 @@ FUJI_INSTAX_COLOR = FilmData(
     color_masking=0.2,
     d_min_adjustment=False,
 )
+"""Fuji Instax color"""

@@ -1,3 +1,5 @@
+"""Fuji Natura 1600"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_NATURA_1600 = FilmData(
@@ -514,3 +516,4 @@ FUJI_NATURA_1600 = FilmData(
     ],
     rms=7,
 )
+"""Fuji Natura 1600"""

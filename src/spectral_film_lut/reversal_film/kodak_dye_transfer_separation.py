@@ -1,3 +1,5 @@
+"""Kodak Dye Transfer Separation"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_DYE_TRANSFER_SEPARATION = FilmData(
@@ -121,6 +123,7 @@ KODAK_DYE_TRANSFER_SEPARATION = FilmData(
         },
     ],
 )
+"""Kodak Dye Transfer Separation"""
 
 # TODO: implement
 # separation_neg = Kodak5222Dev9()

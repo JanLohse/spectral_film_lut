@@ -1,3 +1,5 @@
+"""Fuji Eterna-CP 3523XD"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_3523 = FilmData(
@@ -481,3 +483,4 @@ FUJI_3523 = FilmData(
         },
     ],
 )
+"""Fuji Eterna-CP 3523XD"""

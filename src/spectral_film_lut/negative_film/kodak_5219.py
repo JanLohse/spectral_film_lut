@@ -1,3 +1,5 @@
+"""Kodak Vision3 500T 5219"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_5219 = FilmData(
@@ -571,5 +573,5 @@ KODAK_5219 = FilmData(
         },
     ],
 )
-
+"""Kodak Vision3 500T 5219"""
 # computed rms of 5.08

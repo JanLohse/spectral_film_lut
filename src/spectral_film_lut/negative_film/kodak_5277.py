@@ -1,3 +1,5 @@
+"""Kodak Vision 320T 5277"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_5277 = FilmData(
@@ -700,3 +702,4 @@ KODAK_5277 = FilmData(
         },
     ],
 )
+"""Kodak Vision 320T 5277"""

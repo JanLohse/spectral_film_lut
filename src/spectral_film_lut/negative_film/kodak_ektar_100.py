@@ -1,3 +1,5 @@
+"""Kodak Ektar 100"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_EKTAR_100 = FilmData(
@@ -421,3 +423,4 @@ KODAK_EKTAR_100 = FilmData(
     ],
     rms=2.1,  # guessed value
 )
+"""Kodak Ektar 100"""

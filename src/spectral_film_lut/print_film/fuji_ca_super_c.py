@@ -1,3 +1,5 @@
+"""Fuji Crystal Archive Super Type C"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_CA_SUPER_C = FilmData(
@@ -261,3 +263,4 @@ FUJI_CA_SUPER_C = FilmData(
         },
     ],
 )
+"""Fuji Crystal Archive Super Type C"""

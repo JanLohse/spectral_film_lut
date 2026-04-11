@@ -1,3 +1,5 @@
+"""Kodak Endura Premier Paper"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_ENDURA_PREMIER = FilmData(
@@ -317,3 +319,4 @@ KODAK_ENDURA_PREMIER = FilmData(
         },
     ],
 )
+"""Kodak Endura Premier Paper"""

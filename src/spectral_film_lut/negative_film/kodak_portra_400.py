@@ -1,3 +1,5 @@
+"""Kodak Portra 400"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_PORTRA_400 = FilmData(
@@ -482,3 +484,4 @@ KODAK_PORTRA_400 = FilmData(
     ],
     rms=3.7,  # guessed
 )
+"""Kodak Portra 400"""

@@ -1,3 +1,10 @@
+---
+icon: lucide/film
+tags:
+  - Guide
+---
+
+
 # Spectral Film LUT
 
 [![GitHub](https://img.shields.io/badge/GitHub-repo-blue?logo=github)](https://github.com/JanLohse/spectral_film_lut)

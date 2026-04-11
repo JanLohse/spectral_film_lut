@@ -1,7 +1,62 @@
 from pathlib import Path
 
 PROJECT_NAME = "spectral_film_lut"
-SPECIAL_CAPS = {"GUI", "CSS", "BW", "EXR", "CA"}  # always uppercase
+SPECIAL_CAPS = {
+    "GUI",
+    "CSS",
+    "BW",
+    "EXR",
+    "CA",
+    "II",
+    "160S",
+    "160C",
+    "III",
+    "PDII",
+    "DPII",
+    "3513DI",
+    "3523XD",
+    "FP100C",
+    "100F",
+    "100D",
+    "IV",
+}  # always uppercase
+
+TAG_MAPPING = {
+    "Color Science": [
+        "color_space",
+        "densiometry",
+        "film_spectral",
+        "grain_generation",
+    ],
+    "Data": [
+        "color_space",
+        "css_theme",
+        "file_formats",
+        "film_data",
+        "wratten_filters",
+        "densiometry",
+    ],
+    "UI": ["css_theme", "film_loader", "filmstock_selector", "gui", "splash_screen"],
+    "Util": [
+        "utils",
+        "splash_screen",
+        "film_loader",
+        "gui_objects",
+        "grain_generation",
+    ],
+    "Module": ["init", "index"],
+    "Film Stock": ["negative", "print", "reversal"],
+}
+ALTERNATE_TAGS = {"Data", "Film Stock"}  # if no other tags are matched
+
+TAG_TO_ICON = [
+    ("Color Science", "palette"),
+    ("Film Stock", "film"),
+    ("UI", "app-window"),
+    ("Data", "database"),
+    ("Util", "tool-case"),
+    ("Reference", "puzzle"),
+]
 
 SRC_DIR = Path("src") / PROJECT_NAME
 OUT_DIR = Path("docs/reference")
@@ -45,12 +100,59 @@ def get_paths(py_file: Path):
     return module, out_file, display_name
 
 
+def get_tags(name: str) -> list[str]:
+    tags = {"Reference"}  # always present
+    name_lower = name.lower()
+
+    found_any = False
+
+    for tag, keywords in TAG_MAPPING.items():
+        for kw in keywords:
+            if kw.lower() in name_lower:
+                tags.add(tag)
+                found_any = True
+                break  # avoid duplicate checks for same tag
+
+    if not found_any:
+        tags |= ALTERNATE_TAGS
+
+    return sorted(tags)
+
+
+def get_icon(all_names: str, tags: list[str]):
+    if "reference" in all_names:
+        return "icon: lucide/book-open-text\n"
+
+    for tag, icon in TAG_TO_ICON:
+        if tag in tags:
+            return f"icon: lucide/{icon}\n"
+
+    return ""
+
+
 def write_file(py_file: Path):
     module, out_file, display_name = get_paths(py_file)
 
     out_file.parent.mkdir(parents=True, exist_ok=True)
 
-    content = f"# {display_name}\n\n::: {module}\n"
+    all_names = py_file.name + out_file.name + display_name.lower()
+
+    tags = get_tags(all_names)
+
+    tag_block = "\n".join(f"  - {t}" for t in tags)
+
+    icon_block = get_icon(all_names, tags)
+
+    content = (
+        "---\n"
+        f"{icon_block}"
+        "tags:\n"
+        f"{tag_block}\n"
+        "---\n\n"
+        f"# {display_name}\n\n"
+        f"::: {module}\n"
+    )
+
     out_file.write_text(content, encoding="utf-8")
 
 

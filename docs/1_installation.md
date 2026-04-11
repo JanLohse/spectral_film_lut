@@ -1,3 +1,10 @@
+---
+icon: lucide/download
+tags:
+  - Guide
+  - Setup
+---
+
 # Installation
 
 === "Windows"

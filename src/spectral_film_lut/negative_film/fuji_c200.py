@@ -1,3 +1,5 @@
+"""Fuji C200"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_C200 = FilmData(
@@ -408,3 +410,4 @@ FUJI_C200 = FilmData(
     ],
     rms=4,
 )
+"""Fuji C200"""
