@@ -10,15 +10,15 @@ Spectral Film LUT is a GUI application made to generate LUT files for film emula
 video editing. For more details take a look at
 the [documentation](https://janlohse.github.io/spectral_film_lut/).
 
-To emulate the look of a film stock its datasheet was digitized and a multistep color
+To emulate the look of a film stock, its datasheet was digitized and a multistep color
 pipeline simulates its reaction to light to the final appearance of the print material.
 
 - A wide variety of negative, print, and slide materials are available.
 - Options include still photography, motion picture, color, black and white, Kodak,
   Fuji, contemporary, and vintage.
 - The accuracy is limited by the precision of the published data, which can be
-  especially poor for long discontinued formats, and simplified assumptions in the color
-  pipeline.
+  especially poor for long discontinued formats. There is also undocumented behavior
+  like interlayer effects, for which simplified assumptions have been made.
 - There is especially little data available about the interlayer interaction, e.g., how
   aggressive the color masking couplers in a negative film are.
 
@@ -27,41 +27,47 @@ pipeline simulates its reaction to light to the final appearance of the print ma
 ## Installation
 
 ### Windows
+Download the latest `.exe` from the [releases](../../releases) page and run it.
 
-The easiest way to run Spectral Film LUT is to download the latest `.exe` from
-the [releases](../../releases) section.
+Alternatively, install via Python (see [below](#python-package)).
 
 ### Linux
-
-Download the `.AppImage` from the [releases](../../releases) section or install the
-python package.
-
-### macOS
-
-Install UV using your favorite package manager beforehand.
-Git clone to your desired local location
+Download the `.AppImage` from the [releases](../../releases) page and make it executable:
 
 ```bash
-uv run spectral_film_lut
+chmod +x spectral_film_lut-{version}.AppImage
+./spectral_film_lut.AppImage
 ```
+
+Alternatively, install via Python (see [below](#python-package)).
+
+### macOS
+There is currently no native binary available for macOS.
+Install and run the application using a Python-based method.
+See the [Python Package](#python-package) section below.
 
 ### Python Package
 
-You can also install the program using pip (or pipx):
+Install the application using your preferred Python package manager. We show it for the
+default pip. Others can be found in the full documentation.
 
 ```bash
 pip install git+https://github.com/JanLohse/spectral_film_lut
 ```
 
-Then run with `spectral_film_lut`.
+Then just run with:
 
-### CUDA support
+```bash
+spectral_film_lut
+```
 
-For hardware acceleration we make us of CuPy. It might be removed in futur releases though.
+## CUDA support
+
+For hardware acceleration we make use of CuPy. It might be removed in future releases though.
 There is not a relevant speed-up for generating LUTs, that justifies the added complexity in code.
 
-Once CUDA support is added, a legacy CUDA branch will be added. To use CUDA pull that branch
-and install using pip, and additionally install the CuPy package. 
+Once CUDA support is removed, a legacy CUDA branch will be added. To use CUDA pull that branch
+and install using pip, and additionally install the https://cupy.dev/ package.
 To disable CUDA on an installation with CUDA capabilities, use the argument `--no-cuda`.
 
 ## Usage
@@ -76,7 +82,7 @@ To disable CUDA on an installation with CUDA capabilities, use the argument `--n
 
 ### Resolve Node Tree
 
-If you want to use the Grain LUT, the following node tree is recommended. 
+If you want to use the Grain LUT, the following node tree is recommended.
 It is important to set the correct offset of -43, so that the grain does not alter overall brightness.
 Import the grain overlay as a matte from the media pool tab.
 
@@ -91,7 +97,6 @@ Printer light controlls should be done after the additive mixer and before the p
 
 ### Filmstock Selector
 
-When clicking on the magnifying, glass a window opens to search and browse through the
+When clicking on the magnifying glass a window opens to search and browse through the
 available film stocks.
 <img width="100%" alt="Film stock selection ui" src="https://github.com/user-attachments/assets/5af71ab0-3802-4d22-b9e7-6f9e09efc7c4" />
-

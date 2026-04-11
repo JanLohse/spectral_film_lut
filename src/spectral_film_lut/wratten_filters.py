@@ -3928,6 +3928,7 @@ WRATTEN = {
         892.5412: 0.0383,
     },
 }
+"""The Kodak Wratten filters."""
 
 
 def cleanup(curve):

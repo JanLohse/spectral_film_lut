@@ -1,9 +1,3 @@
-"""
-[![GitHub](https://img.shields.io/badge/GitHub-repo-blue?logo=github)](https://github.com/JanLohse/spectral_film_lut)
-.. include:: ../../README.md
-   :start-line: 3
-"""
-
 from pathlib import Path
 
 from spectral_film_lut.bw_negative_film.kodak_5222 import (
@@ -50,6 +44,7 @@ from spectral_film_lut.negative_film.fuji_pro_400h import FUJI_PRO_400H
 from spectral_film_lut.negative_film.fuji_superia_reala import FUJI_SUPERIA_REALA
 from spectral_film_lut.negative_film.fuji_superia_xtra_400 import FUJI_SUPERIA_XTRA_400
 from spectral_film_lut.negative_film.kodak_5203 import KODAK_5203
+from spectral_film_lut.negative_film.kodak_5206 import KODAK_5206
 from spectral_film_lut.negative_film.kodak_5207 import KODAK_5207
 from spectral_film_lut.negative_film.kodak_5213 import KODAK_5213
 from spectral_film_lut.negative_film.kodak_5219 import KODAK_5219
@@ -145,6 +140,7 @@ NEGATIVE_FILM = [
     FUJI_SUPERIA_REALA,
     FUJI_SUPERIA_XTRA_400,
     KODAK_5203,
+    KODAK_5206,
     KODAK_5207,
     KODAK_5213,
     KODAK_5219,
@@ -170,6 +166,8 @@ NEGATIVE_FILM = [
     KODAK_ULTRAMAX_400,
     KODAK_VERICOLOR_III,
 ]
+"""All available negative film stocks."""
+
 PRINT_FILM = [
     KODAK_2383,
     KODAK_2302,
@@ -209,11 +207,15 @@ PRINT_FILM = [
     KODAK_PORTRA_ENDURA,
     KODAK_SUPRA_ENDURA,
 ]
+"""All available print film stocks."""
+
 REVERSAL_PRINT = [
     ILFOCHROME_MICROGRAPHIC_M,
     ILFOCHROME_MICROGRAPHIC_P,
     KODAK_EKTACHROME_RADIANCE_III,
 ]
+"""All available reversal print stocks."""
+
 REVERSAL_FILM = [
     FUJI_FP100C,
     FUJI_INSTAX_COLOR,
@@ -223,5 +225,8 @@ REVERSAL_FILM = [
     KODAK_AEROCHROME_III,
     KODAK_EKTACHROME_100D,
 ]
+"""All available reversal (slide) film stocks."""
+
 FILM_STOCKS = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM + REVERSAL_PRINT
 FILM_STOCKS = sorted(FILM_STOCKS, key=lambda x: x.name)
+"""All film stocks."""

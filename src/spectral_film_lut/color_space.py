@@ -1,3 +1,5 @@
+"""Define and convert to common display color spaces."""
+
 from dataclasses import dataclass
 from functools import cached_property
 
@@ -6,6 +8,8 @@ import numpy as np
 
 @dataclass
 class ColorSpace:
+    """Store color space gamut data and provide CIE XYZ conversion matrices."""
+
     w_x: float
     w_y: float
     r_x: float
@@ -54,13 +58,16 @@ COLOR_SPACES = {
     "DCI-P3": ColorSpace(0.314, 0.351, 0.68, 0.32, 0.2651, 0.69, 0.15, 0.06),
     "DCI-P3 D60": ColorSpace(0.32168, 0.33767, 0.68, 0.32, 0.2651, 0.69, 0.15, 0.06),
 }
+"""The Default output color spaces."""
 
 
 def rec_709_encoding(x):
+    """The Rec. 709 OETF."""
     return np.where(x < 0.018, 4.5 * x, 1.099 * x**0.45 - 0.099)
 
 
 def srgb_encoding(x):
+    """The sRGB OETF."""
     return np.where(x <= 0.0031308, 12.92 * x, 1.055 * x ** (1 / 2.4) - 0.055)
 
 
@@ -76,9 +83,7 @@ def hlg_encoding(x, peak=203):
 
 
 def pq_encoding(x, peak=203):
-    """
-    PQ (SMPTE ST 2084) OETF
-    """
+    """PQ (SMPTE ST 2084) OETF"""
     m1 = 2610 / 16384
     m2 = 2523 / 32
     c1 = 107 / 128
@@ -101,3 +106,4 @@ GAMMA_FUNCTIONS = {
     "HLG": hlg_encoding,
     "PQ": pq_encoding,
 }
+"""Different gamma functions for output encoding."""

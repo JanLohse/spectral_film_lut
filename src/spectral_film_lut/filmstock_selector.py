@@ -31,6 +31,8 @@ icon_path = f"{BASE_DIR}/resources/search.svg"
 
 
 class FilmStockSelector(QWidget):
+    """A combobox for selecting camera and print film stocks."""
+
     def __init__(self, film_stocks, main_parent, parent, **kwargs):
         """
         Combobox style UI element that lets you select a film stock and can open a
@@ -88,6 +90,8 @@ class FilmStockSelector(QWidget):
 
 
 class FilmStockSelectorWindow(QDialog):
+    """A pop-up window for selecting camera and print film stocks."""
+
     UNKNOWN_LABEL = "Unknown"
 
     def __init__(

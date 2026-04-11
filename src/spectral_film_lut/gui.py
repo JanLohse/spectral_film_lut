@@ -1,3 +1,5 @@
+"""The main GUI implementation."""
+
 import math
 import os
 import time
@@ -36,6 +38,8 @@ from spectral_film_lut.utils import apply_lut_tetrahedral_int, create_lut
 
 
 class MainWindow(QMainWindow):
+    """The main window of Raw2Film."""
+
     def __init__(self, filmstocks):
         super().__init__()
 
