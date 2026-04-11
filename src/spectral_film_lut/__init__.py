@@ -44,6 +44,7 @@ from spectral_film_lut.negative_film.fuji_pro_400h import FUJI_PRO_400H
 from spectral_film_lut.negative_film.fuji_superia_reala import FUJI_SUPERIA_REALA
 from spectral_film_lut.negative_film.fuji_superia_xtra_400 import FUJI_SUPERIA_XTRA_400
 from spectral_film_lut.negative_film.kodak_5203 import KODAK_5203
+from spectral_film_lut.negative_film.kodak_5206 import KODAK_5206
 from spectral_film_lut.negative_film.kodak_5207 import KODAK_5207
 from spectral_film_lut.negative_film.kodak_5213 import KODAK_5213
 from spectral_film_lut.negative_film.kodak_5219 import KODAK_5219
@@ -139,6 +140,7 @@ NEGATIVE_FILM = [
     FUJI_SUPERIA_REALA,
     FUJI_SUPERIA_XTRA_400,
     KODAK_5203,
+    KODAK_5206,
     KODAK_5207,
     KODAK_5213,
     KODAK_5219,
