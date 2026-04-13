@@ -1,3 +1,5 @@
+"""Fuji Pro 400H"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_PRO_400H = FilmData(
@@ -386,3 +388,4 @@ FUJI_PRO_400H = FilmData(
     ],
     rms=4,
 )
+"""Fuji Pro 400H"""

@@ -1,3 +1,5 @@
+"""Kodak Duraflex Plus"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_DURAFLEX_PLUS = FilmData(
@@ -342,3 +344,4 @@ KODAK_DURAFLEX_PLUS = FilmData(
         },
     ],
 )
+"""Kodak Duraflex Plus"""

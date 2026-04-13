@@ -1,3 +1,5 @@
+"""Ilfochrome Micrographic M"""
+
 from spectral_film_lut.film_spectral import FilmData
 
 ILFOCHROME_MICROGRAPHIC_M = FilmData(
@@ -495,3 +497,4 @@ ILFOCHROME_MICROGRAPHIC_M = FilmData(
         },
     ],
 )
+"""Ilfochrome Micrographic M"""

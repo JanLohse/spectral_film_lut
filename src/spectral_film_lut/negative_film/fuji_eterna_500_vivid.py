@@ -1,3 +1,5 @@
+"""Fuji Eterna 500 Vivid"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_ETERNA_500_VIVID = FilmData(
@@ -343,3 +345,4 @@ FUJI_ETERNA_500_VIVID = FilmData(
     rms=3.5,
     exposure_base=2,
 )
+"""Fuji Eterna 500 Vivid"""

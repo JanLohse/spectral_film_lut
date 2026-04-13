@@ -1,3 +1,5 @@
+"""Fuji Provia 100F"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_PROVIA_100F = FilmData(
@@ -357,3 +359,4 @@ FUJI_PROVIA_100F = FilmData(
     ],
     rms=9,
 )
+"""Fuji Provia 100F"""

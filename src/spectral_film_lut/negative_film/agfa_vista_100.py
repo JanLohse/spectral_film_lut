@@ -1,3 +1,5 @@
+"""Agfa Vista 100"""
+
 from spectral_film_lut.film_data import FilmData
 
 AGFA_VISTA_100 = FilmData(
@@ -503,3 +505,4 @@ AGFA_VISTA_100 = FilmData(
     ],
     rms=4,
 )
+"""Agfa Vista 100"""

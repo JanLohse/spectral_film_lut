@@ -1,3 +1,5 @@
+"""Fuji Superia Reala"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_SUPERIA_REALA = FilmData(
@@ -482,3 +484,4 @@ FUJI_SUPERIA_REALA = FilmData(
     ],
     rms=4,
 )
+"""Fuji Superia Reala"""

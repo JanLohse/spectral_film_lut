@@ -1,3 +1,5 @@
+"""Fuji Crystal Archive DPII"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_CA_DPII = FilmData(
@@ -256,3 +258,4 @@ FUJI_CA_DPII = FilmData(
         },
     ],
 )
+"""Fuji Crystal Archive DPII"""

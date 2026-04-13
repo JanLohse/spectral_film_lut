@@ -1,3 +1,5 @@
+"""Kodak Ektachrome 100D"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_EKTACHROME_100D = FilmData(
@@ -316,3 +318,4 @@ KODAK_EKTACHROME_100D = FilmData(
         },
     ],
 )
+"""Kodak Ektachrome 100D"""

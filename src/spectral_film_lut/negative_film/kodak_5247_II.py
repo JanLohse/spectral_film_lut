@@ -1,3 +1,5 @@
+"""Kodak 5247 II"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_5247_II = FilmData(
@@ -883,3 +885,4 @@ KODAK_5247_II_ALT = FilmData(
     ],
     rms=5,
 )
+"""Kodak 5247 II"""

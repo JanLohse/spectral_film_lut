@@ -1,3 +1,5 @@
+"""Kodak Portra Endura Paper"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_PORTRA_ENDURA = FilmData(
@@ -313,3 +315,4 @@ KODAK_PORTRA_ENDURA = FilmData(
         },
     ],
 )
+"""Kodak Portra Endura Paper"""

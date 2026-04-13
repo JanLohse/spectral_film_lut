@@ -1,3 +1,5 @@
+"""Kodak Aerocolor IV 2460"""
+
 from dataclasses import replace
 
 from spectral_film_lut.film_data import FilmData
@@ -756,3 +758,4 @@ KODAK_AEROCOLOR_HIGH = replace(
     ],
     rms=15.5 * 0.575,
 )
+"""Kodak Aerocolor IV 2460"""

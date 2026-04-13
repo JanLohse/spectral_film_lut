@@ -1,3 +1,5 @@
+"""Kodak 2302"""
+
 from dataclasses import replace
 
 from spectral_film_lut.film_data import FilmData
@@ -173,24 +175,29 @@ KODAK_2302 = FilmData(
         }
     ],
 )
-
+"""Kodak 2302"""
 
 KODAK_2302_DEV_2 = replace(
     KODAK_2302, name="Kodak 2302 Dev 2", sensiometric_curve=[curve[2]]
 )
+"""Kodak 2302 Dev 2"""
 
 KODAK_2302_DEV_3 = replace(
     KODAK_2302, name="Kodak 2302 Dev 3", sensiometric_curve=[curve[3]]
 )
+"""Kodak 2302 Dev 3"""
 
 KODAK_2302_DEV_5 = replace(
     KODAK_2302, name="Kodak 2302 Dev 5", sensiometric_curve=[curve[5]]
 )
+"""Kodak 2302 Dev 5"""
 
 KODAK_2302_DEV_7 = replace(
     KODAK_2302, name="Kodak 2302 Dev 7", sensiometric_curve=[curve[7]]
 )
+"""Kodak 2302 Dev 7"""
 
 KODAK_2302_DEV_9 = replace(
     KODAK_2302, name="Kodak 2302 Dev 9", sensiometric_curve=[curve[9]]
 )
+"""Kodak 2302 Dev 9"""

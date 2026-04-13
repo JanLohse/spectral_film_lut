@@ -1,3 +1,5 @@
+"""Kodak EXR 200T 5293"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_5293 = FilmData(
@@ -368,3 +370,4 @@ KODAK_5293 = FilmData(
     ],
     rms=5.5,  # read from curve
 )
+"""Kodak EXR 200T 5293"""

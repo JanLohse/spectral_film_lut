@@ -1,3 +1,5 @@
+"""Kodak Vision 2383"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_2383 = FilmData(
@@ -430,3 +432,4 @@ KODAK_2383 = FilmData(
         748.6497: 0.4020,
     },
 )
+"""Kodak Vision 2383"""

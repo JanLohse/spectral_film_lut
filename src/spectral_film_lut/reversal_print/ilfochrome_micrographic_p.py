@@ -1,3 +1,5 @@
+"""Ilfochrome Micrographic P"""
+
 from dataclasses import replace
 
 from spectral_film_lut.reversal_print.ilfochrome_micrographic_m import (
@@ -105,3 +107,4 @@ ILFOCHROME_MICROGRAPHIC_P = replace(
         },
     ],
 )
+"""Ilfochrome Micrographic P"""

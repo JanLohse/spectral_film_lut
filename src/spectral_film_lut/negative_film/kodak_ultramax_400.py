@@ -1,3 +1,5 @@
+"""Kodak Ultramax 500"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_ULTRAMAX_400 = FilmData(
@@ -494,3 +496,4 @@ KODAK_ULTRAMAX_400 = FilmData(
     ],
     rms=4.6,  # guessed value
 )
+"""Kodak Ultramax 500"""

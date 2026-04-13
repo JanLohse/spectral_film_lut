@@ -1,3 +1,5 @@
+"""Kodak Professional Polymax Fine-Art Paper"""
+
 from dataclasses import replace
 
 from spectral_film_lut.film_data import FilmData
@@ -262,43 +264,53 @@ KODAK_POLYMAX = FilmData(
         },
     ],
 )
+"""Kodak Professional Polymax Fine-Art Paper"""
 
 KODAK_POLYMAX_GRADE_MINUS_1 = replace(
     KODAK_POLYMAX,
     name="Kodak Polymax Fine-Art Paper Grade -1",
     sensiometric_curve=[curve[-1]],
 )
+"""Kodak Polymax Fine-Art Paper Grade -1"""
 
 KODAK_POLYMAX_GRADE_0 = replace(
     KODAK_POLYMAX,
     name="Kodak Polymax Fine-Art Paper Grade 0",
     sensiometric_curve=[curve[0]],
 )
+"""Kodak Polymax Fine-Art Paper Grade 0"""
 
 KODAK_POLYMAX_GRADE_1 = replace(
     KODAK_POLYMAX,
     name="Kodak Polymax Fine-Art Paper Grade 1",
     sensiometric_curve=[curve[1]],
 )
+"""Kodak Polymax Fine-Art Paper Grade 1"""
 
 KODAK_POLYMAX_GRADE_2 = replace(
     KODAK_POLYMAX,
     name="Kodak Polymax Fine-Art Paper Grade 2",
     sensiometric_curve=[curve[2]],
 )
+"""Kodak Polymax Fine-Art Paper Grade 2"""
 
 KODAK_POLYMAX_GRADE_3 = replace(
     KODAK_POLYMAX,
     name="Kodak Polymax Fine-Art Paper Grade 3",
     sensiometric_curve=[curve[3]],
 )
+"""Kodak Polymax Fine-Art Paper Grade 3"""
+
 KODAK_POLYMAX_GRADE_4 = replace(
     KODAK_POLYMAX,
     name="Kodak Polymax Fine-Art Paper Grade 4",
     sensiometric_curve=[curve[4]],
 )
+"""Kodak Polymax Fine-Art Paper Grade 4"""
+
 KODAK_POLYMAX_GRADE_5 = replace(
     KODAK_POLYMAX,
     name="Kodak Polymax Fine-Art Paper Grade 5",
     sensiometric_curve=[curve[5]],
 )
+"""Kodak Polymax Fine-Art Paper Grade 5"""

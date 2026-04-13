@@ -1,3 +1,5 @@
+"""Kodak Aerochrome III Infrared Film 1443"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_AEROCHROME_III = FilmData(
@@ -579,7 +581,7 @@ KODAK_AEROCHROME_III = FilmData(
     ],
     rms=23,
 )
-
+"""Kodak Aerochrome III Infrared Film 1443"""
 # TODO: implement
 # spectral_shape_nri = colour.SpectralShape(380, 900, 5)
 #

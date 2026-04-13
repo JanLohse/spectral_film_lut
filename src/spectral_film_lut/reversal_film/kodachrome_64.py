@@ -1,3 +1,5 @@
+"""Kodachrome 64"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODACHROME_64 = FilmData(
@@ -454,3 +456,4 @@ KODACHROME_64 = FilmData(
     ],
     rms=10,
 )
+"""Kodachrome 64"""

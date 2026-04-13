@@ -1,3 +1,5 @@
+"""Fuji Velvia 50"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_VELVIA_50 = FilmData(
@@ -361,3 +363,4 @@ FUJI_VELVIA_50 = FilmData(
     ],
     rms=9,
 )
+"""Fuji Velvia 50"""

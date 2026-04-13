@@ -1,3 +1,5 @@
+"""Fuji Pro 160C"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_PRO_160C = FilmData(
@@ -385,3 +387,4 @@ FUJI_PRO_160C = FilmData(
     ],
     rms=3,
 )
+"""Fuji Pro 160C"""

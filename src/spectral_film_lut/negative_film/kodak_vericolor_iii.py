@@ -1,3 +1,5 @@
+"""Kodak Vericolor III"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_VERICOLOR_III = FilmData(
@@ -458,3 +460,4 @@ KODAK_VERICOLOR_III = FilmData(
     ],
     rms=3.9,  # guessed value
 )
+"""Kodak Vericolor III"""

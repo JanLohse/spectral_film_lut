@@ -1,3 +1,5 @@
+"""Kodak 5383"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_5383 = FilmData(
@@ -415,7 +417,7 @@ KODAK_5383 = FilmData(
         },
     ],
 )
-
+"""Kodak 5383"""
 # TODO: add back
 # midscale_sd =
 # red_sd =

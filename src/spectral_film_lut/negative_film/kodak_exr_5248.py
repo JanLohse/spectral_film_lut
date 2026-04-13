@@ -1,3 +1,5 @@
+"""Kodak EXR 100T 5248"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_EXR_5248 = FilmData(
@@ -459,3 +461,4 @@ KODAK_EXR_5248 = FilmData(
         },
     ],
 )
+"""Kodak EXR 100T 5248"""

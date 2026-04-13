@@ -1,3 +1,5 @@
+"""Fuji Superia X-Tra 400"""
+
 from spectral_film_lut.film_data import FilmData
 
 FUJI_SUPERIA_XTRA_400 = FilmData(
@@ -417,3 +419,4 @@ FUJI_SUPERIA_XTRA_400 = FilmData(
     ],
     rms=4,
 )
+"""Fuji Superia X-Tra 400"""

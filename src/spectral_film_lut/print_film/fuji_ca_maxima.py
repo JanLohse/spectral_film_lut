@@ -1,3 +1,5 @@
+"""Fuji Crystal Archive Maxima"""
+
 from dataclasses import replace
 
 from spectral_film_lut.print_film.fuji_ca_dpII import FUJI_CA_DPII
@@ -12,3 +14,4 @@ FUJI_CA_MAXIMA = replace(
         {x: y * 2.45 / 2.25 for x, y in FUJI_CA_DPII.sensiometric_curve[2].items()},
     ],
 )
+"""Fuji Crystal Archive Maxima"""

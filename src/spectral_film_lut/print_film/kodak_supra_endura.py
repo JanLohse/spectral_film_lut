@@ -1,7 +1,9 @@
+"""Kodak Supra Endura Paper"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_SUPRA_ENDURA = FilmData(
-    name="Kodka Supra Endura Paper",
+    name="Kodak Supra Endura Paper",
     density_measure="status_a",
     manufacturer="Kodak",
     stage="print",
@@ -328,3 +330,4 @@ KODAK_SUPRA_ENDURA = FilmData(
         },
     ],
 )
+"""Kodak Supra Endura Paper"""

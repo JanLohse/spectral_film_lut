@@ -1,3 +1,5 @@
+"""Technicolor IV"""
+
 from dataclasses import replace
 
 from spectral_film_lut.film_data import FilmData
@@ -266,6 +268,7 @@ TECHNICOLOR_IV_ALT_2 = replace(
         },
     ],
 )
+"""Technicolor IV"""
 
 # TODO: implement
 

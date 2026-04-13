@@ -1,3 +1,5 @@
+"""Kodak Gold 200"""
+
 from spectral_film_lut.film_data import FilmData
 
 KODAK_GOLD_200 = FilmData(
@@ -486,3 +488,4 @@ KODAK_GOLD_200 = FilmData(
     ],
     rms=4.4,  # guessed value
 )
+"""Kodak Gold 200"""
