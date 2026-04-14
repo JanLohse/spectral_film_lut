@@ -31,6 +31,10 @@ from spectral_film_lut.utils import (
     multi_channel_interp,
     spectral_shape,
 )
+from spectral_film_lut.xy_lut import (
+    SPECTRUM_LUT,
+    apply_2d_lut_XYZ,
+)
 
 
 class FilmSpectral:
@@ -852,6 +856,7 @@ class FilmSpectral:
         sat_adjust=1,
         adx=True,
         adx_scaling=1.0,
+        matrix_input_method=True,
         **kwargs,
     ):
         """The main function that performs the film simulation."""
@@ -901,36 +906,52 @@ class FilmSpectral:
                 )
 
             exp_comp = 2**exp_comp
-            gray = np.asarray(negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint))
-            ref_exp = negative_film.XYZ_to_exp @ gray
-            correction_factors = negative_film.H_ref / ref_exp
-            if negative_film.density_measure == "bw":
-                wb_factors = (
-                    np.asarray(
-                        negative_film.CCT_to_XYZ(negative_film.exposure_kelvin, 0.18)
+
+            if matrix_input_method:
+                gray = np.asarray(negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint))
+                ref_exp = negative_film.XYZ_to_exp @ gray
+                correction_factors = negative_film.H_ref / ref_exp
+                if negative_film.density_measure == "bw":
+                    wb_factors = (
+                        np.asarray(
+                            negative_film.CCT_to_XYZ(
+                                negative_film.exposure_kelvin, 0.18
+                            )
+                        )
+                        / gray
                     )
-                    / gray
-                )
-                correction_factors = (
-                    ref_exp
-                    / (negative_film.XYZ_to_exp @ wb_factors)
-                    / 0.18
-                    * correction_factors
-                    * wb_factors.reshape(-1, 1)
-                )
-            XYZ_to_exp = (negative_film.XYZ_to_exp.T * correction_factors).T * exp_comp
+                    correction_factors = (
+                        ref_exp
+                        / (negative_film.XYZ_to_exp @ wb_factors)
+                        / 0.18
+                        * correction_factors
+                        * wb_factors.reshape(-1, 1)
+                    )
+                XYZ_to_exp = (
+                    negative_film.XYZ_to_exp.T * correction_factors
+                ).T * exp_comp
 
-            if gamut_compression and negative_film.density_measure != "bw":
-                XYZ_to_exp, compression_inv = gamut_compression_matrices(
-                    XYZ_to_exp, gamut_compression
-                )
-            add(lambda x: x @ XYZ_to_exp.T, "linear exposure")
+                if gamut_compression and negative_film.density_measure != "bw":
+                    XYZ_to_exp, compression_inv = gamut_compression_matrices(
+                        XYZ_to_exp, gamut_compression
+                    )
+                add(lambda x: x @ XYZ_to_exp.T, "linear exposure")
 
-            if gamut_compression and negative_film.density_measure != "bw":
-                add(
-                    lambda x: np.clip(x, 0, None) @ compression_inv,
-                    "gamut_compression_inv",
-                )
+                if gamut_compression and negative_film.density_measure != "bw":
+                    add(
+                        lambda x: np.clip(x, 0, None) @ compression_inv,
+                        "gamut_compression_inv",
+                    )
+
+            else:
+                # Spectral 2.5D LUT method
+                # TODO: fix BW
+                spectral_input_lut = SPECTRUM_LUT @ negative_film.sensitivity
+                gray = negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint)
+                ref_exp = apply_2d_lut_XYZ(gray, spectral_input_lut)
+                correction_factors = negative_film.H_ref / ref_exp
+                spectral_input_lut *= correction_factors * exp_comp
+                add(lambda x: apply_2d_lut_XYZ(x, spectral_input_lut), "2.5D input LUT")
 
             if halation_func is not None:
                 add(lambda x: halation_func(x), "halation")
