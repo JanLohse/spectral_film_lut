@@ -31,10 +31,7 @@ from spectral_film_lut.utils import (
     multi_channel_interp,
     spectral_shape,
 )
-from spectral_film_lut.xy_lut import (
-    SPECTRUM_LUT,
-    apply_2d_lut_XYZ,
-)
+from spectral_film_lut.xy_lut import SPECTRUM_LUT, apply_2d_lut, apply_2d_lut_mono
 
 
 class FilmSpectral:
@@ -908,6 +905,7 @@ class FilmSpectral:
             exp_comp = 2**exp_comp
 
             if matrix_input_method:
+                # TODO: better WB adjustment
                 gray = np.asarray(negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint))
                 ref_exp = negative_film.XYZ_to_exp @ gray
                 correction_factors = negative_film.H_ref / ref_exp
@@ -945,13 +943,26 @@ class FilmSpectral:
 
             else:
                 # Spectral 2.5D LUT method
-                # TODO: fix BW
                 spectral_input_lut = SPECTRUM_LUT @ negative_film.sensitivity
                 gray = negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint)
-                ref_exp = apply_2d_lut_XYZ(gray, spectral_input_lut)
+                if negative_film.density_measure == "bw":
+                    ref_exp = apply_2d_lut_mono(gray, spectral_input_lut)
+                else:
+                    ref_exp = apply_2d_lut(gray, spectral_input_lut)
                 correction_factors = negative_film.H_ref / ref_exp
                 spectral_input_lut *= correction_factors * exp_comp
-                add(lambda x: apply_2d_lut_XYZ(x, spectral_input_lut), "2.5D input LUT")
+                if negative_film.density_measure == "bw":
+                    add(
+                        lambda x: apply_2d_lut_mono(
+                            np.clip(x, 0, None), spectral_input_lut
+                        ),
+                        "2.5D input LUT",
+                    )
+                else:
+                    add(
+                        lambda x: apply_2d_lut(np.clip(x, 0, None), spectral_input_lut),
+                        "2.5D input LUT",
+                    )
 
             if halation_func is not None:
                 add(lambda x: halation_func(x), "halation")

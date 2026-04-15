@@ -280,6 +280,7 @@ Adjust the tint along the green to red/purple axis.
         )
 
         self.matrix_input_method = QCheckBox()
+        self.matrix_input_method.setTristate(True)
         self.matrix_input_method.setChecked(True)
         add_option(
             self.matrix_input_method,
@@ -643,6 +644,12 @@ film stocks.
         tint = self.tint.getValue()
         sat_adjust = self.sat_adjust.getValue()
         matrix_input_method = self.matrix_input_method.isChecked()
+        gamut_compression = (
+            0
+            if self.matrix_input_method.checkState() == Qt.CheckState.PartiallyChecked
+            else 0.2
+        )
+
         adx_scaling = {"Density 2": 4.0, "Density 4": 2.0, "Density 8": 1.0}[
             self.adx_scale.currentText()
         ]
@@ -670,6 +677,7 @@ film stocks.
             sat_adjust=sat_adjust,
             adx_scaling=adx_scaling,
             matrix_input_method=matrix_input_method,
+            gamut_compression=gamut_compression,
         )
         return lut
 

@@ -1,9 +1,8 @@
 import math
+import time
 
 import colour
 import numpy as np
-import scipy.interpolate
-from matplotlib import pyplot as plt
 from numba import njit, prange
 from scipy.optimize import nnls
 
@@ -62,7 +61,7 @@ def XYZ_to_xys(XYZ):
 
 
 @njit(parallel=True)
-def apply_2d_lut_XYZ(image, lut):
+def apply_2d_lut(image, lut):
     orig_shape = image.shape
     c = orig_shape[-1]
 
@@ -119,74 +118,75 @@ def apply_2d_lut_XYZ(image, lut):
         out_flat[i, 1] = (r_g * r_factor + g_g * g_factor + s_g * s_factor) * s
         out_flat[i, 2] = (r_s * r_factor + g_s * g_factor + s_s * s_factor) * s
 
-    return out_flat.reshape(orig_shape)
+    out_flat = out_flat.reshape(orig_shape)
+    print(out_flat.shape)
+
+    return out_flat
 
 
-def distance_to_locus(xy) -> float:
-    """
-    Compute the distance to the locus. Points outside the locus return 0 distance.
+@njit(parallel=True)
+def apply_2d_lut_mono(image, lut):
+    orig_shape = image.shape
+    c = orig_shape[-1]
 
-    Args:
-        xy: The input xy point.
+    # flatten spatial dims
+    n = 1
+    for i in range(len(orig_shape) - 1):
+        n *= orig_shape[i]
 
-    Returns:
-        The distance to the locus.
-    """
-    p = np.array(xy)
+    image_flat = image.reshape(n, c)
 
-    # Convert XYZ -> xy
-    xy_cmfs = XYZ_CMFS[:, :2] / XYZ_CMFS.sum(axis=1, keepdims=True)
+    lut_size = lut.shape[0]
+    scaling = lut_size - 1
 
-    # Segment vectors (previous point → current point)
-    ab = xy_cmfs - np.roll(xy_cmfs, 1, axis=0)
-    ap = p - xy_cmfs
+    out_flat = np.empty((n, 1), dtype=np.float32)
 
-    # Lengths of segments
-    ab_len = np.linalg.norm(ab, axis=1)
+    for i in prange(n):
+        r = image_flat[i, 0]
+        g = image_flat[i, 1]
+        b = image_flat[i, 2]
 
-    # Mask degenerate segments
-    valid = ab_len >= 1e-4
+        s = r + g + b
 
-    # 2D cross product (scalar z-component)
-    cross = ap[:, 0] * ab[:, 1] - ap[:, 1] * ab[:, 0]
+        if s == 0.0:
+            out_flat[i, 0] = 0.0
+            continue
 
-    # Signed distances
-    d = np.ones_like(cross)
-    d[valid] = cross[valid] / ab_len[valid]
+        inv_sum = scaling / s
 
-    # Clamp to inside-only distances
-    d = np.maximum(d, 0.0)
+        r *= inv_sum
+        g *= inv_sum
 
-    return float(np.min(d))
+        r_ind = math.floor(r)
+        g_ind = math.floor(g)
 
+        r_factor = r % 1
+        g_factor = g % 1
 
-def xy_to_loss_scale(xy, max_loss, max_distance=0.2) -> float:
-    """
-    Compute the correct loss scaling for the optimizer based on the distance of xy to
-    the locus. We use a parabola whose vertex is in (max_distance, max_loss_scale), and
-    which goes through (0, 0). This way the loss is 0 on the locus, and we smoothly
-    reach the maximal locus towards the center.
+        factor_sum = r_factor + g_factor
 
-    Args:
-        xy: xy coordinates for which to compute the loss scaling.
-        max_loss: The maximal loss scaling that is returned.
-        max_distance: The distance at which the maximal loss scaling is returned.
+        r_val = lut[r_ind + 1, g_ind, 0]
+        g_val = lut[r_ind, g_ind + 1, 0]
 
-    Returns:
-        Loss scaling for xy to be used in xy_to_spectrum_nnls.
-    """
-    distance = distance_to_locus(xy)
+        if factor_sum <= 1.0:
+            s_val = lut[r_ind, g_ind, 0]
+            s_factor = 1.0 - factor_sum
+        else:
+            s_val = lut[r_ind + 1, g_ind + 1, 0]
+            r_factor, g_factor = 1 - g_factor, 1 - r_factor
+            s_factor = factor_sum - 1.0
 
-    if distance > max_distance:
-        return max_loss
+        out_flat[i, 0] = (r_val * r_factor + g_val * g_factor + s_val * s_factor) * s
 
-    loss_scale = -max_loss / max_distance**2 * (distance - max_distance) ** 2 + max_loss
+    out_flat = out_flat.reshape(orig_shape[:-1] + (1,))
 
-    return loss_scale
+    return out_flat
 
 
-def xy_to_spectrum_nnls(xy, max_loss=0.1):
+def xy_to_spectrum_nnls(xy, loss_factor):
     x, y = xy
+    if x + y > 1:
+        return np.ones(XYZ_CMFS.shape[0])
     if not y:
         y = 1e-16
 
@@ -200,162 +200,38 @@ def xy_to_spectrum_nnls(xy, max_loss=0.1):
     # first derivative smoothness
     D1 = np.eye(N, k=0) - np.eye(N, k=1)
 
-    loss_scale = xy_to_loss_scale(xy, max_loss)
-
     # stack system instead of forming normal equations
-    C = np.vstack([A, np.sqrt(loss_scale) * D1])
+    C = np.vstack([A, np.sqrt(loss_factor) * D1])
     d = np.concatenate([XYZ, np.zeros(N)])
 
     s, _ = nnls(C, d)
     return s
 
 
-def spectrum_to_Y(spectrum):
-    S = np.asarray(spectrum)
-
-    if S.ndim == 1:
-        return XYZ_CMFS[:, 1].T @ S
-
-    return S @ XYZ_CMFS[:, 1]
-
-
-def xys_to_spectrum_nnls(xys, max_loss=0.1):
+def xys_to_spectrum_nnls(xys, loss_factor) -> np.ndarray:
     x, y, s = xys
-    spectrum = xy_to_spectrum_nnls((x, y), max_loss)
+    spectrum = xy_to_spectrum_nnls((x, y), loss_factor)
     s_spectrum = (spectrum @ XYZ_CMFS).sum()
     spectrum *= s / s_spectrum
     return spectrum
 
 
-def generate_spectral_sample_table(n=20, max_loss=0.05):
+def generate_spectral_sample_table(n, loss_factor):
     x = np.linspace(0, 1, n, dtype=np.float32)
     xx, yy = np.meshgrid(x, x, indexing="ij")
     lut_id = np.stack([xx, yy, np.ones_like(xx)], axis=-1)
 
     flat = lut_id.reshape(-1, 3)
 
-    out_flat = np.array([xys_to_spectrum_nnls(point, max_loss) for point in flat])
+    out_flat = np.array(
+        [xys_to_spectrum_nnls(point, loss_factor).astype(np.float32) for point in flat]
+    )
 
     out = out_flat.reshape(n, n, -1)
 
     return out
 
 
-def XYZ_to_xy(XYZ):
-    if XYZ.ndim == 1:
-        xy = XYZ[:2] / XYZ.sum()
-        return xy
-
-    xy = XYZ[:, :2] / XYZ.sum(axis=1, keepdims=True)
-    return xy
-
-
-def plot_cie(*dots, show_locus=True):
-
-    xy_w = XYZ_CMFS[:, :-1] / XYZ_CMFS.sum(axis=1, keepdims=True)
-
-    if show_locus:
-        x = xy_w[:, 0]
-        y = xy_w[:, 1]
-
-        # parameter (assumes points are already ordered, e.g. by wavelength)
-        t = np.arange(len(x))
-
-        # cubic splines
-        cs_x = scipy.interpolate.CubicSpline(t, x)
-        cs_y = scipy.interpolate.CubicSpline(t, y)
-
-        # smooth sampling
-        t_fine = np.linspace(0, len(x) - 1, 500)
-
-        x_smooth = cs_x(t_fine)
-        y_smooth = cs_y(t_fine)
-
-        plt.plot(x_smooth, y_smooth)
-
-    plt.axis("square")
-    plt.xlim(0, 1)
-    plt.ylim(0, 1)
-    plt.plot((0, 1), (1, 0))
-
-    for i, dot in enumerate(dots):
-        print("lol", i)
-        dot = np.array(dot)
-        if len(dot.shape) == 1:
-            label = f"#{i + 1} x={dot[0]:.3f} y={dot[1]:.3f}"
-        else:
-            label = f"#{i + 1}"
-            if dot.shape[0] != 2:
-                dot = dot.T
-        plt.scatter(dot[0], dot[1], label=label)
-
-    if dots:
-        plt.legend()
-
-    plt.show()
-
-
-def spectrum_to_XYZ(spectrum):
-    S = np.asarray(spectrum)
-
-    if S.ndim == 1:
-        return XYZ_CMFS.T @ S
-
-    return S @ XYZ_CMFS
-
-
-def spectrum_to_xy(spectrum):
-    XYZ = spectrum_to_XYZ(spectrum)
-    XYZ = np.asarray(XYZ)
-
-    return XYZ_to_xy(XYZ)
-
-
-def plot_spectra(*spectra, norm="Y"):
-    wl = np.arange(380, 781, 5)
-    any_legend = False
-
-    for i, spectrum in enumerate(spectra):
-        S = np.asarray(spectrum)
-
-        # single spectrum
-        if S.ndim == 1:
-            if norm == "max":
-                Y = S.max()
-            elif norm in ["lum", "luminance", "Y", "y"]:
-                Y = spectrum_to_Y(S)
-            else:
-                Y = 1
-            if Y != 0:
-                x, y = spectrum_to_xy(S)
-                S = S / Y
-            else:
-                x, y = 0, 0
-            plt.plot(wl, S, label=f"#{i + 1} {x=:.3f} {y=:.3f}")
-            any_legend = True
-
-        elif S.ndim == 2:
-            if norm == "max":
-                Y = S.max(axis=1)
-            elif norm in ["lum", "luminance", "Y", "y"]:
-                Y = spectrum_to_Y(S)
-            else:
-                Y = None
-            if Y is not None:
-                Y_safe = np.where(Y == 0, 1, Y)
-                S_normalized = S / Y_safe[:, None]
-                plt.plot(wl, S_normalized.T)
-            else:
-                plt.plot(wl, S.T)
-
-        else:
-            raise ValueError("Spectrum must be shape (81,) or (n, 81)")
-
-    if any_legend:
-        plt.legend()
-    plt.xlabel("Wavelength (nm)")
-    plt.ylabel("Normalized spectral power")
-    plt.show()
-
-
-SPECTRUM_LUT = generate_spectral_sample_table(max_loss=0.01)
+start = time.time()
+SPECTRUM_LUT = generate_spectral_sample_table(2**5, loss_factor=5)
+print(time.time() - start)
