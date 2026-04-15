@@ -204,7 +204,7 @@ jobs:
           path: dist/
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.create-tag.outputs.TAG }}
           name: Version ${{ needs.create-tag.outputs.VERSION }}
