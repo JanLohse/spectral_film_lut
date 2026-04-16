@@ -31,7 +31,10 @@ from spectral_film_lut.utils import (
     multi_channel_interp,
     spectral_shape,
 )
-from spectral_film_lut.xy_lut import SPECTRUM_LUT, apply_2d_lut, apply_2d_lut_mono
+from spectral_film_lut.xy_lut import (
+    SPECTRUM_LUT,
+    apply_2d_lut,
+)
 
 
 class FilmSpectral:
@@ -854,6 +857,7 @@ class FilmSpectral:
         adx=True,
         adx_scaling=1.0,
         matrix_input_method=True,
+        new_wb_method=False,
         **kwargs,
     ):
         """The main function that performs the film simulation."""
@@ -905,7 +909,6 @@ class FilmSpectral:
             exp_comp = 2**exp_comp
 
             if matrix_input_method:
-                # TODO: better WB adjustment
                 gray = np.asarray(negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint))
                 ref_exp = negative_film.XYZ_to_exp @ gray
                 correction_factors = negative_film.H_ref / ref_exp
@@ -943,26 +946,22 @@ class FilmSpectral:
 
             else:
                 # Spectral 2.5D LUT method
-                spectral_input_lut = SPECTRUM_LUT @ negative_film.sensitivity
-                gray = negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint)
-                if negative_film.density_measure == "bw":
-                    ref_exp = apply_2d_lut_mono(gray, spectral_input_lut)
-                else:
-                    ref_exp = apply_2d_lut(gray, spectral_input_lut)
-                correction_factors = negative_film.H_ref / ref_exp
-                spectral_input_lut *= correction_factors * exp_comp
-                if negative_film.density_measure == "bw":
-                    add(
-                        lambda x: apply_2d_lut_mono(
-                            np.clip(x, 0, None), spectral_input_lut
-                        ),
-                        "2.5D input LUT",
+                if new_wb_method:
+                    gray_XYZ = negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint)
+                    reference_XYZ = negative_film.CCT_to_XYZ(6504, 0.18)
+                    gray_spectral = apply_2d_lut(gray_XYZ, SPECTRUM_LUT)
+                    reference_spectral = apply_2d_lut(reference_XYZ, SPECTRUM_LUT)
+                    corrected_sensitivity = (
+                        negative_film.sensitivity
+                        * (reference_spectral / gray_spectral)[:, None]
                     )
-                else:
-                    add(
-                        lambda x: apply_2d_lut(np.clip(x, 0, None), spectral_input_lut),
-                        "2.5D input LUT",
-                    )
+                    spectral_input_lut = SPECTRUM_LUT @ corrected_sensitivity
+                    if negative_film.density_measure == "bw":
+                        ref_exp = apply_2d_lut(reference_XYZ, spectral_input_lut)
+                    else:
+                        ref_exp = apply_2d_lut(gray_XYZ, spectral_input_lut)
+                    correction_factors = negative_film.H_ref / ref_exp
+                    spectral_input_lut *= correction_factors * exp_comp
 
             if halation_func is not None:
                 add(lambda x: halation_func(x), "halation")

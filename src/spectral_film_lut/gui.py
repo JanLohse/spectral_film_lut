@@ -643,16 +643,18 @@ film stocks.
         exp_wb = self.exp_wb.getValue()
         tint = self.tint.getValue()
         sat_adjust = self.sat_adjust.getValue()
-        matrix_input_method = self.matrix_input_method.isChecked()
-        gamut_compression = (
-            0
-            if self.matrix_input_method.checkState() == Qt.CheckState.PartiallyChecked
-            else 0.2
-        )
+        matrix_input_method = False
+        new_wb_method = False
+        match self.matrix_input_method.checkState():
+            case Qt.CheckState.Checked:
+                matrix_input_method = True
+            case Qt.CheckState.PartiallyChecked:
+                new_wb_method = True
 
         adx_scaling = {"Density 2": 4.0, "Density 4": 2.0, "Density 8": 1.0}[
             self.adx_scale.currentText()
         ]
+
         lut = create_lut(
             negative_film,
             print_film,
@@ -677,7 +679,7 @@ film stocks.
             sat_adjust=sat_adjust,
             adx_scaling=adx_scaling,
             matrix_input_method=matrix_input_method,
-            gamut_compression=gamut_compression,
+            new_wb_method=new_wb_method,
         )
         return lut
 

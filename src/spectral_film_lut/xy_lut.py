@@ -63,7 +63,7 @@ def XYZ_to_xys(XYZ):
 @njit(parallel=True)
 def apply_2d_lut(image, lut):
     orig_shape = image.shape
-    c = orig_shape[-1]
+    c = orig_shape[-1]  # should be 3
 
     # flatten spatial dims
     n = 1
@@ -73,9 +73,10 @@ def apply_2d_lut(image, lut):
     image_flat = image.reshape(n, c)
 
     lut_size = lut.shape[0]
+    k = lut.shape[2]  # output channels
     scaling = lut_size - 1
 
-    out_flat = np.empty((n, c), dtype=np.float32)
+    out_flat = np.empty((n, k), dtype=np.float32)
 
     for i in prange(n):
         r = image_flat[i, 0]
@@ -85,9 +86,8 @@ def apply_2d_lut(image, lut):
         s = r + g + b
 
         if s == 0.0:
-            out_flat[i, 0] = 0.0
-            out_flat[i, 1] = 0.0
-            out_flat[i, 2] = 0.0
+            for ch in range(k):
+                out_flat[i, ch] = 0.0
             continue
 
         inv_sum = scaling / s
@@ -103,84 +103,32 @@ def apply_2d_lut(image, lut):
 
         factor_sum = r_factor + g_factor
 
-        r_r, r_g, r_s = lut[r_ind + 1, g_ind]
-        g_r, g_g, g_s = lut[r_ind, g_ind + 1]
-
         if factor_sum <= 1.0:
-            s_r, s_g, s_s = lut[r_ind, g_ind]
             s_factor = 1.0 - factor_sum
+            for ch in range(k):
+                r_val = lut[r_ind + 1, g_ind, ch]
+                g_val = lut[r_ind, g_ind + 1, ch]
+                s_val = lut[r_ind, g_ind, ch]
+
+                out_flat[i, ch] = (
+                    r_val * r_factor + g_val * g_factor + s_val * s_factor
+                ) * s
         else:
-            s_r, s_g, s_s = lut[r_ind + 1, g_ind + 1]
-            r_factor, g_factor = 1 - g_factor, 1 - r_factor
             s_factor = factor_sum - 1.0
+            r_factor2 = 1.0 - g_factor
+            g_factor2 = 1.0 - r_factor
 
-        out_flat[i, 0] = (r_r * r_factor + g_r * g_factor + s_r * s_factor) * s
-        out_flat[i, 1] = (r_g * r_factor + g_g * g_factor + s_g * s_factor) * s
-        out_flat[i, 2] = (r_s * r_factor + g_s * g_factor + s_s * s_factor) * s
+            for ch in range(k):
+                r_val = lut[r_ind + 1, g_ind, ch]
+                g_val = lut[r_ind, g_ind + 1, ch]
+                s_val = lut[r_ind + 1, g_ind + 1, ch]
 
-    out_flat = out_flat.reshape(orig_shape)
-    print(out_flat.shape)
+                out_flat[i, ch] = (
+                    r_val * r_factor2 + g_val * g_factor2 + s_val * s_factor
+                ) * s
 
-    return out_flat
-
-
-@njit(parallel=True)
-def apply_2d_lut_mono(image, lut):
-    orig_shape = image.shape
-    c = orig_shape[-1]
-
-    # flatten spatial dims
-    n = 1
-    for i in range(len(orig_shape) - 1):
-        n *= orig_shape[i]
-
-    image_flat = image.reshape(n, c)
-
-    lut_size = lut.shape[0]
-    scaling = lut_size - 1
-
-    out_flat = np.empty((n, 1), dtype=np.float32)
-
-    for i in prange(n):
-        r = image_flat[i, 0]
-        g = image_flat[i, 1]
-        b = image_flat[i, 2]
-
-        s = r + g + b
-
-        if s == 0.0:
-            out_flat[i, 0] = 0.0
-            continue
-
-        inv_sum = scaling / s
-
-        r *= inv_sum
-        g *= inv_sum
-
-        r_ind = math.floor(r)
-        g_ind = math.floor(g)
-
-        r_factor = r % 1
-        g_factor = g % 1
-
-        factor_sum = r_factor + g_factor
-
-        r_val = lut[r_ind + 1, g_ind, 0]
-        g_val = lut[r_ind, g_ind + 1, 0]
-
-        if factor_sum <= 1.0:
-            s_val = lut[r_ind, g_ind, 0]
-            s_factor = 1.0 - factor_sum
-        else:
-            s_val = lut[r_ind + 1, g_ind + 1, 0]
-            r_factor, g_factor = 1 - g_factor, 1 - r_factor
-            s_factor = factor_sum - 1.0
-
-        out_flat[i, 0] = (r_val * r_factor + g_val * g_factor + s_val * s_factor) * s
-
-    out_flat = out_flat.reshape(orig_shape[:-1] + (1,))
-
-    return out_flat
+    out_shape = orig_shape[:-1] + (k,)
+    return out_flat.reshape(out_shape)
 
 
 def xy_to_spectrum_nnls(xy, loss_factor):
