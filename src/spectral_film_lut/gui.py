@@ -279,16 +279,6 @@ Adjust the tint along the green to red/purple axis.
             tool_tip="""Select the camera film stock that is emulated.""",
         )
 
-        self.matrix_input_method = QCheckBox()
-        self.matrix_input_method.setTristate(True)
-        self.matrix_input_method.setChecked(True)
-        add_option(
-            self.matrix_input_method,
-            "Matrix input",
-            True,
-            self.matrix_input_method.setChecked,
-        )
-
         luma_bright = 0.8
         luma_dark = 0.4
         chroma = 0.2
@@ -585,7 +575,6 @@ film stocks.
             self.parameter_changed
         )
         self.negative_selector.currentTextChanged.connect(self.negative_changed)
-        self.matrix_input_method.stateChanged.connect(self.parameter_changed)
         self.output_gamut.currentTextChanged.connect(self.parameter_changed)
         self.output_gamma.currentTextChanged.connect(self.parameter_changed)
         self.print_selector.currentTextChanged.connect(self.print_light_changed)
@@ -643,13 +632,6 @@ film stocks.
         exp_wb = self.exp_wb.getValue()
         tint = self.tint.getValue()
         sat_adjust = self.sat_adjust.getValue()
-        matrix_input_method = False
-        new_wb_method = False
-        match self.matrix_input_method.checkState():
-            case Qt.CheckState.Checked:
-                matrix_input_method = True
-            case Qt.CheckState.PartiallyChecked:
-                new_wb_method = True
 
         adx_scaling = {"Density 2": 4.0, "Density 4": 2.0, "Density 8": 1.0}[
             self.adx_scale.currentText()
@@ -678,8 +660,6 @@ film stocks.
             tint=tint,
             sat_adjust=sat_adjust,
             adx_scaling=adx_scaling,
-            matrix_input_method=matrix_input_method,
-            new_wb_method=new_wb_method,
         )
         return lut
 

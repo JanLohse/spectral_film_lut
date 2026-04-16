@@ -27,7 +27,6 @@ from spectral_film_lut.utils import (
     CCT_to_xy,
     construct_spectral_density,
     default_dtype,
-    gamut_compression_matrices,
     multi_channel_interp,
     spectral_shape,
 )
@@ -527,29 +526,16 @@ class FilmSpectral:
 
         return sd
 
-    def log_exposure_to_density(self, log_exposure, color_masking=0, pre_flash=-4):
+    def log_exposure_to_density(self, log_exposure, color_masking=0):
         """
         Convert log_exposure to density values for current film stock.
 
         Args:
             log_exposure: Log exposure data to convert as array.
             color_masking: Color Masking factor in range [0, 1].
-            pre_flash: Intensity of pre-flash exposure in number of stops below middle
             gray. Deactivated for -4 or lower.
         """
-        if pre_flash > -4:
-            log_exposure_curve = [
-                np.log10(
-                    np.clip(
-                        (10**x - y * 2**pre_flash) / (1 - 1 * 2**pre_flash),
-                        10**-16,
-                        None,
-                    )
-                )
-                for x, y in zip(self.log_exposure, self.H_ref)
-            ]
-        else:
-            log_exposure_curve = self.log_exposure
+        log_exposure_curve = self.log_exposure
         density = multi_channel_interp(
             log_exposure, log_exposure_curve, self.get_density_curve(color_masking)
         )
@@ -831,6 +817,24 @@ class FilmSpectral:
         noise_factors = multi_channel_interp(rgb, xps, fps)
         return noise_factors
 
+    def get_input_lut(self, exposure_kelvin, tint, exp_comp):
+        exp_comp = 2**exp_comp
+        gray_XYZ = self.CCT_to_XYZ(exposure_kelvin, 0.18, tint)
+        reference_XYZ = self.CCT_to_XYZ(6504, 0.18)
+        gray_spectral = apply_2d_lut(gray_XYZ, SPECTRUM_LUT)
+        reference_spectral = apply_2d_lut(reference_XYZ, SPECTRUM_LUT)
+        corrected_sensitivity = (
+            self.sensitivity * (reference_spectral / gray_spectral)[:, None]
+        )
+        spectral_input_lut = SPECTRUM_LUT @ corrected_sensitivity
+        if self.density_measure == "bw":
+            ref_exp = apply_2d_lut(reference_XYZ, spectral_input_lut)
+        else:
+            ref_exp = apply_2d_lut(gray_XYZ, spectral_input_lut)
+        correction_factors = self.H_ref / ref_exp
+        spectral_input_lut *= correction_factors * exp_comp
+        return spectral_input_lut
+
     @staticmethod
     def generate_conversion(
         negative_film,
@@ -840,15 +844,11 @@ class FilmSpectral:
         output_gamut="Rec. 709",
         gamma_func="Gamma 2.4",
         projector_kelvin=6500,
-        matrix_method=False,
         exp_comp=0,
         white_comp=True,
         mode="full",
         exposure_kelvin=5500,
         halation_func=None,
-        pre_flash_neg=-4,
-        pre_flash_print=-4,
-        gamut_compression=0.2,
         shadow_comp=0,
         photo_inversion=False,
         color_masking=None,
@@ -856,8 +856,6 @@ class FilmSpectral:
         sat_adjust=1,
         adx=True,
         adx_scaling=1.0,
-        matrix_input_method=True,
-        new_wb_method=False,
         **kwargs,
     ):
         """The main function that performs the film simulation."""
@@ -906,73 +904,14 @@ class FilmSpectral:
                     "input",
                 )
 
-            exp_comp = 2**exp_comp
-
-            if matrix_input_method:
-                gray = np.asarray(negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint))
-                ref_exp = negative_film.XYZ_to_exp @ gray
-                correction_factors = negative_film.H_ref / ref_exp
-                if negative_film.density_measure == "bw":
-                    wb_factors = (
-                        np.asarray(
-                            negative_film.CCT_to_XYZ(
-                                negative_film.exposure_kelvin, 0.18
-                            )
-                        )
-                        / gray
-                    )
-                    correction_factors = (
-                        ref_exp
-                        / (negative_film.XYZ_to_exp @ wb_factors)
-                        / 0.18
-                        * correction_factors
-                        * wb_factors.reshape(-1, 1)
-                    )
-                XYZ_to_exp = (
-                    negative_film.XYZ_to_exp.T * correction_factors
-                ).T * exp_comp
-
-                if gamut_compression and negative_film.density_measure != "bw":
-                    XYZ_to_exp, compression_inv = gamut_compression_matrices(
-                        XYZ_to_exp, gamut_compression
-                    )
-                add(lambda x: x @ XYZ_to_exp.T, "linear exposure")
-
-                if gamut_compression and negative_film.density_measure != "bw":
-                    add(
-                        lambda x: np.clip(x, 0, None) @ compression_inv,
-                        "gamut_compression_inv",
-                    )
-
-            else:
-                # Spectral 2.5D LUT method
-                if new_wb_method:
-                    gray_XYZ = negative_film.CCT_to_XYZ(exposure_kelvin, 0.18, tint)
-                    reference_XYZ = negative_film.CCT_to_XYZ(6504, 0.18)
-                    gray_spectral = apply_2d_lut(gray_XYZ, SPECTRUM_LUT)
-                    reference_spectral = apply_2d_lut(reference_XYZ, SPECTRUM_LUT)
-                    corrected_sensitivity = (
-                        negative_film.sensitivity
-                        * (reference_spectral / gray_spectral)[:, None]
-                    )
-                    spectral_input_lut = SPECTRUM_LUT @ corrected_sensitivity
-                    if negative_film.density_measure == "bw":
-                        ref_exp = apply_2d_lut(reference_XYZ, spectral_input_lut)
-                    else:
-                        ref_exp = apply_2d_lut(gray_XYZ, spectral_input_lut)
-                    correction_factors = negative_film.H_ref / ref_exp
-                    spectral_input_lut *= correction_factors * exp_comp
+            input_lut = negative_film.get_input_lut(exposure_kelvin, tint, exp_comp)
+            add(
+                lambda x: apply_2d_lut(np.clip(x, 0, None), input_lut),
+                "input transform",
+            )
 
             if halation_func is not None:
                 add(lambda x: halation_func(x), "halation")
-            if pre_flash_neg > -4:
-                add(
-                    lambda x: (
-                        (x + negative_film.H_ref * 2**pre_flash_neg)
-                        * (1 - 2**pre_flash_neg)
-                    ),
-                    "pre-flash",
-                )
 
             add(lambda x: np.log10(np.clip(x, 10**-16, None)), "log exposure")
 
@@ -1019,14 +958,6 @@ class FilmSpectral:
                         ),
                         "printing",
                     )
-                elif matrix_method:
-                    density_matrix, peak_exposure = negative_film.compute_print_matrix(
-                        print_film, **kwargs
-                    )
-                    add(
-                        lambda x: peak_exposure - x @ density_matrix.T,
-                        "printing matrix",
-                    )
                 else:
                     density_neg = negative_film.get_spectral_density(color_masking)
 
@@ -1061,9 +992,7 @@ class FilmSpectral:
                     )
 
                 add(
-                    lambda x: print_film.log_exposure_to_density(
-                        x, pre_flash=pre_flash_print
-                    ),
+                    lambda x: print_film.log_exposure_to_density(x),
                     "characteristic curve print",
                 )
                 output_film = print_film
@@ -1121,12 +1050,8 @@ class FilmSpectral:
                 else:
                     density_mat = output_film.get_spectral_density()
                 output_mat = (xyz_cmfs.T * projection_light * 10**-d_min_sd).T
-                if matrix_method:
-                    density_mat = density_mat.reshape(9, 9, 3).mean(axis=1)
-                    output_mat = output_mat.reshape(9, 9, 3).sum(axis=1)
-                else:
-                    output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
-                    density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
+                output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
+                density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
 
                 if print_film is None and negative_film.density_measure == "status_m":
                     FilmSpectral.add_photographic_inversion(

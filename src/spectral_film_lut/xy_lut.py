@@ -1,5 +1,4 @@
 import math
-import time
 
 import colour
 import numpy as np
@@ -180,6 +179,4 @@ def generate_spectral_sample_table(n, loss_factor):
     return out
 
 
-start = time.time()
 SPECTRUM_LUT = generate_spectral_sample_table(2**5, loss_factor=5)
-print(time.time() - start)
