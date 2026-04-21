@@ -1,6 +1,6 @@
 """Kodak Ektachrome Radiance III Paper"""
 
-from spectral_film_lut.film_spectral import FilmData
+from spectral_film_lut.film_data import FilmData
 
 KODAK_EKTACHROME_RADIANCE_III = FilmData(
     name="Kodak Ektachrome Radiance III Paper",

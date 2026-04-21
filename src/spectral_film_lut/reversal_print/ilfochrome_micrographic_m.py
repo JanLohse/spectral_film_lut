@@ -1,6 +1,6 @@
 """Ilfochrome Micrographic M"""
 
-from spectral_film_lut.film_spectral import FilmData
+from spectral_film_lut.film_data import FilmData
 
 ILFOCHROME_MICROGRAPHIC_M = FilmData(
     name="Ilfochrome Micrographic M",
