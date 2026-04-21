@@ -23,16 +23,17 @@ from spectral_film_lut.densiometry import (
 from spectral_film_lut.film_data import FilmData
 from spectral_film_lut.utils import (
     COLORCHECKER_2005,
-    COLORCHECKER_OKLAB,
+    DEFAULT_DTYPE,
+    SPECTRAL_SHAPE,
     CCT_to_xy,
     construct_spectral_density,
-    default_dtype,
     multi_channel_interp,
-    spectral_shape,
 )
 from spectral_film_lut.xy_lut import (
     SPECTRUM_LUT,
+    XYZ_CMFS,
     apply_2d_lut,
+    xyS_to_XYZ,
 )
 
 
@@ -99,11 +100,11 @@ class FilmSpectral:
             self.spectral_density = None
         if film_data.sensiometric_curve is not None:
             self.log_exposure = [
-                np.array(list(curve.keys()), dtype=default_dtype)
+                np.array(list(curve.keys()), dtype=DEFAULT_DTYPE)
                 for curve in film_data.sensiometric_curve
             ]
             self.density_curve = [
-                np.array(list(curve.values()), dtype=default_dtype)
+                np.array(list(curve.values()), dtype=DEFAULT_DTYPE)
                 for curve in film_data.sensiometric_curve
             ]
         else:
@@ -121,7 +122,7 @@ class FilmSpectral:
         elif self.density_measure == "absolute" or self.density_measure == "bw":
             if self.density_measure == "absolute":
                 self.lad = np.linalg.inv(
-                    densiometry.status_a.T @ self.spectral_density
+                    densiometry.STATUS_A.T @ self.spectral_density
                 ) @ np.array(self.lad)
             self.log_H_ref = np.array(
                 [
@@ -146,8 +147,8 @@ class FilmSpectral:
                 [
                     np.asarray(
                         colour.SpectralDistribution(x)
-                        .align(spectral_shape, extrapolator_kwargs={"method": "linear"})
-                        .align(spectral_shape)
+                        .align(SPECTRAL_SHAPE, extrapolator_kwargs={"method": "linear"})
+                        .align(SPECTRAL_SHAPE)
                         .values
                     )
                     for x in self.log_sensitivity
@@ -168,7 +169,7 @@ class FilmSpectral:
             self.extend_characteristic_curve()
         log_H_min = min([x.min() for x in self.log_exposure])
         log_H_max = max([x.max() for x in self.log_exposure])
-        x_new = np.linspace(log_H_min, log_H_max, 100, dtype=default_dtype)
+        x_new = np.linspace(log_H_min, log_H_max, 100, dtype=DEFAULT_DTYPE)
         self.density_curve = [
             PchipInterpolator(x, y)(x_new)
             for x, y in zip(self.log_exposure, self.density_curve)
@@ -183,10 +184,10 @@ class FilmSpectral:
         # align spectral densities
         if self.density_measure == "bw":
             self.spectral_density = np.asarray(
-                colour.colorimetry.sd_constant(1, spectral_shape).values
+                colour.colorimetry.sd_constant(1, SPECTRAL_SHAPE).values
             )
             self.d_min_sd = np.asarray(
-                colour.colorimetry.sd_constant(self.d_min, spectral_shape).values
+                colour.colorimetry.sd_constant(self.d_min, SPECTRAL_SHAPE).values
             )
             self.d_ref_sd = self.spectral_density * self.d_ref + self.d_min
             self.spectral_density = self.spectral_density.reshape(-1, 1)
@@ -195,7 +196,7 @@ class FilmSpectral:
                 self.d_min_sd = self.gaussian_extrapolation(self.d_min_sd)
                 self.d_min_sd = np.asarray(self.d_min_sd.values)
             else:
-                self.d_min_sd = np.asarray(colour.sd_zeros(spectral_shape).values)
+                self.d_min_sd = np.asarray(colour.sd_zeros(SPECTRAL_SHAPE).values)
 
             if self.d_ref_sd is not None:
                 self.gaussian_extrapolation(self.d_ref_sd)
@@ -255,7 +256,6 @@ class FilmSpectral:
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
 
         self.d_max = np.array([np.max(x) for x in self.density_curve])
-        self.XYZ_to_exp = self.sensitivity.T @ densiometry.xyz_dual
 
         if self.rms_curve is not None and self.rms_density is not None:
             rms_temp = [
@@ -265,7 +265,7 @@ class FilmSpectral:
             self.rms_curve = [x[0] for x in rms_temp]
             self.rms_density = [x[1] for x in rms_temp]
             if len(self.rms_density) == 3:
-                rms_color_factors = np.array([0.26, 0.57, 0.17], dtype=default_dtype)
+                rms_color_factors = np.array([0.26, 0.57, 0.17], dtype=DEFAULT_DTYPE)
                 scaling = 1.2375
                 rms_color_factors /= rms_color_factors.sum()
                 ref_rms = (
@@ -322,8 +322,8 @@ class FilmSpectral:
             self.mtf = list(mtf)
 
         for key, value in self.__dict__.items():
-            if type(value) is np.ndarray and value.dtype is not default_dtype:
-                self.__dict__[key] = value.astype(default_dtype)
+            if type(value) is np.ndarray and value.dtype is not DEFAULT_DTYPE:
+                self.__dict__[key] = value.astype(DEFAULT_DTYPE)
 
         # compute gamma
         index = 1 if len(self.log_exposure) == 3 else 0
@@ -451,8 +451,8 @@ class FilmSpectral:
         ]
         if not self.d_min_sd.any() and lower.shape[1] > 1:
             self.d_min_sd = SpectralDistribution({x: y for x, y in lower.T})
-            self.d_min_sd.align(spectral_shape, interpolator=colour.LinearInterpolator)
-            self.d_min_sd = np.asarray(self.d_min_sd.align(spectral_shape).values)
+            self.d_min_sd.align(SPECTRAL_SHAPE, interpolator=colour.LinearInterpolator)
+            self.d_min_sd = np.asarray(self.d_min_sd.align(SPECTRAL_SHAPE).values)
 
     @staticmethod
     def prepare_rms_data(rms, density):
@@ -466,11 +466,11 @@ class FilmSpectral:
         Returns:
             Aligned rms and density data.
         """
-        x = np.array(list(density.keys()), dtype=default_dtype)
-        fp = np.array(list(density.values()), dtype=default_dtype)
+        x = np.array(list(density.keys()), dtype=DEFAULT_DTYPE)
+        fp = np.array(list(density.values()), dtype=DEFAULT_DTYPE)
         fp -= fp.min()
-        density = np.interp(np.array(list(rms.keys()), dtype=default_dtype), x, fp)
-        rms = np.array(list(rms.values()), dtype=default_dtype)
+        density = np.interp(np.array(list(rms.keys()), dtype=DEFAULT_DTYPE), x, fp)
+        rms = np.array(list(rms.values()), dtype=DEFAULT_DTYPE)
         sorting = density.argsort()
         density = density[sorting]
         rms = rms[sorting]
@@ -503,9 +503,9 @@ class FilmSpectral:
 
             return extrapolator(wavelengths)
 
-        sd.interpolate(spectral_shape)
+        sd.interpolate(SPECTRAL_SHAPE)
 
-        def_wv = spectral_shape.wavelengths
+        def_wv = SPECTRAL_SHAPE.wavelengths
         wv_left = def_wv[def_wv < sd.wavelengths[0]]
         wv_right = def_wv[def_wv > sd.wavelengths[-1]]
         values_left = extrapolate(
@@ -522,7 +522,7 @@ class FilmSpectral:
             np.concatenate((values_left, sd.values, values_right)),
             np.concatenate((wv_left, sd.wavelengths, wv_right)),
         )
-        sd.interpolate(spectral_shape)
+        sd.interpolate(SPECTRAL_SHAPE)
 
         return sd
 
@@ -626,10 +626,10 @@ class FilmSpectral:
             Printer light as spectral curve.
         """
         compensation = 2 ** np.array(
-            [red_light, green_light, blue_light], dtype=default_dtype
+            [red_light, green_light, blue_light], dtype=DEFAULT_DTYPE
         )
         # transmitted printer lights by middle gray negative
-        reduced_lights = (densiometry.printer_lights.T * 10**-self.d_ref_sd).T
+        reduced_lights = (densiometry.PRINTER_LIGHTS.T * 10**-self.d_ref_sd).T
 
         target_exp = np.multiply(print_film.H_ref, compensation)
         # adjust printer lights to produce neutral exposure with middle gray negative
@@ -638,7 +638,7 @@ class FilmSpectral:
                 (print_film.sensitivity.T @ reduced_lights) ** -1 * target_exp
             ).min()
         elif print_film.density_measure == "absolute":
-            black_body = np.asarray(colour.sd_blackbody(10000, spectral_shape).values)
+            black_body = np.asarray(colour.sd_blackbody(10000, SPECTRAL_SHAPE).values)
             lights = black_body[:, np.newaxis] * (
                 target_exp
                 / (print_film.sensitivity.T @ (black_body * 10**-self.d_ref_sd))
@@ -648,7 +648,7 @@ class FilmSpectral:
             light_factors = (
                 np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ target_exp
             )
-        printer_light = np.sum(densiometry.printer_lights * light_factors, axis=1)
+        printer_light = np.sum(densiometry.PRINTER_LIGHTS * light_factors, axis=1)
         return printer_light
 
     def compute_projection_light(
@@ -671,22 +671,20 @@ class FilmSpectral:
         """
         reference_light = np.asarray(
             colour.sd_blackbody(reference_kelvin)
-            .align(spectral_shape)
+            .align(SPECTRAL_SHAPE)
             .normalise()
             .values
         )
         projector_light = np.asarray(
             colour.sd_blackbody(projector_kelvin)
-            .align(spectral_shape)
+            .align(SPECTRAL_SHAPE)
             .normalise()
             .values
         )
         reference_white = np.asarray(
             colour.xyY_to_XYZ([*colour.CCT_to_xy(reference_kelvin), 1.0])
         )
-        xyz_cmfs = densiometry.xyz_cmfs * (
-            reference_white / (densiometry.xyz_cmfs.T @ reference_light)
-        )
+        xyz_cmfs = XYZ_CMFS * (reference_white / (XYZ_CMFS.T @ reference_light))
         if white_comp:
             peak_rgb = colour.XYZ_to_RGB(
                 xyz_cmfs.T @ (projector_light * 10**-self.d_min_sd), "sRGB"
@@ -697,7 +695,7 @@ class FilmSpectral:
 
     def plot_data(self, film_b=None, color_masking=None):
         """Plots the spectral density, sensitivity, and sensiometric curve."""
-        wavelengths = spectral_shape.wavelengths
+        wavelengths = SPECTRAL_SHAPE.wavelengths
         default_colors = ["r", "g", "b"]
 
         is_comparison = film_b is not None
@@ -808,7 +806,7 @@ class FilmSpectral:
         # default for 3840 / 24mm
         # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay
         # in [0, 1] range
-        adx_density_scale = np.array([1.00, 0.92, 0.95], dtype=default_dtype) * (
+        adx_density_scale = np.array([1.00, 0.92, 0.95], dtype=DEFAULT_DTYPE) * (
             8000.0 / 65535.0
         )
         std_factor = math.sqrt(math.pi) * 0.024 * scale * adx_density_scale / std_div
@@ -868,23 +866,12 @@ class FilmSpectral:
             pipeline.append((func, name))
 
         def add_output_transform():
-            if sat_adjust != 1:
-                add(
-                    lambda x: FilmSpectral.saturation_adjust_oklch(
-                        x,
-                        sat_adjust,
-                    ),
-                    "saturation",
-                )
-
-            if output_gamut != "CIE XYZ":
-                add(
-                    lambda x: x @ COLOR_SPACES[output_gamut].xyz_to_rgb.T,
-                    "output_gamut",
-                )
-
-            add(FilmSpectral.gamut_compression, "gamut compression")
-
+            add(
+                lambda x: FilmSpectral.output_color_transform(
+                    x, output_gamut, sat_adjust
+                ),
+                "output_color_processing",
+            )
             if shadow_comp:
                 add(
                     lambda x: FilmSpectral.shadow_compensation(x, shadow_comp),
@@ -923,7 +910,7 @@ class FilmSpectral:
         if mode == "negative":
             if adx:
                 layer_activation_to_apd = (
-                    densiometry.apd.T
+                    densiometry.APD.T
                     @ negative_film.get_spectral_density(color_masking)
                 )
                 add(lambda x: x @ layer_activation_to_apd.T, "encode APD")
@@ -934,7 +921,7 @@ class FilmSpectral:
             add(lambda x: adx16_decode(x, scaling=adx_scaling), "scale density")
             if adx:
                 layer_activation_to_apd = (
-                    densiometry.apd.T
+                    densiometry.APD.T
                     @ negative_film.get_spectral_density(color_masking)
                 )
                 apd_to_layer_activation = np.linalg.inv(layer_activation_to_apd)
@@ -1079,7 +1066,7 @@ class FilmSpectral:
             add(lambda x: adx16_decode(x, scaling=adx_scaling), "scale density")
             if adx:
                 layer_activation_to_apd = (
-                    densiometry.apd.T
+                    densiometry.APD.T
                     @ negative_film.get_spectral_density(color_masking)
                 )
                 apd_to_layer_activation = np.linalg.inv(layer_activation_to_apd)
@@ -1162,14 +1149,14 @@ class FilmSpectral:
                 [0.2126729, 0.7151522, 0.0721750],
                 [0.0193339, 0.1191920, 0.9503041],
             ],
-            dtype=default_dtype,
+            dtype=DEFAULT_DTYPE,
         )
 
         # calculated from Kodak Duraflex Plus:
         gray = (
             output_gamma * -negative_film.get_d_ref(color_masking) @ status_m_to_apd.T
         )
-        output_scale = 0.8 * np.ones(3, dtype=default_dtype) - gray
+        output_scale = 0.8 * np.ones(3, dtype=DEFAULT_DTYPE) - gray
 
         def softmax(x, a=2.5):
             return np.log(1 + np.exp(x * a)) / a
@@ -1269,7 +1256,7 @@ class FilmSpectral:
         return image
 
     @staticmethod
-    def gamut_compression(image: np.ndarray, strength=0.95, clip_highlights=True):
+    def gamut_compression(image: np.ndarray, strength=0.95):
         """
         A simple gamut compression that limits the maximal relative distance from the
         achromatic. Inspired by ACES Reference Gamut Compression. Has been simplified
@@ -1282,14 +1269,10 @@ class FilmSpectral:
             image: The image to transform.
             strength: How strong to compress. strength=1 is uncompressed and strength=0
                 is fully desaturated.
-            clip_highlights: Whether to clip highlights at 1.
 
         Returns:
             The compressed image.
         """
-        # Clip negative values.
-        image = np.clip(image, 0, 1 if clip_highlights else None)
-
         # Get achromatic value
         a = image.max(axis=-1, keepdims=True)
 
@@ -1303,26 +1286,46 @@ class FilmSpectral:
         return image
 
     @staticmethod
-    def saturation_adjust_oklch(image, sat_adjust: float):
+    def output_color_transform(
+        image, output_gamut, sat_adjust: float, lut_size=33
+    ) -> np.ndarray:
         """
-        Adjust saturation using a simple matrix transform. Matrix is derived by
-        adjusting saturation of colorchecker values in Oklab, transforming to XYZ, and
-        fitting a transformation matrix in XYZ space with least-squares. Should be used
-        in conjunction with a later gamut compression.
+        Transform from XYZ to the target gamut and adjust the saturation.
+        Saturation adjustment is performed in OkLch for visual uniformity.
+        Gamut compression is performed to avoid visual artifacts.
+        To preserve high performance the transforms are applied as a 2D xy LUT.
 
         Args:
-            image: The image to transform. Expects XYZ input.
-            sat_adjust: Multiplicative saturation factor. 1 leaves unchanged.
+            image: The XYZ image to transform.
+            output_gamut: The name of the output color space.
+            sat_adjust: By what factor to multiply the saturation.
+            lut_size: The size of the LUT. Default is 33x33.
 
         Returns:
-
+            The transformed image in the output gamut.
         """
-        samples_lab = COLORCHECKER_OKLAB.copy()
-        samples_lab[..., 1:3] *= sat_adjust
-        samples_rgb = colour.Oklab_to_XYZ(samples_lab)
-        samples_rgb = np.asarray(samples_rgb, default_dtype)
+        # initialize 2.5D XYZ LUT
+        x = np.linspace(0, 1, lut_size, dtype=np.float32)
+        xx, yy = np.meshgrid(x, x, indexing="ij")
+        lut_id = np.stack([xx, yy, np.ones_like(xx)], axis=-1)
+        lut_XYZ = xyS_to_XYZ(lut_id)
 
-        M = np.linalg.lstsq(COLORCHECKER_2005, samples_rgb, rcond=None)[0].T
-        image = image @ M.T
+        # adjust saturation
+        if sat_adjust != 1:
+            lut_oklab = colour.XYZ_to_Oklab(lut_XYZ)
+            lut_oklab[..., 1:3] *= sat_adjust
+            lut_XYZ = colour.Oklab_to_XYZ(lut_oklab)
+
+        # convert to output color space
+        if output_gamut != "CIE XYZ":
+            lut_XYZ @= COLOR_SPACES[output_gamut].xyz_to_rgb.T
+
+        # compress gamut
+        lut_XYZ = FilmSpectral.gamut_compression(lut_XYZ)
+
+        # apply to image safely
+        image = np.clip(image, 0, None)
+        image = apply_2d_lut(image, lut_XYZ)
+        image = np.clip(image, 0, 1)
 
         return image

@@ -7,6 +7,7 @@ import os
 import sys
 from functools import cache
 
+import cv2 as cv
 import imageio
 import imageio.v3 as iio
 import numpy as np
@@ -39,16 +40,13 @@ from spectral_film_lut.gui_objects import (
     SliderLog,
     WideComboBox,
 )
-from spectral_film_lut.utils import (
-    convolution_filter,
-    default_dtype,
-)
+from spectral_film_lut.utils import DEFAULT_DTYPE
 
 
 @cache
 def gaussian_noise_cache(shape):
     """Computes and pre caches gaussian noise."""
-    return np.random.default_rng().standard_normal(shape, dtype=default_dtype)
+    return np.random.default_rng().standard_normal(shape, dtype=DEFAULT_DTYPE)
 
 
 def gaussian_noise(shape, cached=False):
@@ -57,7 +55,7 @@ def gaussian_noise(shape, cached=False):
     If cached noise is used a random crop is used to not get identical noise every time.
     """
     if not cached:
-        return np.random.default_rng().standard_normal(shape, dtype=default_dtype)
+        return np.random.default_rng().standard_normal(shape, dtype=DEFAULT_DTYPE)
     noise_size = ((max(shape[:2]) + 100) // 1024 + 1) * 1024
     noise_map = gaussian_noise_cache((noise_size, noise_size))
     offsets = np.random.randint(
@@ -184,7 +182,7 @@ def generate_grain(
         1 / scale, grain_size_mm=grain_size_mm, grain_sigma=grain_sigma
     )
     if kernel is not None:
-        noise = convolution_filter(noise, kernel)
+        noise = cv.filter2D(noise, -1, kernel)
     if len(noise.shape) == 2:
         noise = noise[..., np.newaxis]
     if bw_grain:

@@ -116,7 +116,7 @@ except ImportError:
 
 BASE_DIR = Path(__file__).resolve().parent
 BASE_DIR = str(BASE_DIR).replace("\\", "/")
-
+"""The base directory."""
 
 NEGATIVE_FILM = [
     KODAK_5222,

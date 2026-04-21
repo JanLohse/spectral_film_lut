@@ -1,3 +1,43 @@
+r"""
+2D LUT application in chromaticity space using barycentric interpolation.
+
+This module implements a lookup-table (LUT) transform in normalized chromaticity
+coordinates derived from tristimulus values. The transform is suitable for
+operators that scale linearly with overall intensity.
+
+We operate in $xyS$ space instead of the conventional $xyY$ formulation for
+improved numerical stability when $Y \to 0$:
+
+\begin{align}
+    S &= X + Y + Z \\
+    x &= X / S \\
+    y &= Y / S
+\end{align}
+
+Key assumptions and conventions:
+
+- Inputs must be non-negative.
+- For $S = 0$, chromaticity is undefined; we define $(x, y) = (0, 0)$ and
+  the output is set to zero.
+- The LUT is defined over the domain $(x, y, S=1)$, i.e. the unit simplex
+  in chromaticity space.
+- Interpolation is performed in 2D $(x, y)$ space using triangular
+  (barycentric) interpolation within each grid cell.
+- The interpolated result is scaled by the original intensity $S$.
+
+LUT format:
+
+- A LUT of resolution $n$ with $c$ output channels must have shape $(n, n, c)$.
+- The grid spans $(x, y) \in [0, 1] \times [0, 1]$.
+- Values represent the transform evaluated at $(x, y, S=1)$.
+
+Pipeline:
+
+1. Convert input $XYZ \mapsto xyS$.
+2. Interpolate LUT values in $(x, y)$.
+3. Rescale the result by $S$.
+"""
+
 import math
 
 import colour
@@ -5,30 +45,31 @@ import numpy as np
 from numba import njit, prange
 from scipy.optimize import nnls
 
-from spectral_film_lut.utils import default_dtype, spectral_shape
+from spectral_film_lut.utils import DEFAULT_DTYPE, SPECTRAL_SHAPE
 
 XYZ_CMFS = np.asarray(
     colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"]
-    .align(spectral_shape)
+    .align(SPECTRAL_SHAPE)
     .values,
-    dtype=default_dtype,
+    dtype=DEFAULT_DTYPE,
 )
+"""The CIE XYZ 1931 color matching functions."""
 
 
-@njit(parallel=True)
-def xys_to_XYZ(xys):
-    h, w, c = xys.shape
+def xyS_to_XYZ(xyS):
+    """Convert from $xyS$ to $XYZ$."""
+    h, w, c = xyS.shape
     out = np.empty((h, w, c), dtype=np.float32)
 
     for j in prange(h):
         for i in prange(w):
-            x = xys[j, i, 0]
-            y = xys[j, i, 1]
-            s = xys[j, i, 2]
+            x = xyS[j, i, 0]
+            y = xyS[j, i, 1]
+            S = xyS[j, i, 2]
 
-            X = x * s
-            Y = y * s
-            Z = s - X - Y
+            X = x * S
+            Y = y * S
+            Z = S - X - Y
 
             out[j, i, 0] = X
             out[j, i, 1] = Y
@@ -38,7 +79,8 @@ def xys_to_XYZ(xys):
 
 
 @njit(parallel=True)
-def XYZ_to_xys(XYZ):
+def XYZ_to_xyS(XYZ):
+    """Convert from XYZ to xyS."""
     h, w, c = XYZ.shape
     out = np.empty((h, w, c), dtype=np.float32)
 
@@ -48,19 +90,49 @@ def XYZ_to_xys(XYZ):
             Y = XYZ[j, i, 1]
             Z = XYZ[j, i, 2]
 
-            s = X + Y + Z
-            x = X / s
-            y = Y / s
+            S = X + Y + Z
+            x = X / S
+            y = Y / S
 
             out[j, i, 0] = x
             out[j, i, 1] = y
-            out[j, i, 2] = s
+            out[j, i, 2] = S
 
     return out
 
 
 @njit(parallel=True)
 def apply_2d_lut(image, lut):
+    """
+    Apply a 2D lookup table (LUT) in chromaticity space with barycentric interpolation.
+
+    The input is interpreted as tristimulus values $(X, Y, Z)$. Each pixel is
+    mapped to $(x, y, S)$ with $S = X + Y + Z$, interpolated in $(x, y)$ using
+    the LUT defined at $S = 1$, and finally scaled back by $S$.
+
+    Interpolation is performed per pixel using triangular (barycentric)
+    interpolation within each LUT grid cell.
+
+    Args:
+        image (np.ndarray):
+            Input array of shape (..., 3) containing non-negative $XYZ$ values.
+        lut (np.ndarray):
+            2D LUT of shape (n, n, c), where n is the grid resolution and
+            c is the number of output channels. The LUT encodes values for
+            $(x, y, S=1)$ over the domain $[0, 1]^2$.
+
+    Returns:
+        ndarray:
+            Output array of shape (..., c), where c is the number of LUT channels.
+
+    Notes:
+        - Pixels with $S = 0$ produce zero output.
+        - The LUT is indexed assuming a uniform grid over $[0, 1]^2$.
+        - Interpolation switches between two triangles per grid cell based on
+          the fractional position within the cell.
+        - No bounds checking is performed; inputs are assumed to map into
+          the LUT domain.
+    """
     orig_shape = image.shape
     c = orig_shape[-1]  # should be 3
 
@@ -82,14 +154,14 @@ def apply_2d_lut(image, lut):
         g = image_flat[i, 1]
         b = image_flat[i, 2]
 
-        s = r + g + b
+        S = r + g + b
 
-        if s == 0.0:
+        if S == 0.0:
             for ch in range(k):
                 out_flat[i, ch] = 0.0
             continue
 
-        inv_sum = scaling / s
+        inv_sum = scaling / S
 
         r *= inv_sum
         g *= inv_sum
@@ -107,11 +179,11 @@ def apply_2d_lut(image, lut):
             for ch in range(k):
                 r_val = lut[r_ind + 1, g_ind, ch]
                 g_val = lut[r_ind, g_ind + 1, ch]
-                s_val = lut[r_ind, g_ind, ch]
+                S_val = lut[r_ind, g_ind, ch]
 
                 out_flat[i, ch] = (
-                    r_val * r_factor + g_val * g_factor + s_val * s_factor
-                ) * s
+                    r_val * r_factor + g_val * g_factor + S_val * s_factor
+                ) * S
         else:
             s_factor = factor_sum - 1.0
             r_factor2 = 1.0 - g_factor
@@ -120,17 +192,21 @@ def apply_2d_lut(image, lut):
             for ch in range(k):
                 r_val = lut[r_ind + 1, g_ind, ch]
                 g_val = lut[r_ind, g_ind + 1, ch]
-                s_val = lut[r_ind + 1, g_ind + 1, ch]
+                S_val = lut[r_ind + 1, g_ind + 1, ch]
 
                 out_flat[i, ch] = (
-                    r_val * r_factor2 + g_val * g_factor2 + s_val * s_factor
-                ) * s
+                    r_val * r_factor2 + g_val * g_factor2 + S_val * s_factor
+                ) * S
 
     out_shape = orig_shape[:-1] + (k,)
     return out_flat.reshape(out_shape)
 
 
 def xy_to_spectrum_nnls(xy, loss_factor):
+    """
+    Get a non-negative spectrum that closely matches an xy pair, using least squares
+    regression.
+    """
     x, y = xy
     if x + y > 1:
         return np.ones(XYZ_CMFS.shape[0])
@@ -151,12 +227,16 @@ def xy_to_spectrum_nnls(xy, loss_factor):
     C = np.vstack([A, np.sqrt(loss_factor) * D1])
     d = np.concatenate([XYZ, np.zeros(N)])
 
-    s, _ = nnls(C, d)
-    return s
+    spectrum, _ = nnls(C, d)
+    return spectrum
 
 
-def xys_to_spectrum_nnls(xys, loss_factor) -> np.ndarray:
-    x, y, s = xys
+def xyS_to_spectrum_nnls(xyS, loss_factor) -> np.ndarray:
+    """
+    Get a non-negative spectrum that closely matches an xyS triplet, using least squares
+    regression.
+    """
+    x, y, s = xyS
     spectrum = xy_to_spectrum_nnls((x, y), loss_factor)
     s_spectrum = (spectrum @ XYZ_CMFS).sum()
     spectrum *= s / s_spectrum
@@ -164,6 +244,9 @@ def xys_to_spectrum_nnls(xys, loss_factor) -> np.ndarray:
 
 
 def generate_spectral_sample_table(n, loss_factor):
+    """
+    Generate a full spectral data table of shape (n, n, SPECTRAL_SHAPE).
+    """
     x = np.linspace(0, 1, n, dtype=np.float32)
     xx, yy = np.meshgrid(x, x, indexing="ij")
     lut_id = np.stack([xx, yy, np.ones_like(xx)], axis=-1)
@@ -171,7 +254,7 @@ def generate_spectral_sample_table(n, loss_factor):
     flat = lut_id.reshape(-1, 3)
 
     out_flat = np.array(
-        [xys_to_spectrum_nnls(point, loss_factor).astype(np.float32) for point in flat]
+        [xyS_to_spectrum_nnls(point, loss_factor).astype(np.float32) for point in flat]
     )
 
     out = out_flat.reshape(n, n, -1)
@@ -179,4 +262,5 @@ def generate_spectral_sample_table(n, loss_factor):
     return out
 
 
-SPECTRUM_LUT = generate_spectral_sample_table(2**5, loss_factor=5)
+SPECTRUM_LUT = generate_spectral_sample_table(33, loss_factor=5)
+"""A look-up table with spectral distributions across the CIE 1931 xy space."""

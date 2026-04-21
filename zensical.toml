@@ -8,6 +8,10 @@ docs_dir = "docs"
 site_dir = "site"
 repo_url = "https://github.com/JanLohse/spectral_film_lut"
 repo_name = "JanLohse/spectral_film_lut"
+extra_javascript = [
+    "javascripts/mathjax.js",
+    "https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"
+]
 
 [project.theme]
 font.text = "Inter"
@@ -67,7 +71,7 @@ paths = ["src"]
 
 [project.plugins.mkdocstrings.handlers.python.options]
 docstring_style = "google"
-inherited_members = true
+inherited_members = false
 show_source = false
 docstring_section_style = "list"
 signature_crossrefs = true
@@ -84,11 +88,13 @@ separate_signature = true
 show_signature_annotations = true
 show_signature_type_parameters = true
 show_bases = true
-# show_inheritance_diagram = true
-#allow_inspection = true
+allow_inspection = false
 backlinks = true
 modernize_annotations = true
 
 [project.markdown_extensions.pymdownx.superfences]
 [project.markdown_extensions.pymdownx.tabbed]
 alternate_style = true
+
+[project.markdown_extensions.pymdownx.arithmatex]
+generic = true

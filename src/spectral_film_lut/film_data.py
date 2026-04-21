@@ -9,7 +9,6 @@ from dataclasses import dataclass
 class FilmData:
     """Store data collected from a film datasheet."""
 
-    # Required
     name: str
     manufacturer: str
     film_type: str

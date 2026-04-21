@@ -6,44 +6,12 @@ import colour
 import numpy as np
 
 from spectral_film_lut.utils import (
-    CCT_to_illuminant_D,
+    DEFAULT_DTYPE,
+    SPECTRAL_SHAPE,
     construct_spectral_density,
-    default_dtype,
-    spectral_shape,
 )
 
-
-def compute_xyz_dual(
-    CCT=7000, spectral_shape=spectral_shape
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Computes XYZ color matching functions and their dual with a least squares fit to the
-    rawtoaces training data set. Is used to get a simple but physically based linear
-    conversion from XYZ values to a spectrum.
-
-    Returns:
-        A tuple (xyz_cmfs, xyz_dual).
-    """
-    xyz_cmfs = np.asarray(
-        colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"]
-        .align(spectral_shape)
-        .values,
-        dtype=default_dtype,
-    )
-    reference_sds = np.asarray(
-        colour.characterisation.read_training_data_rawtoaces_v1()
-        .align(spectral_shape)
-        .values
-    )
-    illuminant = np.asarray(CCT_to_illuminant_D(CCT, spectral_shape).values)
-    reference_sds *= illuminant.reshape(-1, 1)
-    reference_xyz = np.asarray(reference_sds.T @ xyz_cmfs)
-    xyz_dual = np.linalg.lstsq(reference_xyz, reference_sds.T, rcond=None)[0].T
-
-    return xyz_cmfs, xyz_dual
-
-
-status_a = [
+STATUS_A = [
     {
         599: 2.298,
         600: 2.568,
@@ -92,8 +60,9 @@ status_a = [
         501: 0.015,
     },
 ]
+"""Status A density measure."""
 
-status_m = [
+STATUS_M = [
     {
         619: 1.849,
         620: 2.109,
@@ -149,8 +118,9 @@ status_m = [
         511: 1.632,
     },
 ]
+"""Status M density measure."""
 
-apd = {
+APD = {
     360: (0.0000, 0.0000, 0.0000),
     362: (0.0000, 0.0000, 0.0000),
     364: (0.0000, 0.0000, 0.0000),
@@ -338,10 +308,11 @@ apd = {
     728: (0.0077, 0.0000, 0.0000),
     730: (0.0000, 0.0000, 0.0000),
 }
+"""ACES printing density."""
 
 
 def interpolate_status_density(
-    status: list[dict[int, float]], spectral_shape=spectral_shape
+    status: list[dict[int, float]], spectral_shape=SPECTRAL_SHAPE
 ) -> np.ndarray:
     """
     Converts logarithmic status density values to a normalized linear status density
@@ -360,20 +331,21 @@ def interpolate_status_density(
     return result.values
 
 
-status_a = np.asarray(interpolate_status_density(status_a))
-status_m = np.asarray(interpolate_status_density(status_m))
-apd = np.asarray(
-    colour.MultiSpectralDistributions(apd).align(spectral_shape).values,
-    dtype=default_dtype,
+STATUS_A = np.asarray(interpolate_status_density(STATUS_A))
+STATUS_M = np.asarray(interpolate_status_density(STATUS_M))
+APD = np.asarray(
+    colour.MultiSpectralDistributions(APD).align(SPECTRAL_SHAPE).values,
+    dtype=DEFAULT_DTYPE,
 )
-apd /= np.sum(apd, axis=0)
+APD /= np.sum(APD, axis=0)
 
 DENSIOMETRY = {
-    "status_a": status_a,
-    "status_m": status_m,
-    "apd": apd,
-    "absolute": status_a,
+    "status_a": STATUS_A,
+    "status_m": STATUS_M,
+    "apd": APD,
+    "absolute": STATUS_A,
 }
+"""A dict with relevant density measures."""
 
 
 def compute_printer_lights() -> np.ndarray:
@@ -570,58 +542,22 @@ def compute_printer_lights() -> np.ndarray:
             728: 1.1937,
             730: 1.1782,
         },
-        dtype=default_dtype,
+        dtype=DEFAULT_DTYPE,
     )
 
-    printer_light.align(spectral_shape, extrapolator_kwargs={"method": "linear"})
+    printer_light.align(SPECTRAL_SHAPE, extrapolator_kwargs={"method": "linear"})
 
     return construct_spectral_density(printer_light, sigma=5)
 
 
-printer_lights = compute_printer_lights()
-
-xyz_cmfs, xyz_dual = compute_xyz_dual()
-
-COLORCHECKER_2005 = np.array(
-    [
-        [0.3457, 0.3585, 100.0],
-        [0.4316, 0.3777, 10.08],
-        [0.4197, 0.3744, 34.95],
-        [0.2760, 0.3016, 18.36],
-        [0.3703, 0.4499, 13.25],
-        [0.2999, 0.2856, 23.04],
-        [0.2848, 0.3911, 41.78],
-        [0.5295, 0.4055, 31.18],
-        [0.2305, 0.2106, 11.26],
-        [0.5012, 0.3273, 19.38],
-        [0.3319, 0.2482, 6.37],
-        [0.3984, 0.5008, 44.46],
-        [0.4957, 0.4427, 43.57],
-        [0.2018, 0.1692, 5.75],
-        [0.3253, 0.5032, 23.18],
-        [0.5686, 0.3303, 12.57],
-        [0.4697, 0.4734, 59.81],
-        [0.4159, 0.2688, 20.09],
-        [0.2131, 0.3023, 19.30],
-        [0.3469, 0.3608, 91.31],
-        [0.3440, 0.3584, 58.94],
-        [0.3432, 0.3581, 36.32],
-        [0.3446, 0.3579, 19.15],
-        [0.3401, 0.3548, 8.83],
-        [0.3406, 0.3537, 3.11],
-    ],
-    default_dtype,
-)
-COLORCHECKER_2005 = colour.xyY_to_XYZ(COLORCHECKER_2005)
-COLORCHECKER_2005 *= np.array([0.95047, 1.00000, 1.08883]) / COLORCHECKER_2005[0]
-COLORCHECKER_2005 = COLORCHECKER_2005[1:].reshape(4, 6, 3)
-COLORCHECKER_2005 = np.asarray(COLORCHECKER_2005, default_dtype)
+PRINTER_LIGHTS = compute_printer_lights()
+"""The RGB printer lights build from the APD documentation."""
 
 
 def adx16_encode(apd: np.ndarray, apd_min=None, scaling=1.0) -> np.ndarray:
     """
     Converts from absolute APD density values to ADX16 values.
-    Instead of as 16 bit int the output is encoded as a float in the range [0, 1].
+    Instead of as 16 bit int, the output is encoded as a float in the range [0, 1].
 
     Args:
         apd: The density values.
@@ -633,9 +569,9 @@ def adx16_encode(apd: np.ndarray, apd_min=None, scaling=1.0) -> np.ndarray:
         ADX-like encoded values in the [0, 1] range.
     """
     if apd_min is None:
-        apd_min = np.zeros(3, dtype=default_dtype)
+        apd_min = np.zeros(3, dtype=DEFAULT_DTYPE)
     # Scaling factors per channel: R, G, B
-    scale = np.array([1.00, 0.92, 0.95], dtype=default_dtype)
+    scale = np.array([1.00, 0.92, 0.95], dtype=DEFAULT_DTYPE)
 
     if apd.shape[-1] != 3:
         scale = 1
@@ -666,16 +602,16 @@ def adx16_decode(adx: np.ndarray, apd_min=None, scaling=1.0):
         Absolute APD density values.
     """
     if apd_min is None:
-        apd_min = np.zeros(3, dtype=default_dtype)
+        apd_min = np.zeros(3, dtype=DEFAULT_DTYPE)
     # Scaling factors per channel: R, G, B
-    scale = np.array([1.00, 0.92, 0.95], dtype=default_dtype)
+    scale = np.array([1.00, 0.92, 0.95], dtype=DEFAULT_DTYPE)
 
     if adx.shape[-1] != 3:
         scale = 1
         apd_min = apd_min[0]
 
     apd = (
-        (adx.astype(default_dtype) / scaling - 1520.0 / 65535.0)
+        (adx.astype(DEFAULT_DTYPE) / scaling - 1520.0 / 65535.0)
         / (scale * 8000.0 / 65535.0)
     ) + apd_min
 

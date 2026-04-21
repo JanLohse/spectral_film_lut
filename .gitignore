@@ -161,6 +161,7 @@ cython_debug/
 
 # Images
 *.tif
+*.tiff
 *.jpg
 *.png
 
