@@ -43,5 +43,7 @@ version_scheme = "release-branch-semver"
 local_scheme = "no-local-version"
 
 [tool.ruff.lint]
-extend-select = ["I", "E"]
-extend-fixable = ["I", "E"]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"

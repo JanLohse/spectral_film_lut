@@ -136,11 +136,7 @@ class FilmStockSelectorWindow(QDialog):
 
         self.film_stocks = film_stocks
         self.film_tags = {
-            x: x.lower()
-            + " "
-            + " ".join((str(z).lower() for z in y.values()))
-            + " "
-            + x
+            x: x.lower() + " " + " ".join(str(z).lower() for z in y.values()) + " " + x
             for x, y in self.film_stocks.items()
         }
 

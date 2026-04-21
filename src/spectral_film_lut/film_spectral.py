@@ -271,13 +271,11 @@ class FilmSpectral:
                 ref_rms = (
                     np.sqrt(
                         np.sum(
-                            (
-                                multi_channel_interp(
-                                    np.ones(3), self.rms_density, self.rms_curve
-                                )
-                                ** 2
-                                * rms_color_factors**2
+                            multi_channel_interp(
+                                np.ones(3), self.rms_density, self.rms_curve
                             )
+                            ** 2
+                            * rms_color_factors**2
                         )
                     )
                     / scaling

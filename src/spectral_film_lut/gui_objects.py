@@ -435,7 +435,7 @@ class Slider(QWidget):
 
         self.text = QLabel()
         self.text.setAlignment(
-            (Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
         self.text.setFixedWidth(30)
 
@@ -543,7 +543,7 @@ class SliderLog(QWidget):
 
         self.text = QLabel()
         self.text.setAlignment(
-            (Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
         self.text.setFixedWidth(30)
 
