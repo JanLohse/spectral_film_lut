@@ -30,6 +30,7 @@ TAG_MAPPING = {
         "film_spectral",
         "grain_generation",
         "xy_lut",
+        "color_processing",
     ],
     "Data": [
         "color_space",
@@ -47,6 +48,7 @@ TAG_MAPPING = {
         "gui_objects",
         "grain_generation",
         "xy_lut",
+        "color_processing",
     ],
     "Module": ["init", "index"],
     "Film Stock": ["negative", "print", "reversal"],

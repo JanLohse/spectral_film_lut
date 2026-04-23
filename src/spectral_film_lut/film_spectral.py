@@ -14,27 +14,23 @@ from scipy.interpolate import PchipInterpolator
 from scipy.optimize import least_squares
 
 from spectral_film_lut import densiometry
-from spectral_film_lut.color_space import COLOR_SPACES, GAMMA_FUNCTIONS
-from spectral_film_lut.densiometry import (
-    DENSIOMETRY,
-    adx16_decode,
-    adx16_encode,
+from spectral_film_lut.color_processing import (
+    COLORCHECKER_2005,
+    CCT_to_xy,
+    CCT_to_XYZ,
+    output_color_transform,
+    shadow_compensation,
 )
+from spectral_film_lut.color_space import GAMMA_FUNCTIONS
+from spectral_film_lut.densiometry import DENSIOMETRY, adx16_decode, adx16_encode
 from spectral_film_lut.film_data import FilmData
 from spectral_film_lut.utils import (
-    COLORCHECKER_2005,
     DEFAULT_DTYPE,
     SPECTRAL_SHAPE,
-    CCT_to_xy,
     construct_spectral_density,
     multi_channel_interp,
 )
-from spectral_film_lut.xy_lut import (
-    SPECTRUM_LUT,
-    XYZ_CMFS,
-    apply_2d_lut,
-    xyS_to_XYZ,
-)
+from spectral_film_lut.xy_lut import SPECTRUM_LUT, XYZ_CMFS, apply_2d_lut
 
 
 class FilmSpectral:
@@ -680,7 +676,7 @@ class FilmSpectral:
             .values
         )
         reference_white = np.asarray(
-            colour.xyY_to_XYZ([*colour.CCT_to_xy(reference_kelvin), 1.0])
+            colour.xyY_to_XYZ([*CCT_to_xy(reference_kelvin), 1.0])
         )
         xyz_cmfs = XYZ_CMFS * (reference_white / (XYZ_CMFS.T @ reference_light))
         if white_comp:
@@ -815,8 +811,8 @@ class FilmSpectral:
 
     def get_input_lut(self, exposure_kelvin, tint, exp_comp):
         exp_comp = 2**exp_comp
-        gray_XYZ = self.CCT_to_XYZ(exposure_kelvin, 0.18, tint)
-        reference_XYZ = self.CCT_to_XYZ(6504, 0.18)
+        gray_XYZ = CCT_to_XYZ(exposure_kelvin, 0.18, tint)
+        reference_XYZ = CCT_to_XYZ(6504, 0.18)
         gray_spectral = apply_2d_lut(gray_XYZ, SPECTRUM_LUT)
         reference_spectral = apply_2d_lut(reference_XYZ, SPECTRUM_LUT)
         corrected_sensitivity = (
@@ -846,7 +842,6 @@ class FilmSpectral:
         exposure_kelvin=5500,
         halation_func=None,
         shadow_comp=0,
-        photo_inversion=False,
         color_masking=None,
         tint=0,
         sat_adjust=1,
@@ -865,14 +860,12 @@ class FilmSpectral:
 
         def add_output_transform():
             add(
-                lambda x: FilmSpectral.output_color_transform(
-                    x, output_gamut, sat_adjust
-                ),
+                lambda x: output_color_transform(x, output_gamut, sat_adjust),
                 "output_color_processing",
             )
             if shadow_comp:
                 add(
-                    lambda x: FilmSpectral.shadow_compensation(x, shadow_comp),
+                    lambda x: shadow_compensation(x, shadow_comp),
                     "shadow_comp",
                 )
 
@@ -989,31 +982,12 @@ class FilmSpectral:
                     lambda x: 1 / 10**-output_film.d_min * 10**-x,
                     "projection",
                 )
-                if print_film is None:
-                    adjustment = 1 / pipeline[-1][0](0)
-                    target_gray = 0.18
-                    gray = (
-                        pipeline[-1][0](negative_film.d_ref) * adjustment * target_gray
-                    )
-                    output_gamma = 2
-                    add(
-                        lambda x: (
-                            (gray / (x * adjustment)) ** output_gamma
-                            * target_gray ** (1 - output_gamma)
-                        ),
-                        "invert",
-                    )
-                    add(lambda x: x / (x + 1), "roll-off")
                 if not 6500 <= projector_kelvin <= 6505:
-                    wb = np.asarray(negative_film.CCT_to_XYZ(projector_kelvin))
+                    wb = np.asarray(CCT_to_XYZ(projector_kelvin))
                     add(lambda x: x * wb, "projection color")
                 else:
                     add(lambda x: x.repeat(3, axis=-1), "repeat axis")
-            elif (
-                print_film is not None
-                or negative_film.density_measure == "status_a"
-                or photo_inversion
-            ):
+            else:
                 if print_film is None:
                     output_kelvin = projector_kelvin
                     if negative_film.density_measure == "status_m":
@@ -1038,10 +1012,6 @@ class FilmSpectral:
                 output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
                 density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
 
-                if print_film is None and negative_film.density_measure == "status_m":
-                    FilmSpectral.add_photographic_inversion(
-                        add, negative_film, output_kelvin, pipeline
-                    )
                 add(lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix")
                 if (
                     output_film.density_measure == "status_a"
@@ -1049,14 +1019,10 @@ class FilmSpectral:
                     and white_balance
                 ):
                     mid_gray = pipeline[-1][0](output_film.get_d_ref(color_masking))
-                    out_gray = np.asarray(
-                        negative_film.CCT_to_XYZ(output_kelvin, mid_gray[1])
-                    )
+                    out_gray = np.asarray(CCT_to_XYZ(output_kelvin, mid_gray[1]))
                     output_mat = np.asarray(
                         colour.chromatic_adaptation(output_mat, mid_gray, out_gray)
                     )
-            else:
-                FilmSpectral.add_status_inversion(add, negative_film, color_masking)
 
             add_output_transform()
 
@@ -1090,82 +1056,6 @@ class FilmSpectral:
             return x
 
         return convert
-
-    @staticmethod
-    def CCT_to_XYZ(CCT: float | int, Y=1.0, tint=0.0):
-        """Converts from a color temperature in kelvin to a XYZ triplet."""
-        xy = CCT_to_xy(CCT)
-        xyY = (xy[0], xy[1], Y)
-        XYZ = colour.xyY_to_XYZ(xyY)
-        Lab = colour.XYZ_to_Oklab(XYZ)
-        Lab += np.array([0, 0.9849548, -0.17281227]) * tint / 15
-        XYZ = colour.Oklab_to_XYZ(Lab)
-        return XYZ
-
-    @staticmethod
-    def add_photographic_inversion(add, negative_film, projector_kelvin, pipeline):
-        """Simualtes a simple inversion of a scan with a virtual camera."""
-        print("photographic_inversion")
-        XYZ_to_AP1 = np.asarray(colour.RGB_COLOURSPACES["ACEScg"].matrix_XYZ_to_RGB)
-        AP1_to_XYZ = np.linalg.inv(XYZ_to_AP1)
-        white = np.asarray(negative_film.CCT_to_XYZ(projector_kelvin)) @ XYZ_to_AP1.T
-
-        black = pipeline[-1][0](np.zeros(3))
-        gray = pipeline[-1][0](negative_film.d_ref)
-        d_bright = negative_film.log_exposure_to_density(negative_film.log_H_ref + 0.5)
-        light_gray = pipeline[-1][0](d_bright)
-
-        adjustment = 1 / black
-        gray = (gray * adjustment) @ XYZ_to_AP1.T
-        light_gray = (light_gray * adjustment) @ XYZ_to_AP1.T
-        reference_gamma = gray[..., 1] / light_gray[..., 1]
-        gamma_adjustment = light_gray / gray * reference_gamma
-        target_gray = 0.18 * white
-        output_gamma = 4
-        gray = target_gray * gray**gamma_adjustment
-        add(
-            lambda x: (
-                (gray / ((x * adjustment) @ XYZ_to_AP1.T) ** gamma_adjustment)
-                ** output_gamma
-                * target_gray ** (1 - output_gamma)
-            ),
-            "invert",
-        )
-        add(lambda x: (x / (x + 1)) @ AP1_to_XYZ.T, "rolloff")
-
-    @staticmethod
-    def add_status_inversion(add, negative_film, color_masking=None):
-        status_m_to_apd = DENSIOMETRY["apd"].T @ negative_film.get_spectral_density(
-            color_masking
-        )
-        """Inverts as if it was scanned with a perfect APD scanner."""
-        output_gamma = 2.6
-
-        projection_to_XYZ = np.array(
-            [
-                [0.4124564, 0.3575761, 0.1804375],
-                [0.2126729, 0.7151522, 0.0721750],
-                [0.0193339, 0.1191920, 0.9503041],
-            ],
-            dtype=DEFAULT_DTYPE,
-        )
-
-        # calculated from Kodak Duraflex Plus:
-        gray = (
-            output_gamma * -negative_film.get_d_ref(color_masking) @ status_m_to_apd.T
-        )
-        output_scale = 0.8 * np.ones(3, dtype=DEFAULT_DTYPE) - gray
-
-        def softmax(x, a=2.5):
-            return np.log(1 + np.exp(x * a)) / a
-
-        add(
-            lambda x: (
-                10 ** -softmax(output_gamma * -x @ status_m_to_apd.T + output_scale)
-                @ projection_to_XYZ.T
-            ),
-            "output",
-        )
 
     @staticmethod
     def output_to_density(y, a, b, x0=None, method="lm"):
@@ -1212,118 +1102,6 @@ class FilmSpectral:
         density_mat = self.get_spectral_density()
         output_mat = (xyz_cmfs.T * projection_light * 10**-d_min_sd).T
         lad = self.output_to_density(
-            self.CCT_to_XYZ(6504, luminance), density_mat, output_mat
+            CCT_to_XYZ(6504, luminance), density_mat, output_mat
         )
         return lad
-
-    @staticmethod
-    def shadow_compensation(image: np.ndarray, intensity) -> np.ndarray:
-        """
-        Raises or lowers shadows. Has been computed to act as an OOTF for the ITU-R
-        BT.1886 curve. Setting gamma to Gamma 2.4 and Black offset to 1.0 will yield
-        essentially Rec. 709. Setting gamma to Rec. 709 and Black offset to -1.0 in turn
-        gives essentially Gamma 2.4. Has been computed from BT.1886 as to not be
-        piecewise, and to not overfit to Rec. 709.
-
-        Args:
-            image: The image to transform. Assumed to be in linear gamma.
-            intensity: How much to lift or lower particularly dark areas. For 0 no
-                effect, 1 and -1 act as forward and inverse OOTFs respectively.
-            gamma: The assumed viewing gamma for the OOTF modeling.
-            black_level: The assumed viewing black level for OOTF modeling.
-
-        Returns:
-            The shadow compensated image.
-        """
-        # Make the intensity less sensitive close to 0.
-        intensity *= abs(intensity)
-
-        # black of 1.2% and gamma 2.4 chosen to match Rec. 709 closely
-        black = 0.012 * abs(intensity)
-        gamma = 2.4
-
-        # a and b from ITU-R BT.1886
-        a = (1 - black ** (1 / gamma)) ** gamma
-        b = (black ** (1 / gamma)) / (1 - black ** (1 / gamma))
-
-        if intensity > 0:
-            image = (a * (image ** (1 / gamma) + b) ** gamma - black) / (1 - black)
-        elif intensity < 0:
-            image = (((image * (1 - black) + black) / a) ** (1 / gamma) - b) ** gamma
-
-        return image
-
-    @staticmethod
-    def gamut_compression(image: np.ndarray, strength=0.95):
-        """
-        A simple gamut compression that limits the maximal relative distance from the
-        achromatic. Inspired by ACES Reference Gamut Compression. Has been simplified
-        to be color space agnostic and use a simple clipping function instead of a
-        roll-off. It is not perceptually neutral and should be used conservatively. It
-        is intended to fix numeric issues in highly saturated colors, and not to be part
-        of look creation.
-
-        Args:
-            image: The image to transform.
-            strength: How strong to compress. strength=1 is uncompressed and strength=0
-                is fully desaturated.
-
-        Returns:
-            The compressed image.
-        """
-        # Get achromatic value
-        a = image.max(axis=-1, keepdims=True)
-
-        # Compute and limit distance from achromatic value.
-        d = np.where(a > 0, (a - image) / np.abs(a), 0)
-        d = np.clip(d, 0, strength)
-
-        # Reconstruct image with limited distance, resulting in limited saturation.
-        image = a - d * np.abs(a)
-
-        return image
-
-    @staticmethod
-    def output_color_transform(
-        image, output_gamut, sat_adjust: float, lut_size=33
-    ) -> np.ndarray:
-        """
-        Transform from XYZ to the target gamut and adjust the saturation.
-        Saturation adjustment is performed in OkLch for visual uniformity.
-        Gamut compression is performed to avoid visual artifacts.
-        To preserve high performance the transforms are applied as a 2D xy LUT.
-
-        Args:
-            image: The XYZ image to transform.
-            output_gamut: The name of the output color space.
-            sat_adjust: By what factor to multiply the saturation.
-            lut_size: The size of the LUT. Default is 33x33.
-
-        Returns:
-            The transformed image in the output gamut.
-        """
-        # initialize 2.5D XYZ LUT
-        x = np.linspace(0, 1, lut_size, dtype=np.float32)
-        xx, yy = np.meshgrid(x, x, indexing="ij")
-        lut_id = np.stack([xx, yy, np.ones_like(xx)], axis=-1)
-        lut_XYZ = xyS_to_XYZ(lut_id)
-
-        # adjust saturation
-        if sat_adjust != 1:
-            lut_oklab = colour.XYZ_to_Oklab(lut_XYZ)
-            lut_oklab[..., 1:3] *= sat_adjust
-            lut_XYZ = colour.Oklab_to_XYZ(lut_oklab)
-
-        # convert to output color space
-        if output_gamut != "CIE XYZ":
-            lut_XYZ @= COLOR_SPACES[output_gamut].xyz_to_rgb.T
-
-        # compress gamut
-        lut_XYZ = FilmSpectral.gamut_compression(lut_XYZ)
-
-        # apply to image safely
-        image = np.clip(image, 0, None)
-        image = apply_2d_lut(image, lut_XYZ)
-        image = np.clip(image, 0, 1)
-
-        return image

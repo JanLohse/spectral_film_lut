@@ -39,7 +39,9 @@ def create_lut(
     table = transform(lut.table)
     if table.shape[-1] == 1:
         table = table.repeat(3, -1)
-    if not cube:
+    if cube:
+        lut.table = table
+    else:
         return table
     end = time.time()
     path = f"{name}.cube"
@@ -329,64 +331,3 @@ def wavelength_argmin(
         range.trim(colour.SpectralShape(low, high, 1))
     peak = range.wavelengths[range.values.argmin()]
     return peak
-
-
-def CCT_to_xy(CCT):
-    """Convert from a color temperature in kelvin to the closest xy pair."""
-    CCT_3 = CCT**3
-    CCT_2 = CCT**2
-
-    if CCT <= 7000:
-        x = (
-            -4.607 * 10**9 / CCT_3
-            + 2.9678 * 10**6 / CCT_2
-            + 0.09911 * 10**3 / CCT
-            + 0.244063
-        )
-    else:
-        x = (
-            -2.0064 * 10**9 / CCT_3
-            + 1.9018 * 10**6 / CCT_2
-            + 0.24748 * 10**3 / CCT
-            + 0.23704
-        )
-
-    y = -3.000 * x**2 + 2.870 * x - 0.275
-    return np.array([x, y])
-
-
-COLORCHECKER_2005 = np.array(
-    [
-        [0.3457, 0.3585, 100.0],
-        [0.4316, 0.3777, 10.08],
-        [0.4197, 0.3744, 34.95],
-        [0.2760, 0.3016, 18.36],
-        [0.3703, 0.4499, 13.25],
-        [0.2999, 0.2856, 23.04],
-        [0.2848, 0.3911, 41.78],
-        [0.5295, 0.4055, 31.18],
-        [0.2305, 0.2106, 11.26],
-        [0.5012, 0.3273, 19.38],
-        [0.3319, 0.2482, 6.37],
-        [0.3984, 0.5008, 44.46],
-        [0.4957, 0.4427, 43.57],
-        [0.2018, 0.1692, 5.75],
-        [0.3253, 0.5032, 23.18],
-        [0.5686, 0.3303, 12.57],
-        [0.4697, 0.4734, 59.81],
-        [0.4159, 0.2688, 20.09],
-        [0.2131, 0.3023, 19.30],
-        [0.3469, 0.3608, 91.31],
-        [0.3440, 0.3584, 58.94],
-        [0.3432, 0.3581, 36.32],
-        [0.3446, 0.3579, 19.15],
-        [0.3401, 0.3548, 8.83],
-        [0.3406, 0.3537, 3.11],
-    ],
-    DEFAULT_DTYPE,
-)
-"""The XYZ value for the colorchecker 2005 data."""
-COLORCHECKER_2005 = colour.xyY_to_XYZ(COLORCHECKER_2005)
-COLORCHECKER_2005 *= np.array([0.95047, 1.00000, 1.08883]) / COLORCHECKER_2005[0]
-COLORCHECKER_2005 = COLORCHECKER_2005[1:]
-COLORCHECKER_2005 = np.asarray(COLORCHECKER_2005, DEFAULT_DTYPE)
