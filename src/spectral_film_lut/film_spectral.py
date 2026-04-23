@@ -11,7 +11,6 @@ import scipy
 from colour import SpectralDistribution
 from matplotlib import pyplot as plt
 from scipy.interpolate import PchipInterpolator
-from scipy.optimize import least_squares
 
 from spectral_film_lut import densiometry
 from spectral_film_lut.color_processing import (
@@ -22,7 +21,12 @@ from spectral_film_lut.color_processing import (
     shadow_compensation,
 )
 from spectral_film_lut.color_space import GAMMA_FUNCTIONS
-from spectral_film_lut.densiometry import DENSIOMETRY, adx16_decode, adx16_encode
+from spectral_film_lut.densiometry import (
+    DENSIOMETRY,
+    adx16_decode,
+    adx16_encode,
+    output_to_density,
+)
 from spectral_film_lut.film_data import FilmData
 from spectral_film_lut.utils import (
     DEFAULT_DTYPE,
@@ -1057,43 +1061,6 @@ class FilmSpectral:
 
         return convert
 
-    @staticmethod
-    def output_to_density(y, a, b, x0=None, method="lm"):
-        """
-        Numerically invert the mapping:
-            y = (10 ** -(x @ a.T)) @ b
-        to recover x.
-
-        Parameters
-        ----------
-        y : array-like, shape (p,)
-            Output vector.
-        a : array-like, shape (m, n)
-            Density matrix (used in forward map).
-        b : array-like, shape (m, p)
-            Output matrix (used in forward map).
-        x0 : array-like, shape (n,), optional
-            Initial guess for x. Defaults to zeros.
-        method : str, optional
-            Least-squares solver method: 'lm', 'trf', or 'dogbox'.
-
-        Returns
-        -------
-        x : ndarray, shape (n,)
-            Estimated vector such that (10 ** -(x @ a.T)) @ b ≈ y
-        """
-        n = a.shape[1]
-        if x0 is None:
-            x0 = np.zeros(n)
-
-        def residual(x):
-            s = 10 ** -(x @ a.T)  # shape (m,)
-            y_pred = s @ b  # shape (p,)
-            return y_pred - y
-
-        res = least_squares(residual, x0, method=method)
-        return np.asarray(res.x)
-
     def compute_lad(self, luminance=0.1):
         projection_light, xyz_cmfs = self.compute_projection_light(
             projector_kelvin=6504
@@ -1101,7 +1068,5 @@ class FilmSpectral:
         d_min_sd = self.d_min_sd
         density_mat = self.get_spectral_density()
         output_mat = (xyz_cmfs.T * projection_light * 10**-d_min_sd).T
-        lad = self.output_to_density(
-            CCT_to_XYZ(6504, luminance), density_mat, output_mat
-        )
+        lad = output_to_density(CCT_to_XYZ(6504, luminance), density_mat, output_mat)
         return lad

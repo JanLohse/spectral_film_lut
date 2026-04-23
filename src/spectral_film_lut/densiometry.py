@@ -4,6 +4,7 @@ Here data and functions for handling and specifying density values is included.
 
 import colour
 import numpy as np
+from scipy.optimize import least_squares
 
 from spectral_film_lut.utils import (
     DEFAULT_DTYPE,
@@ -616,3 +617,40 @@ def adx16_decode(adx: np.ndarray, apd_min=None, scaling=1.0):
     ) + apd_min
 
     return apd
+
+
+def output_to_density(y, a, b, x0=None, method="lm"):
+    """
+    Numerically invert the mapping:
+        y = (10 ** -(x @ a.T)) @ b
+    to recover x.
+
+    Parameters
+    ----------
+    y : array-like, shape (p,)
+        Output vector.
+    a : array-like, shape (m, n)
+        Density matrix (used in forward map).
+    b : array-like, shape (m, p)
+        Output matrix (used in forward map).
+    x0 : array-like, shape (n,), optional
+        Initial guess for x. Defaults to zeros.
+    method : str, optional
+        Least-squares solver method: 'lm', 'trf', or 'dogbox'.
+
+    Returns
+    -------
+    x : ndarray, shape (n,)
+        Estimated vector such that (10 ** -(x @ a.T)) @ b ≈ y
+    """
+    n = a.shape[1]
+    if x0 is None:
+        x0 = np.zeros(n)
+
+    def residual(x):
+        s = 10 ** -(x @ a.T)  # shape (m,)
+        y_pred = s @ b  # shape (p,)
+        return y_pred - y
+
+    res = least_squares(residual, x0, method=method)
+    return np.asarray(res.x)
