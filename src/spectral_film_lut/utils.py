@@ -4,26 +4,28 @@ Additional utility functions.
 
 import os
 import time
+from typing import Literal
 
 import colour
 import numpy as np
+from colour.hints import LiteralRGBColourspace
 from numba import njit, prange
 
-from spectral_film_lut.color_processing import (
-    CCT_to_XYZ,
-    output_transform,
-)
+from spectral_film_lut.color_processing import output_transform
+from spectral_film_lut.color_space import COLOR_SPACE_KEYS, GAMMA_KEYS
 from spectral_film_lut.config import DEFAULT_DTYPE
-from spectral_film_lut.xy_lut import apply_2d_lut
+
+MODES = Literal["full", "print", "negative", "grain"]
+"""Conversion modes, i.e., what steps of the pipeline to activate."""
 
 
 def film_conversion(
-    image,
+    image: np.ndarray,
     negative_film,
     print_film=None,
-    mode="full",  # TODO: literal
-    input_colorspace: None | str = None,  # TODO: literal
-    exposure_kelvin=6500,
+    mode: MODES = "full",
+    input_colorspace: LiteralRGBColourspace | None = None,
+    exp_kelvin=6500,
     tint=0.0,
     exp_comp=0.0,
     color_masking: None | float = None,
@@ -34,25 +36,45 @@ def film_conversion(
     blue_light=0.0,
     projector_kelvin=6500,
     white_comp=True,
-    output_gamut="Rec. 709",  # TODO: literal
+    output_gamut: COLOR_SPACE_KEYS = "Rec. 709",
     sat_adjust=1.0,
     shadow_comp=0.0,
-    gamma_func="Gamma 2.4",  # TODO: literal
+    gamma_func: GAMMA_KEYS = "Gamma 2.4",
 ):
+    """
+    TODO
+
+    Args:
+        image:
+        negative_film:
+        print_film:
+        mode:
+        input_colorspace:
+        exp_kelvin:
+        tint:
+        exp_comp:
+        color_masking:
+        adx_scaling:
+        adx_coding:
+        red_light:
+        green_light:
+        blue_light:
+        projector_kelvin:
+        white_comp:
+        output_gamut:
+        sat_adjust:
+        shadow_comp:
+        gamma_func:
+
+    Returns:
+
+    """
     image = np.ascontiguousarray(image)
+
     if mode == "negative" or mode == "full":
-        # TODO: turn to own function
-        if input_colorspace is not None:
-            image = colour.RGB_to_XYZ(image, input_colorspace, apply_cctf_decoding=True)
-
-        input_lut = negative_film.get_input_lut(exposure_kelvin, tint, exp_comp)
-
-        image = apply_2d_lut(np.clip(image, 0, None), input_lut)
-
-        # TODO: merge with log_exposure_to_density to single 1D LUT
-        image = np.log10(np.clip(image, 10**-16, None))
-
-        image = negative_film.log_exposure_to_density(image, color_masking)
+        image = negative_film.input_transform(
+            image, input_colorspace, exp_comp, exp_kelvin, tint, color_masking
+        )
 
     if adx_coding and mode == "negative":
         image = negative_film.adx_encoding(image, adx_scaling, color_masking)
@@ -61,72 +83,16 @@ def film_conversion(
         image = negative_film.adx_decoding(image, adx_scaling, color_masking)
 
     if mode == "print" or mode == "full":
-        # TODO: turn to own function
         if print_film is not None:
             output_film = print_film
-            if negative_film.density_measure == print_film.density_measure == "bw":
-                image = (
-                    -image + print_film.log_H_ref + negative_film.d_ref + green_light
-                )
-            else:
-                density_neg = negative_film.get_spectral_density(color_masking)
-                printer_light = negative_film.compute_printer_light(
-                    print_film, red_light, green_light, blue_light
-                )
-                printing_mat = (
-                    print_film.sensitivity.T
-                    * printer_light
-                    * 10**-negative_film.d_min_sd
-                ).T
-                printing_mat = printing_mat.reshape(-1, 3, printing_mat.shape[-1]).sum(
-                    axis=1
-                )
-                density_neg = density_neg.reshape(-1, 3, density_neg.shape[-1]).mean(
-                    axis=1
-                )
-                image = np.log10(
-                    np.clip(
-                        10 ** -(image @ density_neg.T) @ printing_mat, 0.00001, None
-                    )
-                )
-
-            image = print_film.log_exposure_to_density(image)
+            image = negative_film.print_to(
+                image, print_film, color_masking, red_light, green_light, blue_light
+            )
+            color_masking = None
         else:
             output_film = negative_film
 
-        if output_film.density_measure == "bw":
-            image = 1 / 10**-output_film.d_min * 10**-image
-
-            if not 6500 <= projector_kelvin <= 6505:
-                image = image * np.asarray(CCT_to_XYZ(projector_kelvin))
-        else:
-            if output_film.density_measure == "status_a" and print_film is None:
-                white_comp = False
-            projection_light, xyz_cmfs = output_film.compute_projection_light(
-                projector_kelvin=projector_kelvin, white_comp=white_comp
-            )
-            d_min_sd = output_film.d_min_sd
-            if print_film is None:
-                density_mat = output_film.get_spectral_density(color_masking)
-            else:
-                density_mat = output_film.get_spectral_density()
-
-            output_mat = (xyz_cmfs.T * projection_light * 10**-d_min_sd).T
-            output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
-            density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
-
-            image = 10 ** -(image @ density_mat.T) @ output_mat
-            # TODO: return functionality
-            # if (
-            #     output_film.density_measure == "status_a"
-            #     and print_film is None
-            #     and white_balance
-            # ):
-            #     mid_gray = pipeline[-1][0](output_film.get_d_ref(color_masking))
-            #     out_gray = np.asarray(CCT_to_XYZ(output_kelvin, mid_gray[1]))
-            #     output_mat = np.asarray(
-            #         colour.chromatic_adaptation(output_mat, mid_gray, out_gray)
-            #     )
+        image = output_film.project(image, projector_kelvin, color_masking, white_comp)
 
         image = output_transform(
             image,

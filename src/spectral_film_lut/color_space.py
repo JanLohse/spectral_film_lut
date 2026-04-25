@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Literal
 
 import numpy as np
 
@@ -60,6 +61,18 @@ COLOR_SPACES = {
 }
 """The Default output color spaces."""
 
+COLOR_SPACE_KEYS = Literal[
+    "Rec. 709",
+    "Display P3",
+    "Rec. 2020",
+    "ACES AP1",
+    "ACES AP0",
+    "CIE XYZ",
+    "DCI-P3",
+    "DCI-P3 D60",
+]
+"""The available color spaces."""
+
 
 def rec_709_encoding(x):
     """The Rec. 709 OETF."""
@@ -107,3 +120,17 @@ GAMMA_FUNCTIONS = {
     "PQ": pq_encoding,
 }
 """Different gamma functions for output encoding."""
+
+GAMMA_KEYS = Literal[
+    "Linear",
+    "Gamma 1.8",
+    "Gamma 2.0",
+    "Gamma 2.2",
+    "Gamma 2.4",
+    "Gamma 2.6",
+    "Rec. 709",
+    "sRGB",
+    "HLG",
+    "PQ",
+]
+"""The available gamma functions."""

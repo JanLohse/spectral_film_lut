@@ -1,3 +1,5 @@
+"""Define the core parameters for color math."""
+
 import colour
 import numpy as np
 

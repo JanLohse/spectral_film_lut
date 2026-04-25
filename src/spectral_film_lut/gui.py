@@ -649,7 +649,7 @@ film stocks.
             projector_kelvin=projector_kelvin,
             exp_comp=exp_comp,
             white_comp=white_comp,
-            exposure_kelvin=exp_wb,
+            exp_kelvin=exp_wb,
             mode=mode,
             red_light=red_light,
             green_light=green_light,

@@ -3,12 +3,12 @@ The main class for handling all film data procesing and rendering.
 """
 
 import math
-import time
 
 import colour.plotting
 import numpy as np
 import scipy
 from colour import SpectralDistribution
+from colour.hints import LiteralRGBColourspace
 from matplotlib import pyplot as plt
 from scipy.interpolate import PchipInterpolator
 
@@ -16,10 +16,7 @@ from spectral_film_lut.color_processing import (
     COLORCHECKER_2005,
     CCT_to_xy,
     CCT_to_XYZ,
-    output_color_transform,
-    shadow_compensation,
 )
-from spectral_film_lut.color_space import GAMMA_FUNCTIONS
 from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
 from spectral_film_lut.densiometry import (
     APD,
@@ -32,7 +29,7 @@ from spectral_film_lut.densiometry import (
     output_to_density,
 )
 from spectral_film_lut.film_data import FilmData
-from spectral_film_lut.utils import multi_channel_interp
+from spectral_film_lut.utils import film_conversion, multi_channel_interp
 from spectral_film_lut.xy_lut import SPECTRUM_LUT, XYZ_CMFS, apply_2d_lut
 
 
@@ -352,12 +349,10 @@ class FilmSpectral:
             negative = self
         elif print_stock is None:
             print_stock = self
-        self.color_checker = (
-            self.generate_conversion(negative, print_stock, input_colourspace=None)(
-                COLORCHECKER_2005
-            )
-            * 255
-        ).astype(np.uint8)
+
+        color_checker = film_conversion(COLORCHECKER_2005, negative, print_stock)
+        color_checker *= 255
+        self.color_checker = color_checker.astype(np.uint8)
 
     def extend_characteristic_curve(self, height=3):
         """
@@ -813,6 +808,7 @@ class FilmSpectral:
         return noise_factors
 
     def get_input_lut(self, exposure_kelvin, tint, exp_comp):
+        """TODO"""
         exp_comp = 2**exp_comp
         gray_XYZ = CCT_to_XYZ(exposure_kelvin, 0.18, tint)
         reference_XYZ = CCT_to_XYZ(6504, 0.18)
@@ -830,234 +826,8 @@ class FilmSpectral:
         spectral_input_lut *= correction_factors * exp_comp
         return spectral_input_lut
 
-    @staticmethod
-    def generate_conversion(
-        negative_film,
-        print_film=None,
-        input_colourspace: None | str = "ARRI Wide Gamut 4",
-        measure_time=False,
-        output_gamut="Rec. 709",
-        gamma_func="Gamma 2.4",
-        projector_kelvin=6500,
-        exp_comp=0,
-        white_comp=True,
-        mode="full",
-        exposure_kelvin=5500,
-        halation_func=None,
-        shadow_comp=0,
-        color_masking=None,
-        tint=0,
-        sat_adjust=1.0,
-        adx=True,
-        adx_scaling=1.0,
-        **kwargs,
-    ):
-        """The main function that performs the film simulation."""
-        pipeline = []
-
-        if color_masking is None:
-            color_masking = negative_film.color_masking
-
-        def add(func, name):
-            pipeline.append((func, name))
-
-        def add_output_transform():
-            add(
-                lambda x: output_color_transform(x, output_gamut, sat_adjust),
-                "output_color_processing",
-            )
-            if shadow_comp:
-                add(
-                    lambda x: shadow_compensation(x, shadow_comp),
-                    "shadow_comp",
-                )
-
-            add(GAMMA_FUNCTIONS[gamma_func], "output_gamut")
-
-        if mode == "negative" or mode == "full":
-            if input_colourspace is not None:
-                add(
-                    lambda x: np.asarray(
-                        colour.RGB_to_XYZ(
-                            x, input_colourspace, apply_cctf_decoding=True
-                        )
-                    ),
-                    "input",
-                )
-
-            input_lut = negative_film.get_input_lut(exposure_kelvin, tint, exp_comp)
-            add(
-                lambda x: apply_2d_lut(np.clip(x, 0, None), input_lut),
-                "input transform",
-            )
-
-            if halation_func is not None:
-                add(lambda x: halation_func(x), "halation")
-
-            add(lambda x: np.log10(np.clip(x, 10**-16, None)), "log exposure")
-
-            add(
-                lambda x: negative_film.log_exposure_to_density(x, color_masking),
-                "characteristic curve",
-            )
-
-        if mode == "negative":
-            if adx:
-                layer_activation_to_apd = APD.T @ negative_film.get_spectral_density(
-                    color_masking
-                )
-                add(lambda x: x @ layer_activation_to_apd.T, "encode APD")
-            add(lambda x: adx16_encode(x, scaling=adx_scaling), "scale density")
-        elif mode == "print":
-            if negative_film.density_measure == "bw":
-                add(lambda x: x[..., 0][..., np.newaxis], "reduce dim")
-            add(lambda x: adx16_decode(x, scaling=adx_scaling), "scale density")
-            if adx:
-                layer_activation_to_apd = APD.T @ negative_film.get_spectral_density(
-                    color_masking
-                )
-                apd_to_layer_activation = np.linalg.inv(layer_activation_to_apd)
-                add(lambda x: x @ apd_to_layer_activation.T, "decode APD")
-
-        if mode == "print" or mode == "full":
-            if print_film is not None:
-                if (
-                    negative_film.density_measure == "bw"
-                    and print_film.density_measure == "bw"
-                ):
-                    printer_light = kwargs.get("green_light", 0)
-                    add(
-                        lambda x: (
-                            -x
-                            + (
-                                print_film.log_H_ref
-                                + negative_film.d_ref
-                                + printer_light
-                            )
-                        ),
-                        "printing",
-                    )
-                else:
-                    density_neg = negative_film.get_spectral_density(color_masking)
-
-                    printer_light = negative_film.compute_printer_light(
-                        print_film, **kwargs
-                    )
-                    if print_film.density_measure == "absolute":
-                        printing_mat = (
-                            print_film.sensitivity
-                            * printer_light
-                            * 10 ** -negative_film.d_min_sd[:, np.newaxis]
-                        )
-                    else:
-                        printing_mat = (
-                            print_film.sensitivity.T
-                            * printer_light
-                            * 10**-negative_film.d_min_sd
-                        ).T
-                    printing_mat = printing_mat.reshape(
-                        -1, 3, printing_mat.shape[-1]
-                    ).sum(axis=1)
-                    density_neg = density_neg.reshape(
-                        -1, 3, density_neg.shape[-1]
-                    ).mean(axis=1)
-                    add(
-                        lambda x: np.log10(
-                            np.clip(
-                                10 ** -(x @ density_neg.T) @ printing_mat, 0.00001, None
-                            )
-                        ),
-                        "printing",
-                    )
-
-                add(
-                    lambda x: print_film.log_exposure_to_density(x),
-                    "characteristic curve print",
-                )
-                output_film = print_film
-            else:
-                output_film = negative_film
-
-            if output_film.density_measure == "bw":
-                add(
-                    lambda x: 1 / 10**-output_film.d_min * 10**-x,
-                    "projection",
-                )
-                if not 6500 <= projector_kelvin <= 6505:
-                    wb = np.asarray(CCT_to_XYZ(projector_kelvin))
-                    add(lambda x: x * wb, "projection color")
-                else:
-                    add(lambda x: x.repeat(3, axis=-1), "repeat axis")
-            else:
-                if print_film is None:
-                    output_kelvin = projector_kelvin
-                    if negative_film.density_measure == "status_m":
-                        projector_kelvin = (
-                            negative_film.projection_kelvin
-                            if negative_film.projection_kelvin is not None
-                            else 8500
-                        )
-                    # elif negative_film.density_measure == "status_a":
-                    #     projector_kelvin = negative_film.projection_kelvin
-                if output_film.density_measure == "status_a" and print_film is None:
-                    white_balance, white_comp = white_comp, False
-                projection_light, xyz_cmfs = output_film.compute_projection_light(
-                    projector_kelvin=projector_kelvin, white_comp=white_comp
-                )
-                d_min_sd = output_film.d_min_sd
-                if print_film is None:
-                    density_mat = output_film.get_spectral_density(color_masking)
-                else:
-                    density_mat = output_film.get_spectral_density()
-                output_mat = (xyz_cmfs.T * projection_light * 10**-d_min_sd).T
-                output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
-                density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
-
-                add(lambda x: 10 ** -(x @ density_mat.T) @ output_mat, "output matrix")
-                if (
-                    output_film.density_measure == "status_a"
-                    and print_film is None
-                    and white_balance
-                ):
-                    mid_gray = pipeline[-1][0](output_film.get_d_ref(color_masking))
-                    out_gray = np.asarray(CCT_to_XYZ(output_kelvin, mid_gray[1]))
-                    output_mat = np.asarray(
-                        colour.chromatic_adaptation(output_mat, mid_gray, out_gray)
-                    )
-
-            add_output_transform()
-
-        if mode == "grain":
-            add(lambda x: adx16_decode(x, scaling=adx_scaling), "scale density")
-            if adx:
-                layer_activation_to_apd = APD.T @ negative_film.get_spectral_density(
-                    color_masking
-                )
-                apd_to_layer_activation = np.linalg.inv(layer_activation_to_apd)
-                add(lambda x: x @ apd_to_layer_activation.T, "decode APD")
-            add(
-                lambda x: negative_film.grain_transform(
-                    x, std_div=0.001, scale=adx_scaling
-                ),
-                "grain_map",
-            )
-
-        def convert(x):
-            start = time.time()
-            for transform, title in pipeline:
-                x = transform(x)
-                if measure_time:
-                    end = time.time()
-                    print(
-                        f"{title:28} {end - start:.4f}s {x.dtype} {x.shape} {type(x)} "
-                        f"{x.min()} {x.max()}"
-                    )
-                start = time.time()
-            return x
-
-        return convert
-
     def compute_lad(self, luminance=0.1):
+        """TODO"""
         projection_light, xyz_cmfs = self.compute_projection_light(
             projector_kelvin=6504
         )
@@ -1068,16 +838,19 @@ class FilmSpectral:
         return lad
 
     def layer_activation_to_apd_matrix(self, color_masking: None | float = None):
+        """TODO"""
         if self.density_measure == "bw":
             return np.ones((1, 1), dtype=DEFAULT_DTYPE)
         return APD.T @ self.get_spectral_density(color_masking)
 
     def apd_to_layer_activation_matrix(self, color_masking: None | float = None):
+        """TODO"""
         if self.density_measure == "bw":
             return np.ones((1, 1), dtype=DEFAULT_DTYPE)
         return np.linalg.inv(self.layer_activation_to_apd_matrix(color_masking))
 
     def adx_encoding(self, image, scaling=1.0, color_masking: None | float = None):
+        """TODO"""
         image @= self.layer_activation_to_apd_matrix(color_masking).T
 
         image = adx16_encode(image, scaling=scaling)
@@ -1085,11 +858,121 @@ class FilmSpectral:
         return image
 
     def adx_decoding(self, image, scaling=1.0, color_masking: None | float = None):
+        """TODO"""
         if self.density_measure == "bw":
             image = image[..., 0][..., np.newaxis]  # reduce dim
 
         image = adx16_decode(image, scaling=scaling)
 
         image @= self.apd_to_layer_activation_matrix(color_masking).T
+
+        return image
+
+    def input_transform(
+        self,
+        image,
+        colorspace: LiteralRGBColourspace | None = None,
+        exp_comp=0.0,
+        exp_kelvin=6500,
+        tint=0.0,
+        color_masking: None | float = None,
+    ):
+        """TODO"""
+        if colorspace is not None:
+            image = colour.RGB_to_XYZ(image, colorspace, apply_cctf_decoding=True)
+
+        input_lut = self.get_input_lut(exp_kelvin, tint, exp_comp)
+
+        image = apply_2d_lut(np.clip(image, 0, None), input_lut)
+
+        image = np.log10(np.clip(image, 10**-16, None))
+        # TODO: combine these and move exp_comp, push/pull there
+        image = self.log_exposure_to_density(image, color_masking)
+
+        return image
+
+    def print_to(
+        self,
+        image,
+        print_film,
+        color_masking: None | float = None,
+        red_light=0.0,
+        green_light=0.0,
+        blue_light=0.0,
+    ):
+        return self.printing_process(
+            image, self, print_film, color_masking, red_light, green_light, blue_light
+        )
+
+    @staticmethod
+    def printing_process(
+        image,
+        negative_film: "FilmSpectral",
+        print_film: "FilmSpectral",
+        color_masking: None | float = None,
+        red_light=0.0,
+        green_light=0.0,
+        blue_light=0.0,
+    ):
+        """TODO"""
+        if negative_film.density_measure == print_film.density_measure == "bw":
+            image = -image + print_film.log_H_ref + negative_film.d_ref + green_light
+        else:
+            density_neg = negative_film.get_spectral_density(color_masking)
+            printer_light = negative_film.compute_printer_light(
+                print_film, red_light, green_light, blue_light
+            )
+            printing_mat = (
+                print_film.sensitivity.T * printer_light * 10**-negative_film.d_min_sd
+            ).T
+            printing_mat = printing_mat.reshape(-1, 3, printing_mat.shape[-1]).sum(
+                axis=1
+            )
+            density_neg = density_neg.reshape(-1, 3, density_neg.shape[-1]).mean(axis=1)
+            image = np.log10(
+                np.clip(10 ** -(image @ density_neg.T) @ printing_mat, 0.00001, None)
+            )
+
+        image = print_film.log_exposure_to_density(image)
+
+        return image
+
+    def project(
+        self,
+        image,
+        projector_kelvin=6500,
+        color_masking: None | float = None,
+        white_comp=False,
+    ):
+        """TODO"""
+        if self.density_measure == "bw":
+            image = 1 / 10**-self.d_min * 10**-image
+
+            if not 6500 <= projector_kelvin <= 6505:
+                image = image * np.asarray(CCT_to_XYZ(projector_kelvin))
+        else:
+            projection_light, xyz_cmfs = self.compute_projection_light(
+                projector_kelvin=projector_kelvin, white_comp=white_comp
+            )
+            d_min_sd = self.d_min_sd
+
+            density_mat = self.get_spectral_density(color_masking)
+
+            output_mat = (xyz_cmfs.T * projection_light * 10**-d_min_sd).T
+            output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
+            density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
+
+            image = 10 ** -(image @ density_mat.T) @ output_mat
+            # TODO: return functionality
+            # if (
+            #     output_film.density_measure == "status_a"
+            #     and print_film is None
+            #     and white_balance
+            # ):
+            #     mid_gray = pipeline[-1][0](output_film.get_d_ref(color_masking))
+            #     out_gray = np.asarray(CCT_to_XYZ(output_kelvin, mid_gray[1]))
+            #     output_mat = np.asarray(
+            #         colour.chromatic_adaptation(output_mat, mid_gray, out_gray)
+            #     )
 
         return image
