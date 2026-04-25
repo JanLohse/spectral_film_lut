@@ -4,21 +4,142 @@ Additional utility functions.
 
 import os
 import time
-import warnings
 
 import colour
 import numpy as np
 from numba import njit, prange
-from scipy import ndimage
 
-warnings.filterwarnings("ignore", category=FutureWarning)
+from spectral_film_lut.color_processing import (
+    CCT_to_XYZ,
+    output_transform,
+)
+from spectral_film_lut.config import DEFAULT_DTYPE
+from spectral_film_lut.xy_lut import apply_2d_lut
 
 
-DEFAULT_DTYPE = np.float32
-"""The dtype used for the color pipeline."""
-colour.utilities.set_default_float_dtype(DEFAULT_DTYPE)
-SPECTRAL_SHAPE = colour.SpectralShape(380, 780, 5)
-"""The wavelengths used for all spectral simulations and data."""
+def film_conversion(
+    image,
+    negative_film,
+    print_film=None,
+    mode="full",  # TODO: literal
+    input_colorspace: None | str = None,  # TODO: literal
+    exposure_kelvin=6500,
+    tint=0.0,
+    exp_comp=0.0,
+    color_masking: None | float = None,
+    adx_scaling=1.0,
+    adx_coding=True,
+    red_light=0.0,
+    green_light=0.0,
+    blue_light=0.0,
+    projector_kelvin=6500,
+    white_comp=True,
+    output_gamut="Rec. 709",  # TODO: literal
+    sat_adjust=1.0,
+    shadow_comp=0.0,
+    gamma_func="Gamma 2.4",  # TODO: literal
+):
+    image = np.ascontiguousarray(image)
+    if mode == "negative" or mode == "full":
+        # TODO: turn to own function
+        if input_colorspace is not None:
+            image = colour.RGB_to_XYZ(image, input_colorspace, apply_cctf_decoding=True)
+
+        input_lut = negative_film.get_input_lut(exposure_kelvin, tint, exp_comp)
+
+        image = apply_2d_lut(np.clip(image, 0, None), input_lut)
+
+        # TODO: merge with log_exposure_to_density to single 1D LUT
+        image = np.log10(np.clip(image, 10**-16, None))
+
+        image = negative_film.log_exposure_to_density(image, color_masking)
+
+    if adx_coding and mode == "negative":
+        image = negative_film.adx_encoding(image, adx_scaling, color_masking)
+
+    if adx_coding and (mode == "print" or mode == "grain"):
+        image = negative_film.adx_decoding(image, adx_scaling, color_masking)
+
+    if mode == "print" or mode == "full":
+        # TODO: turn to own function
+        if print_film is not None:
+            output_film = print_film
+            if negative_film.density_measure == print_film.density_measure == "bw":
+                image = (
+                    -image + print_film.log_H_ref + negative_film.d_ref + green_light
+                )
+            else:
+                density_neg = negative_film.get_spectral_density(color_masking)
+                printer_light = negative_film.compute_printer_light(
+                    print_film, red_light, green_light, blue_light
+                )
+                printing_mat = (
+                    print_film.sensitivity.T
+                    * printer_light
+                    * 10**-negative_film.d_min_sd
+                ).T
+                printing_mat = printing_mat.reshape(-1, 3, printing_mat.shape[-1]).sum(
+                    axis=1
+                )
+                density_neg = density_neg.reshape(-1, 3, density_neg.shape[-1]).mean(
+                    axis=1
+                )
+                image = np.log10(
+                    np.clip(
+                        10 ** -(image @ density_neg.T) @ printing_mat, 0.00001, None
+                    )
+                )
+
+            image = print_film.log_exposure_to_density(image)
+        else:
+            output_film = negative_film
+
+        if output_film.density_measure == "bw":
+            image = 1 / 10**-output_film.d_min * 10**-image
+
+            if not 6500 <= projector_kelvin <= 6505:
+                image = image * np.asarray(CCT_to_XYZ(projector_kelvin))
+        else:
+            if output_film.density_measure == "status_a" and print_film is None:
+                white_comp = False
+            projection_light, xyz_cmfs = output_film.compute_projection_light(
+                projector_kelvin=projector_kelvin, white_comp=white_comp
+            )
+            d_min_sd = output_film.d_min_sd
+            if print_film is None:
+                density_mat = output_film.get_spectral_density(color_masking)
+            else:
+                density_mat = output_film.get_spectral_density()
+
+            output_mat = (xyz_cmfs.T * projection_light * 10**-d_min_sd).T
+            output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
+            density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
+
+            image = 10 ** -(image @ density_mat.T) @ output_mat
+            # TODO: return functionality
+            # if (
+            #     output_film.density_measure == "status_a"
+            #     and print_film is None
+            #     and white_balance
+            # ):
+            #     mid_gray = pipeline[-1][0](output_film.get_d_ref(color_masking))
+            #     out_gray = np.asarray(CCT_to_XYZ(output_kelvin, mid_gray[1]))
+            #     output_mat = np.asarray(
+            #         colour.chromatic_adaptation(output_mat, mid_gray, out_gray)
+            #     )
+
+        image = output_transform(
+            image,
+            output_gamut,
+            sat_adjust=sat_adjust,
+            shadow_comp=shadow_comp,
+            gamma_func=gamma_func,
+        )
+
+    if mode == "grain":
+        image = negative_film.grain_transform(image, std_div=0.001, scale=adx_scaling)
+
+    return image
 
 
 def create_lut(
@@ -34,9 +155,8 @@ def create_lut(
     Creates a cube LUT from using `.film_spectral.FilmSpectral.generate_conversion`.
     """
     lut = colour.LUT3D(size=lut_size, name="test")
-    transform = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
-    table = transform(lut.table)
+    table = film_conversion(lut.table, negative_film, print_film, **kwargs)
     if table.shape[-1] == 1:
         table = table.repeat(3, -1)
     if cube:
@@ -283,51 +403,3 @@ def apply_lut_tetrahedral_int(
                 out[y, x, 2] = np.uint16(c[2] // scale_out)
 
     return out
-
-
-def construct_spectral_density(
-    ref_density: colour.SpectralDistribution, sigma=25
-) -> np.ndarray:
-    """Split single density curve into separate layers using local extrema."""
-    red_peak = wavelength_argmax(ref_density, 600, min(750, SPECTRAL_SHAPE.end))
-    green_peak = wavelength_argmax(ref_density, 500, 600)
-    blue_peak = wavelength_argmax(ref_density, max(400, SPECTRAL_SHAPE.start), 500)
-    bg_cutoff = wavelength_argmin(ref_density, blue_peak, green_peak)
-    gr_cutoff = wavelength_argmin(ref_density, green_peak, red_peak)
-
-    wavelengths = np.asarray(ref_density.wavelengths)
-    factors = np.stack(
-        (
-            np.where(gr_cutoff <= wavelengths, 1.0, 0.0),
-            np.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1.0, 0.0),
-            np.where(wavelengths <= bg_cutoff, 1.0, 0.0),
-        )
-    )
-    factors = ndimage.gaussian_filter(
-        factors, sigma=(0, sigma / SPECTRAL_SHAPE.interval)
-    ).astype(DEFAULT_DTYPE)
-
-    out = (factors * np.asarray(ref_density.values)).T
-    return out
-
-
-def wavelength_argmax(
-    distribution: colour.SpectralDistribution, low=None, high=None
-) -> int:
-    """Gets the argmax of a spectral distribution."""
-    range = distribution.copy()
-    if low is not None and high is not None:
-        range.trim(colour.SpectralShape(low, high, 1))
-    peak = range.wavelengths[range.values.argmax()]
-    return peak
-
-
-def wavelength_argmin(
-    distribution: colour.SpectralDistribution, low=None, high=None
-) -> int:
-    """Gets the argmax of a spectral distribution."""
-    range = distribution.copy()
-    if low is not None and high is not None:
-        range.trim(colour.SpectralShape(low, high, 1))
-    peak = range.wavelengths[range.values.argmin()]
-    return peak

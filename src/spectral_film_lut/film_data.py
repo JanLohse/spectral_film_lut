@@ -4,6 +4,8 @@ The main class for storing unprocessed film data.
 
 from dataclasses import dataclass
 
+import numpy as np
+
 
 @dataclass
 class FilmData:
@@ -28,7 +30,7 @@ class FilmData:
     lad: list[float] | None = None
     d_min_adjustment: bool | None = None
     log_sensitivity: list[dict[float, float]] | None = None
-    sensitivity: list[dict[float, float]] | None = None
+    sensitivity: np.ndarray | None = None
     spectral_density: list[dict[float, float]] | None = None
     d_ref_sd: dict[float, float] | None = None
     d_min_sd: dict[float, float] | None = None

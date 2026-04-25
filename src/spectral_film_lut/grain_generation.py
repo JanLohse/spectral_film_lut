@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from spectral_film_lut.config import DEFAULT_DTYPE
 from spectral_film_lut.css_theme import (
     BASE_COLOR,
     BUTTON_RADIUS,
@@ -40,7 +41,6 @@ from spectral_film_lut.gui_objects import (
     SliderLog,
     WideComboBox,
 )
-from spectral_film_lut.utils import DEFAULT_DTYPE
 
 
 @cache

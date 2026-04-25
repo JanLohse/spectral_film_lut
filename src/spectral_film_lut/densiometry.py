@@ -4,13 +4,10 @@ Here data and functions for handling and specifying density values is included.
 
 import colour
 import numpy as np
+from scipy import ndimage
 from scipy.optimize import least_squares
 
-from spectral_film_lut.utils import (
-    DEFAULT_DTYPE,
-    SPECTRAL_SHAPE,
-    construct_spectral_density,
-)
+from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
 
 STATUS_A = [
     {
@@ -347,6 +344,54 @@ DENSIOMETRY = {
     "absolute": STATUS_A,
 }
 """A dict with relevant density measures."""
+
+
+def wavelength_argmax(
+    distribution: colour.SpectralDistribution, low=None, high=None
+) -> int:
+    """Gets the argmax of a spectral distribution."""
+    range = distribution.copy()
+    if low is not None and high is not None:
+        range.trim(colour.SpectralShape(low, high, 1))
+    peak = range.wavelengths[range.values.argmax()]
+    return peak
+
+
+def wavelength_argmin(
+    distribution: colour.SpectralDistribution, low=None, high=None
+) -> int:
+    """Gets the argmax of a spectral distribution."""
+    range = distribution.copy()
+    if low is not None and high is not None:
+        range.trim(colour.SpectralShape(low, high, 1))
+    peak = range.wavelengths[range.values.argmin()]
+    return peak
+
+
+def construct_spectral_density(
+    ref_density: colour.SpectralDistribution, sigma=25
+) -> np.ndarray:
+    """Split single density curve into separate layers using local extrema."""
+    red_peak = wavelength_argmax(ref_density, 600, min(750, SPECTRAL_SHAPE.end))
+    green_peak = wavelength_argmax(ref_density, 500, 600)
+    blue_peak = wavelength_argmax(ref_density, max(400, SPECTRAL_SHAPE.start), 500)
+    bg_cutoff = wavelength_argmin(ref_density, blue_peak, green_peak)
+    gr_cutoff = wavelength_argmin(ref_density, green_peak, red_peak)
+
+    wavelengths = np.asarray(ref_density.wavelengths)
+    factors = np.stack(
+        (
+            np.where(gr_cutoff <= wavelengths, 1.0, 0.0),
+            np.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1.0, 0.0),
+            np.where(wavelengths <= bg_cutoff, 1.0, 0.0),
+        )
+    )
+    factors = ndimage.gaussian_filter(
+        factors, sigma=(0, sigma / SPECTRAL_SHAPE.interval)
+    ).astype(DEFAULT_DTYPE)
+
+    out = (factors * np.asarray(ref_density.values)).T
+    return out
 
 
 def compute_printer_lights() -> np.ndarray:

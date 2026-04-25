@@ -5,8 +5,8 @@ Color processing transforms not directly related to film.
 import colour
 import numpy as np
 
-from spectral_film_lut.color_space import COLOR_SPACES
-from spectral_film_lut.utils import DEFAULT_DTYPE
+from spectral_film_lut.color_space import COLOR_SPACES, GAMMA_FUNCTIONS
+from spectral_film_lut.config import DEFAULT_DTYPE
 from spectral_film_lut.xy_lut import apply_2d_lut, xyS_to_XYZ
 
 
@@ -179,6 +179,22 @@ def shadow_compensation(image: np.ndarray, intensity) -> np.ndarray:
         image = (a * (image ** (1 / gamma) + b) ** gamma - black) / (1 - black)
     elif intensity < 0:
         image = (((image * (1 - black) + black) / a) ** (1 / gamma) - b) ** gamma
+
+    return image
+
+
+def output_transform(
+    image: np.ndarray,
+    output_gamut,
+    sat_adjust: float,
+    lut_size=33,
+    shadow_comp=0.0,
+    gamma_func="Gamma 2.4",
+):
+    image = output_color_transform(image, output_gamut, sat_adjust, lut_size)
+    if shadow_comp:
+        image = shadow_compensation(image, shadow_comp)
+    image = GAMMA_FUNCTIONS[gamma_func](image)
 
     return image
 

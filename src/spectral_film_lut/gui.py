@@ -110,16 +110,16 @@ class MainWindow(QMainWindow):
         )
 
         colourspaces = ["CIE XYZ 1931"] + list(RGB_COLOURSPACES.data.keys())
-        self.input_colourspace_selector = WideComboBox()
+        self.input_colorspace_selector = WideComboBox()
         """
         What color space is the reference image in?
         """
-        self.input_colourspace_selector.addItems(colourspaces)
+        self.input_colorspace_selector.addItems(colourspaces)
         add_option(
-            self.input_colourspace_selector,
-            "Input colourspace",
+            self.input_colorspace_selector,
+            "Input colorspace",
             "ARRI Wide Gamut 4",
-            self.input_colourspace_selector.setCurrentText,
+            self.input_colorspace_selector.setCurrentText,
             tool_tip="What color space is the reference image in?",
         )
 
@@ -571,7 +571,7 @@ film stocks.
             self.noise_button, tool_tip="""Open the grain overlay export dialog."""
         )
 
-        self.input_colourspace_selector.currentTextChanged.connect(
+        self.input_colorspace_selector.currentTextChanged.connect(
             self.parameter_changed
         )
         self.negative_selector.currentTextChanged.connect(self.negative_changed)
@@ -612,14 +612,14 @@ film stocks.
     def generate_lut(self, name="temp", cube=True):
         negative_film = self.filmstocks[self.negative_selector.currentText()]
         print_film = self.filmstocks[self.print_selector.currentText()]
-        input_colourspace = self.input_colourspace_selector.currentText()
+        input_colorspace = self.input_colorspace_selector.currentText()
         projector_kelvin = self.projector_kelvin.getValue()
         exp_comp = self.exp_comp.getValue()
         red_light = self.red_light.getValue()
         green_light = self.green_light.getValue()
         blue_light = self.blue_light.getValue()
-        if input_colourspace == "CIE XYZ 1931":
-            input_colourspace = None
+        if input_colorspace == "CIE XYZ 1931":
+            input_colorspace = None
         output_gamut = self.output_gamut.currentText()
         gamma_func = self.output_gamma.currentText()
         if output_gamut == "CIE XYZ 1931":
@@ -641,10 +641,9 @@ film stocks.
             negative_film,
             print_film,
             name=name,
-            matrix_method=False,
             lut_size=size,
             cube=cube,
-            input_colourspace=input_colourspace,
+            input_colorspace=input_colorspace,
             output_gamut=output_gamut,
             gamma_func=gamma_func,
             projector_kelvin=projector_kelvin,

@@ -5,7 +5,7 @@ Spectral data on the Kodak Wratten filters.
 import colour
 import numpy as np
 
-from spectral_film_lut.utils import SPECTRAL_SHAPE
+from spectral_film_lut.config import SPECTRAL_SHAPE
 
 WRATTEN = {
     "2A": {

@@ -45,7 +45,7 @@ import numpy as np
 from numba import njit, prange
 from scipy.optimize import nnls
 
-from spectral_film_lut.utils import DEFAULT_DTYPE, SPECTRAL_SHAPE
+from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
 
 XYZ_CMFS = np.asarray(
     colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"]
