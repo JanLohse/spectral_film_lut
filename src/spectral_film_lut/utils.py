@@ -36,6 +36,7 @@ def film_conversion(
     blue_light: float = 0.0,
     projector_kelvin: int | float = 6500,
     white_comp: bool = True,
+    white_balance: bool = True,
     output_gamut: COLOR_SPACE_KEYS = "Rec. 709",
     sat_adjust: float = 1.0,
     shadow_comp: float = 0.0,
@@ -69,6 +70,7 @@ def film_conversion(
         projector_kelvin: The white balance in kelvin of the projection or viewing
             illuminant.
         white_comp: Whether to adjust the output brightness that it clips at exactly 1.
+        white_balance: Whether to white balance slide film.
         output_gamut: The gamut of the output color space.
         sat_adjust: A saturation adjustment factor applied in OkLab. 1.0 for neutral,
             0.0 for monochrome, and >1.0 for increased saturation.
@@ -104,7 +106,13 @@ def film_conversion(
         else:
             output_film = negative_film
 
-        image = output_film.project(image, projector_kelvin, color_masking, white_comp)
+        image = output_film.project(
+            image,
+            projector_kelvin,
+            color_masking,
+            white_comp,
+            white_balance and print_film is None,
+        )
 
         image = output_transform(
             image,

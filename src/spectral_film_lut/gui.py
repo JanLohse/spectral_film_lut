@@ -414,6 +414,15 @@ When viewing slide film white balancing is applied, so that a gray patch will
 actually produce the color temperature specified by the  projector kelvin.
         """,
         )
+        self.white_balance = QCheckBox()
+        """Whether to white balance slide film."""
+        add_option(
+            self.white_balance,
+            "White balance",
+            True,
+            self.white_balance.setChecked,
+            tool_tip="Whether to white balance slide film.",
+        )
 
         self.sat_adjust = Slider()
         self.sat_adjust.set_color_gradient(
@@ -590,6 +599,7 @@ film stocks.
         self.shadow_comp.valueChanged.connect(self.parameter_changed)
         self.color_masking.valueChanged.connect(self.parameter_changed)
         self.white_comp.stateChanged.connect(self.parameter_changed)
+        self.white_balance.stateChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
         self.sat_adjust.valueChanged.connect(self.parameter_changed)
         self.adx_scale.currentTextChanged.connect(self.parameter_changed)
@@ -626,6 +636,7 @@ film stocks.
             output_gamut = None
         size = int(self.lut_size.getValue())
         white_comp = self.white_comp.isChecked()
+        white_balance = self.white_balance.isChecked()
         shadow_comp = self.shadow_comp.getValue()
         color_masking = self.color_masking.getValue()
         mode = self.mode.currentText()
@@ -649,6 +660,7 @@ film stocks.
             projector_kelvin=projector_kelvin,
             exp_comp=exp_comp,
             white_comp=white_comp,
+            white_balance=white_balance,
             exp_kelvin=exp_wb,
             mode=mode,
             red_light=red_light,

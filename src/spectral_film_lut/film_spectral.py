@@ -644,7 +644,10 @@ class FilmSpectral:
         return printer_light
 
     def compute_projection_light(
-        self, projector_kelvin=5500, reference_kelvin=6504, white_comp=True
+        self,
+        projector_kelvin: int | float = 5500,
+        reference_kelvin: int | float = 6504,
+        white_comp: bool = True,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Computes a projection light of the specified temperature whose intensity is
@@ -1037,10 +1040,11 @@ class FilmSpectral:
 
     def project(
         self,
-        image,
-        projector_kelvin=6500,
+        image: np.ndarray,
+        projector_kelvin: int | float = 6500,
         color_masking: None | float = None,
-        white_comp=False,
+        white_comp: bool = False,
+        white_balance: bool = False,
     ):
         """
         Get the scene referred output from projection or viewing under an illuminant.
@@ -1056,9 +1060,10 @@ class FilmSpectral:
                 film) should be set quite low.
             white_comp: Whether to adjust the output brightness that it clips at exactly
                 1.
+            white_balance: Whether to adjust
 
         Returns:
-
+            The projected image in linear CIE XYZ color space.
         """
         if self.density_measure == "bw":
             image = 1 / 10**-self.d_min * 10**-image
@@ -1077,17 +1082,15 @@ class FilmSpectral:
             output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
             density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
 
+            if white_balance:
+                mid_gray = (
+                    10 ** -(self.get_d_ref(color_masking) @ density_mat.T) @ output_mat
+                )
+                out_gray = np.asarray(CCT_to_XYZ(projector_kelvin, mid_gray[1]))
+                output_mat = np.asarray(
+                    colour.chromatic_adaptation(output_mat, mid_gray, out_gray)
+                )
+
             image = 10 ** -(image @ density_mat.T) @ output_mat
-            # TODO: return functionality
-            # if (
-            #     output_film.density_measure == "status_a"
-            #     and print_film is None
-            #     and white_balance
-            # ):
-            #     mid_gray = pipeline[-1][0](output_film.get_d_ref(color_masking))
-            #     out_gray = np.asarray(CCT_to_XYZ(output_kelvin, mid_gray[1]))
-            #     output_mat = np.asarray(
-            #         colour.chromatic_adaptation(output_mat, mid_gray, out_gray)
-            #     )
 
         return image
