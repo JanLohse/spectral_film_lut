@@ -91,6 +91,7 @@ show_bases = true
 allow_inspection = false
 backlinks = true
 modernize_annotations = true
+scoped_crossrefs = true
 
 [project.markdown_extensions.pymdownx.superfences]
 [project.markdown_extensions.pymdownx.tabbed]

@@ -25,49 +25,61 @@ def film_conversion(
     print_film=None,
     mode: MODES = "full",
     input_colorspace: LiteralRGBColourspace | None = None,
-    exp_kelvin=6500,
-    tint=0.0,
-    exp_comp=0.0,
+    exp_kelvin: int | float = 6500,
+    tint: float = 0.0,
+    exp_comp: float = 0.0,
     color_masking: None | float = None,
-    adx_scaling=1.0,
-    adx_coding=True,
-    red_light=0.0,
-    green_light=0.0,
-    blue_light=0.0,
-    projector_kelvin=6500,
-    white_comp=True,
+    adx_coding: bool = True,
+    adx_scaling: float | int = 1.0,
+    red_light: float = 0.0,
+    green_light: float = 0.0,
+    blue_light: float = 0.0,
+    projector_kelvin: int | float = 6500,
+    white_comp: bool = True,
     output_gamut: COLOR_SPACE_KEYS = "Rec. 709",
-    sat_adjust=1.0,
-    shadow_comp=0.0,
+    sat_adjust: float = 1.0,
+    shadow_comp: float = 0.0,
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
-):
+) -> np.ndarray:
     """
-    TODO
+    Emulates the full film pipeline including exposure, printing, and projection.
 
     Args:
-        image:
-        negative_film:
-        print_film:
-        mode:
-        input_colorspace:
-        exp_kelvin:
-        tint:
-        exp_comp:
-        color_masking:
-        adx_scaling:
-        adx_coding:
-        red_light:
-        green_light:
-        blue_light:
-        projector_kelvin:
-        white_comp:
-        output_gamut:
-        sat_adjust:
-        shadow_comp:
-        gamma_func:
+        image: The image (or LUT) containing the scene referred data.
+        negative_film: The film stock to capture the scene.
+        print_film: The optional print stock.
+        mode: Which part of the pipeline to emulate.
+        input_colorspace: The colorspace if the image. If None CIE XYZ is used.
+        exp_kelvin: The scene WB in kelvin.
+        tint: The tint adjustment on the green -- red/purple axis.
+        exp_comp: Exposure compensation in stops.
+        color_masking: How strong the color mask is on the negative film. 0 for no mask.
+            1 for a perfectly optimized mask (no pollution of other layers). >1 for
+            increased saturation. Most film stocks don't provide exact data. For films
+            with orange mask can be close to 1, for other (e.g. slide film) should be
+            set quite low.
+        adx_scaling: When ADX encoding is used for negative/print/grain stages, what is
+            by what factor to divide the output. For 1.0 we have pure ADX16 with a max
+            density of 8, and for 4.0 we have ADX10 with a max density of 2.
+        adx_coding: Whether to activate ADX encoding for partial pipelines. Ensures
+            values stay within [0, 1] range. Necessary for save LUT generation.
+        red_light: Offset of the red printer light from neutral.
+        green_light: Offset of the green printer light from neutral.
+        blue_light: Offset of the blue printer light from neutral.
+        projector_kelvin: The white balance in kelvin of the projection or viewing
+            illuminant.
+        white_comp: Whether to adjust the output brightness that it clips at exactly 1.
+        output_gamut: The gamut of the output color space.
+        sat_adjust: A saturation adjustment factor applied in OkLab. 1.0 for neutral,
+            0.0 for monochrome, and >1.0 for increased saturation.
+        shadow_comp: Shadow compensation to smoothly brighten or dark areas without
+            clipped details. Function is based on the ITU Bt.1886 function and acts like
+            a OOTF or inverse OOTF function for values of 1.0 and -1.0.
+        gamma_func: The gamma function the output is encoded with.
 
     Returns:
-
+        An image (or LUT) representing the transformed scene data after (partial) film
+        emulation.
     """
     image = np.ascontiguousarray(image)
 
@@ -111,12 +123,12 @@ def film_conversion(
 def create_lut(
     negative_film,
     print_film=None,
-    lut_size=33,
-    name="test",
-    cube=True,
-    verbose=False,
+    lut_size: int = 33,
+    name: str = "test",
+    cube: bool = True,
+    verbose: bool = False,
     **kwargs,
-):
+) -> np.ndarray | str:
     """
     Creates a cube LUT from using `.film_spectral.FilmSpectral.generate_conversion`.
     """
@@ -140,7 +152,7 @@ def create_lut(
 
 
 def multi_channel_interp(
-    x,
+    x: np.ndarray,
     xps,
     fps,
     num_bins=1024,
@@ -259,7 +271,7 @@ def uniform_multi_channel_interp(
 
 @njit(parallel=True)
 def apply_lut_tetrahedral_int(
-    image: np.ndarray, lut, bit_depth=16, out_bit_depth=8
+    image: np.ndarray, lut: np.ndarray, bit_depth: int = 16, out_bit_depth: int = 8
 ) -> np.ndarray:
     """Apply a 3D LUT using tetrahedral interpolation.
 

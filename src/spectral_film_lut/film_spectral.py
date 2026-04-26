@@ -805,10 +805,22 @@ class FilmSpectral:
         xps = [rms_density for rms_density in self.rms_density]
         fps = [rms * std_factor[i] for i, rms in enumerate(self.rms_curve)]
         noise_factors = multi_channel_interp(rgb, xps, fps)
+
         return noise_factors
 
-    def get_input_lut(self, exposure_kelvin, tint, exp_comp):
-        """TODO"""
+    def get_input_lut(self, exposure_kelvin=6500, tint=0.0, exp_comp=0.0) -> np.ndarray:
+        """
+        Compute a 2D LUT for use with [`apply_2d_lut`][] that converts from scene linear
+        CIE XYZ the per layer exposure.
+
+        Args:
+            exposure_kelvin: The scene WB in kelvin.
+            tint: The tint adjustment on the green -- red/purple axis.
+            exp_comp: Exposure compensation in stops.
+
+        Returns:
+            The 2D LUT of shape (n, n, 3).
+        """
         exp_comp = 2**exp_comp
         gray_XYZ = CCT_to_XYZ(exposure_kelvin, 0.18, tint)
         reference_XYZ = CCT_to_XYZ(6504, 0.18)
@@ -827,7 +839,7 @@ class FilmSpectral:
         return spectral_input_lut
 
     def compute_lad(self, luminance=0.1):
-        """TODO"""
+        """Find the Lab Aim Density for a neutral gray."""
         projection_light, xyz_cmfs = self.compute_projection_light(
             projector_kelvin=6504
         )
@@ -838,19 +850,36 @@ class FilmSpectral:
         return lad
 
     def layer_activation_to_apd_matrix(self, color_masking: None | float = None):
-        """TODO"""
+        """
+        Get the matrix that converts from layer activation to ACES Printing Density for
+        ADX encoding.
+        """
         if self.density_measure == "bw":
             return np.ones((1, 1), dtype=DEFAULT_DTYPE)
         return APD.T @ self.get_spectral_density(color_masking)
 
     def apd_to_layer_activation_matrix(self, color_masking: None | float = None):
-        """TODO"""
+        """
+        Get the matrix that converts from ACES Printing Density to layer activation for
+        ADX decoding.
+        """
         if self.density_measure == "bw":
             return np.ones((1, 1), dtype=DEFAULT_DTYPE)
         return np.linalg.inv(self.layer_activation_to_apd_matrix(color_masking))
 
     def adx_encoding(self, image, scaling=1.0, color_masking: None | float = None):
-        """TODO"""
+        """
+        Encode layer activation in absolute densities as ADX16 data in the [0, 1] range.
+
+        Args:
+            image: The image (or LUT) containing layer activations.
+            scaling: Linear scaling applied to the values.
+                For 1.0 it is ADX16-like and for 4.0 it is ADX10-like.
+            color_masking: The color masking assumed for the layer activations.
+
+        Returns:
+            The image (or LUT) encoded in ADX.
+        """
         image @= self.layer_activation_to_apd_matrix(color_masking).T
 
         image = adx16_encode(image, scaling=scaling)
@@ -858,7 +887,19 @@ class FilmSpectral:
         return image
 
     def adx_decoding(self, image, scaling=1.0, color_masking: None | float = None):
-        """TODO"""
+        """
+        Decode layer activation from ADX16 data in the [0, 1] range to absolute
+        densities.
+
+        Args:
+            image: The image (or LUT) encoded in ADX.
+            scaling: Linear scaling applied to the endoced values.
+                For 1.0 it is ADX16-like and for 4.0 it is ADX10-like.
+            color_masking: The color masking assumed for the layer activations.
+
+        Returns:
+            The image (or LUT) represented as absolute layer activations.
+        """
         if self.density_measure == "bw":
             image = image[..., 0][..., np.newaxis]  # reduce dim
 
@@ -877,7 +918,25 @@ class FilmSpectral:
         tint=0.0,
         color_masking: None | float = None,
     ):
-        """TODO"""
+        """
+        Transform from scene referred image data to the per layer activation in absolute
+        densities.
+
+        Args:
+            image: The image (or LUT) in a scene referred color space.
+            colorspace: What color space the input is encoded in.
+            exp_comp: The exposure adjustment.
+            exp_kelvin: The scene white balance in kelving.
+            tint: The tint adjustment on the green -- red/purple axis.
+            color_masking: How strong the color mask is on the negative film. 0 for no
+                mask. 1 for a perfectly optimized mask (no pollution of other layers).
+                >1 for increased saturation. Most film stocks don't provide exact data.
+                For films with orange mask can be close to 1, for other (e.g. slide
+                film) should be set quite low.
+
+        Returns:
+            The resulting layer activation as densities.
+        """
         if colorspace is not None:
             image = colour.RGB_to_XYZ(image, colorspace, apply_cctf_decoding=True)
 
@@ -900,6 +959,26 @@ class FilmSpectral:
         green_light=0.0,
         blue_light=0.0,
     ):
+        """
+        Print to another film stock.
+
+        Args:
+            image: The image (or LUT) containing layer activations in absolute
+                densities.
+            negative_film: The film stock from which to print.
+            print_film: The film stock to print onto.
+            color_masking: How strong the color mask is on the negative film. 0 for no
+                mask. 1 for a perfectly optimized mask (no pollution of other layers).
+                >1 for increased saturation. Most film stocks don't provide exact data.
+                For films with orange mask can be close to 1, for other (e.g. slide
+                film) should be set quite low.
+            red_light: Offset of the red printer light from neutral.
+            green_light: Offset of the green printer light from neutral.
+            blue_light: Offset of the blue printer light from neutral.
+
+        Returns:
+            The resulting layer activations of the print stock.
+        """
         return self.printing_process(
             image, self, print_film, color_masking, red_light, green_light, blue_light
         )
@@ -914,7 +993,26 @@ class FilmSpectral:
         green_light=0.0,
         blue_light=0.0,
     ):
-        """TODO"""
+        """
+        Print from one film stock onto another.
+
+        Args:
+            image: The image (or LUT) containing layer activations in absolute
+                densities.
+            negative_film: The film stock from which to print.
+            print_film: The film stock to print onto.
+            color_masking: How strong the color mask is on the negative film. 0 for no
+                mask. 1 for a perfectly optimized mask (no pollution of other layers).
+                >1 for increased saturation. Most film stocks don't provide exact data.
+                For films with orange mask can be close to 1, for other (e.g. slide
+                film) should be set quite low.
+            red_light: Offset of the red printer light from neutral.
+            green_light: Offset of the green printer light from neutral.
+            blue_light: Offset of the blue printer light from neutral.
+
+        Returns:
+            The resulting layer activations of the print stock.
+        """
         if negative_film.density_measure == print_film.density_measure == "bw":
             image = -image + print_film.log_H_ref + negative_film.d_ref + green_light
         else:
@@ -944,7 +1042,24 @@ class FilmSpectral:
         color_masking: None | float = None,
         white_comp=False,
     ):
-        """TODO"""
+        """
+        Get the scene referred output from projection or viewing under an illuminant.
+
+        Args:
+            image: The image (or LUT) containing layer activations in absolute
+                densities.
+            projector_kelvin: The white balance in kelvin of the projection lamp.
+            color_masking: How strong the color mask is on the negative film. 0 for no
+                mask. 1 for a perfectly optimized mask (no pollution of other layers).
+                >1 for increased saturation. Most film stocks don't provide exact data.
+                For films with orange mask can be close to 1, for other (e.g. slide
+                film) should be set quite low.
+            white_comp: Whether to adjust the output brightness that it clips at exactly
+                1.
+
+        Returns:
+
+        """
         if self.density_measure == "bw":
             image = 1 / 10**-self.d_min * 10**-image
 

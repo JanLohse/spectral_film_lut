@@ -5,7 +5,12 @@ Color processing transforms not directly related to film.
 import colour
 import numpy as np
 
-from spectral_film_lut.color_space import COLOR_SPACES, GAMMA_FUNCTIONS
+from spectral_film_lut.color_space import (
+    COLOR_SPACE_KEYS,
+    COLOR_SPACES,
+    GAMMA_FUNCTIONS,
+    GAMMA_KEYS,
+)
 from spectral_film_lut.config import DEFAULT_DTYPE
 from spectral_film_lut.xy_lut import apply_2d_lut, xyS_to_XYZ
 
@@ -71,7 +76,7 @@ COLORCHECKER_2005 = COLORCHECKER_2005[1:]
 COLORCHECKER_2005 = np.asarray(COLORCHECKER_2005, DEFAULT_DTYPE)
 
 
-def gamut_compression(image: np.ndarray, strength=0.95):
+def gamut_compression(image: np.ndarray, strength: float = 0.95) -> np.ndarray:
     """
     A simple gamut compression that limits the maximal relative distance from the
     achromatic. Inspired by ACES Reference Gamut Compression. Has been simplified
@@ -102,7 +107,10 @@ def gamut_compression(image: np.ndarray, strength=0.95):
 
 
 def output_color_transform(
-    image, output_gamut, sat_adjust: float, lut_size=33
+    image: np.ndarray,
+    output_gamut: COLOR_SPACE_KEYS = "Rec. 709",
+    sat_adjust: float = 1.0,
+    lut_size: int = 33,
 ) -> np.ndarray:
     """
     Transform from XYZ to the target gamut and adjust the saturation.
@@ -146,7 +154,7 @@ def output_color_transform(
     return image
 
 
-def shadow_compensation(image: np.ndarray, intensity) -> np.ndarray:
+def shadow_compensation(image: np.ndarray, intensity: float = 0.0) -> np.ndarray:
     """
     Raises or lowers shadows. Has been computed to act as an OOTF for the ITU-R
     BT.1886 curve. Setting gamma to Gamma 2.4 and Black offset to 1.0 will yield
@@ -158,8 +166,6 @@ def shadow_compensation(image: np.ndarray, intensity) -> np.ndarray:
         image: The image to transform. Assumed to be in linear gamma.
         intensity: How much to lift or lower particularly dark areas. For 0 no
             effect, 1 and -1 act as forward and inverse OOTFs respectively.
-        gamma: The assumed viewing gamma for the OOTF modeling.
-        black_level: The assumed viewing black level for OOTF modeling.
 
     Returns:
         The shadow compensated image.
@@ -185,11 +191,11 @@ def shadow_compensation(image: np.ndarray, intensity) -> np.ndarray:
 
 def output_transform(
     image: np.ndarray,
-    output_gamut,
-    sat_adjust: float,
-    lut_size=33,
-    shadow_comp=0.0,
-    gamma_func="Gamma 2.4",
+    output_gamut: COLOR_SPACE_KEYS,
+    sat_adjust: float = 1.0,
+    lut_size: int = 33,
+    shadow_comp: float = 0.0,
+    gamma_func: GAMMA_KEYS = "Gamma 2.4",
 ):
     image = output_color_transform(image, output_gamut, sat_adjust, lut_size)
     if shadow_comp:
@@ -199,7 +205,7 @@ def output_transform(
     return image
 
 
-def CCT_to_XYZ(CCT: float | int, Y=1.0, tint=0.0):
+def CCT_to_XYZ(CCT: float | int, Y: float = 1.0, tint: float = 0.0):
     """Converts from a color temperature in kelvin to a XYZ triplet."""
     xy = CCT_to_xy(CCT)
     xyY = (xy[0], xy[1], Y)

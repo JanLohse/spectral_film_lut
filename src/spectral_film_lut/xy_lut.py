@@ -102,7 +102,7 @@ def XYZ_to_xyS(XYZ):
 
 
 @njit(parallel=True)
-def apply_2d_lut(image, lut):
+def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
     """
     Apply a 2D lookup table (LUT) in chromaticity space with barycentric interpolation.
 

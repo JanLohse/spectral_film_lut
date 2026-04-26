@@ -633,7 +633,9 @@ def adx16_encode(apd: np.ndarray, apd_min=None, scaling=1.0) -> np.ndarray:
     return adx
 
 
-def adx16_decode(adx: np.ndarray, apd_min=None, scaling=1.0):
+def adx16_decode(
+    adx: np.ndarray, apd_min: np.ndarray | None = None, scaling: float = 1.0
+):
     """
     Converts from ADX16 values to absolute APD density.
     Instead of as 16 bit int the output is expected as a float in the range [0, 1].
@@ -664,7 +666,13 @@ def adx16_decode(adx: np.ndarray, apd_min=None, scaling=1.0):
     return apd
 
 
-def output_to_density(y, a, b, x0=None, method="lm"):
+def output_to_density(
+    y: np.ndarray,
+    a: np.ndarray,
+    b: np.ndarray,
+    x0: np.ndarray | None = None,
+    method: str = "lm",
+) -> np.ndarray:
     """
     Numerically invert the mapping:
         y = (10 ** -(x @ a.T)) @ b
