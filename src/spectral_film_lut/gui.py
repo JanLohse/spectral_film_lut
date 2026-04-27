@@ -277,8 +277,10 @@ class MainWindow(QMainWindow):
         How much to push or pull the film, adjusting contrast. Works linearly scaling
         the characteristic curve of the film. Not based on measured data, but a rough
         approximation, useful for controlling contrast.
+
+        Not recommended for use with slide film.
         """
-        self.push_pull.setMinMaxTicks(-3, 3, 1, 4)
+        self.push_pull.setMinMaxTicks(-1.5, 1.5, 1, 20)
         add_option(
             self.push_pull,
             "Push/pull",
@@ -287,7 +289,46 @@ class MainWindow(QMainWindow):
             tool_tip="How much to push or pull the film, adjusting contrast.\n"
             "Works linearly scaling the characteristic curve of the film.\n"
             "Not based on measured data, but a rough approximation useful\n"
-            "for controlling contrast.",
+            "for controlling contrast.\n"
+            "Not recommended for use with slide film.",
+        )
+
+        self.color_masking = Slider()
+        """
+        How effective the orange color mask of the film is. Value of 1 perfectly
+        compensates for color layer cross contamination. An increased value leads to
+        higher saturation. There is no documented data on this, so you can play around
+        with this to your liking.
+
+        For film without a color mask like slide film this can be used to simulate other
+        inter-layer effects. Should probably set lower, but should be experimented with.
+        """
+        self.color_masking.setMinMaxTicks(0, 2, 1, 10, 1)
+        self.color_masking.set_color_gradient(
+            np.array(
+                [
+                    0.666,
+                    0.0,
+                    0.0,
+                ]
+            ),
+            np.array([0.666, 0.25, 2.0]),
+            20,
+            False,
+        )
+        add_option(
+            self.color_masking,
+            "Color masking",
+            1,
+            self.color_masking.setValue,
+            tool_tip="How effective the orange color mask of the film is. Value of 1\n"
+            "perfectly compensates for color layer cross contamination. An\n"
+            "increased value leads to higher saturation. There is no\n"
+            "documented data on this, so you can play around with this to\n"
+            "your liking.\n"
+            "For film without a color mask like slide film this\n"
+            "can be used to simulate other inter-layer effects. Should\n"
+            "probably set lower, but should be experimented with.",
         )
 
         luma_bright = 0.8
@@ -501,32 +542,6 @@ class MainWindow(QMainWindow):
             33,
             self.lut_size.setValue,
             tool_tip="The size of the LUT table.",
-        )
-
-        self.color_masking = Slider()
-        """
-        How effective the orange color mask of the film is. Value of 1 perfectly
-        compensates for color layer cross contamination. An increased value leads to
-        higher saturation. There is no documented data on this, so you can play around
-        with this to your liking.
-
-        For film without a color mask like slide film this can be used to simulate other
-        inter-layer effects. Should probably set lower, but should be experimented with.
-        """
-        self.color_masking.setMinMaxTicks(0, 2, 1, 10, 1)
-        add_option(
-            self.color_masking,
-            "Color masking",
-            1,
-            self.color_masking.setValue,
-            tool_tip="How effective the orange color mask of the film is. Value of 1\n"
-            "perfectly compensates for color layer cross contamination. An\n"
-            "increased value leads to higher saturation. There is no\n"
-            "documented data on this, so you can play around with this to\n"
-            "your liking.\n"
-            "For film without a color mask like slide film this\n"
-            "can be used to simulate other inter-layer effects. Should\n"
-            "probably set lower, but should be experimented with.",
         )
 
         self.mode = WideComboBox(self)

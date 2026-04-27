@@ -526,7 +526,7 @@ class FilmSpectral:
         log_exposure: np.ndarray,
         color_masking: None | float = None,
         push_pull: float = 0.0,
-    ):
+    ) -> np.ndarray:
         """
         Convert log_exposure to density values for current film stock.
 
@@ -559,7 +559,7 @@ class FilmSpectral:
         if color_masking is None:
             color_masking = self.color_masking
         if self.density_curve_pure is None:
-            density_curve = self.density_curve
+            density_curve = [self.density_curve[0].copy()]
         else:
             density_curve = [
                 a * color_masking + b * (1 - color_masking)
@@ -569,13 +569,12 @@ class FilmSpectral:
         log_exposure = self.log_exposure
 
         if push_pull != 0:
-            idx = 0 if len(density_curve) == 1 else 1
-            d_ref = np.interp(self.log_H_ref[idx], log_exposure, density_curve[idx])
-            log_exposure = log_exposure + push_pull * math.log10(2)
-            d_post = np.interp(self.log_H_ref[idx], log_exposure, density_curve[idx])
-            scaling = d_ref / d_post
-            # TODO: try per layer scaling
-            density_curve = [x * scaling for x in density_curve]
+            push_pull *= math.log10(2)
+            log_exposure = log_exposure + push_pull
+            for curve in density_curve:
+                d_ref = np.interp(self.log_H_ref[0] + push_pull, log_exposure, curve)
+                d_post = np.interp(self.log_H_ref[0], log_exposure, curve)
+                curve *= d_ref / d_post
 
         log_exposure = [log_exposure] * len(density_curve)
 
