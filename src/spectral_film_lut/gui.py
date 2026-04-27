@@ -103,10 +103,8 @@ class MainWindow(QMainWindow):
         add_option(
             self.image_selector,
             "Reference image",
-            tool_tip="""
-            Select which image to use for the preview. Should be encoded in the target
-            color space of the LUT.
-            """,
+            tool_tip="Select which image to use for the preview. Should be encoded in\n"
+            "the target color space of the LUT.",
         )
 
         colourspaces = ["CIE XYZ 1931"] + list(RGB_COLOURSPACES.data.keys())
@@ -134,10 +132,8 @@ class MainWindow(QMainWindow):
             "Exposure",
             0,
             self.exp_comp.setValue,
-            tool_tip="""
-Compensate for exposure. Default assumes middle gray to be at the default from the color
-space spec.
-        """,
+            tool_tip="Compensate for exposure. Default assumes middle gray to be at\n"
+            "the default from the color space spec.",
         )
 
         self.exp_wb = SliderLog()
@@ -154,9 +150,8 @@ space spec.
             "WB",
             6500,
             self.exp_wb.setValue,
-            tool_tip="""
-Adjust the white balance of the image. Default assumes white to be at 6500 kelvin.
-        """,
+            tool_tip="Adjust the white balance of the image. Default assumes white to\n"
+            "be at 6500 kelvin.",
         )
 
         self.tint = Slider()
@@ -172,9 +167,7 @@ Adjust the white balance of the image. Default assumes white to be at 6500 kelvi
             "Tint",
             0,
             self.tint.setValue,
-            tool_tip="""
-Adjust the tint along the green to red/purple axis.
-        """,
+            tool_tip="Adjust the tint along the green to red/purple axis.",
         )
 
         filmstock_info = {
@@ -276,7 +269,25 @@ Adjust the tint along the green to red/purple axis.
             "Negativ stock",
             "Kodak Vision3 250D 5207",
             self.negative_selector.setCurrentText,
-            tool_tip="""Select the camera film stock that is emulated.""",
+            tool_tip="Select the camera film stock that is emulated.",
+        )
+
+        self.push_pull = Slider()
+        """
+        How much to push or pull the film, adjusting contrast. Works linearly scaling
+        the characteristic curve of the film. Not based on measured data, but a rough
+        approximation, useful for controlling contrast.
+        """
+        self.push_pull.setMinMaxTicks(-3, 3, 1, 4)
+        add_option(
+            self.push_pull,
+            "Push/pull",
+            0.0,
+            self.push_pull.setValue,
+            tool_tip="How much to push or pull the film, adjusting contrast.\n"
+            "Works linearly scaling the characteristic curve of the film.\n"
+            "Not based on measured data, but a rough approximation useful\n"
+            "for controlling contrast.",
         )
 
         luma_bright = 0.8
@@ -295,7 +306,7 @@ Adjust the tint along the green to red/purple axis.
             "Red printer light",
             0,
             self.red_light.setValue,
-            tool_tip="""Intensity of the red light during printing.""",
+            tool_tip="Intensity of the red light during printing.",
         )
         self.green_light = Slider()
         """Intensity of the green light during printing."""
@@ -309,7 +320,7 @@ Adjust the tint along the green to red/purple axis.
             "Green printer light",
             0,
             self.green_light.setValue,
-            tool_tip="""Intensity of the green light during printing.""",
+            tool_tip="Intensity of the green light during printing.",
         )
         self.blue_light = Slider()
         """Intensity of the blue light during printing."""
@@ -323,7 +334,7 @@ Adjust the tint along the green to red/purple axis.
             "Blue printer light",
             0,
             self.blue_light.setValue,
-            tool_tip="""Intensity of the blue light during printing.""",
+            tool_tip="Intensity of the blue light during printing.",
         )
 
         self.link_lights = QCheckBox()
@@ -332,7 +343,7 @@ Adjust the tint along the green to red/purple axis.
         self.link_lights.setText("link lights")
         add_option(
             self.link_lights,
-            tool_tip="""Connect the sliders of all printer lights together.""",
+            tool_tip="Connect the sliders of all printer lights together.",
         )
 
         print_info = {x: y for x, y in filmstock_info.items() if y["stage"] == "print"}
@@ -373,12 +384,10 @@ Adjust the tint along the green to red/purple axis.
             "Print stock",
             "Kodak Vision 2383",
             self.print_selector.setCurrentText,
-            tool_tip="""
-What print material to simulate.
-For slide film it should normally be set to `None`.
-If `None` is selected for negative film a digital scan with a simple mathematical
-inversion is simulated.
-        """,
+            tool_tip="What print material to simulate. For slide film it should\n"
+            "normally be set to `None`. If `None` is selected for negative\n"
+            "film a digital scan with a simple mathematical inversion is\n"
+            "simulated.",
         )
 
         self.projector_kelvin = SliderLog()
@@ -392,9 +401,8 @@ inversion is simulated.
             "Projector wb",
             6500,
             self.projector_kelvin.setValue,
-            tool_tip="""
-            The color of the projection lamp or the viewing lamp for paper prints.
-            """,
+            tool_tip="The color of the projection lamp or the viewing lamp for paper \n"
+            "prints.",
         )
 
         self.white_comp = QCheckBox()
@@ -408,11 +416,10 @@ inversion is simulated.
             "White adjust",
             True,
             self.white_comp.setChecked,
-            tool_tip="""
-When viewing print film brightness will be increased to clip at exactly 1.0.
-When viewing slide film white balancing is applied, so that a gray patch will
-actually produce the color temperature specified by the  projector kelvin.
-        """,
+            tool_tip="When viewing print film brightness will be increased to clip at\n"
+            "exactly 1.0. When viewing slide film white balancing is\n"
+            "applied, so that a gray patch will actually produce the color\n"
+            "temperature specified by the  projector kelvin.",
         )
         self.white_balance = QCheckBox()
         """Whether to white balance slide film."""
@@ -444,9 +451,8 @@ actually produce the color temperature specified by the  projector kelvin.
             "Sat",
             1,
             self.sat_adjust.setValue,
-            tool_tip="""
-A simple post processing saturation slider. Not physically based.
-            """,
+            tool_tip="A simple post processing saturation slider. Not physically\n"
+            "based.",
         )
 
         self.shadow_comp = Slider()
@@ -460,8 +466,8 @@ A simple post processing saturation slider. Not physically based.
             "Shadow comp.",
             0.0,
             self.shadow_comp.setValue,
-            tool_tip="""Lift or lower dark areas. For 1 or -1 it acts like an OOTF or
-inverse OOTF respectively.""",
+            tool_tip="Lift or lower dark areas. For 1 or -1 it acts like an OOTF or\n"
+            "inverse OOTF respectively.",
         )
 
         self.output_gamut = WideComboBox(self)
@@ -472,7 +478,7 @@ inverse OOTF respectively.""",
             "Output gamut",
             "Rec. 709",
             self.output_gamut.setCurrentText,
-            tool_tip="""In what color space to encode the output.""",
+            tool_tip="In what color space to encode the output.",
         )
 
         self.output_gamma = WideComboBox(self)
@@ -483,7 +489,7 @@ inverse OOTF respectively.""",
             "Output gamma",
             "Gamma 2.4",
             self.output_gamma.setCurrentText,
-            tool_tip="""Gamma function to apply for encoding.""",
+            tool_tip="Gamma function to apply for encoding.",
         )
 
         self.lut_size = Slider()
@@ -494,7 +500,7 @@ inverse OOTF respectively.""",
             "LUT size",
             33,
             self.lut_size.setValue,
-            tool_tip="""The size of the LUT table.""",
+            tool_tip="The size of the LUT table.",
         )
 
         self.color_masking = Slider()
@@ -513,14 +519,14 @@ inverse OOTF respectively.""",
             "Color masking",
             1,
             self.color_masking.setValue,
-            tool_tip="""
-How effective the orange color mask of the film is. Value of 1 perfectly compensates for
-color layer cross contamination. An increased value leads to higher saturation. There is
-no documented data on this, so you can play around with this to your liking.
-
-For film without a color mask like slide film this can be used to simulate other
-inter-layer effects. Should probably set lower, but should be experimented with.
-        """,
+            tool_tip="How effective the orange color mask of the film is. Value of 1\n"
+            "perfectly compensates for color layer cross contamination. An\n"
+            "increased value leads to higher saturation. There is no\n"
+            "documented data on this, so you can play around with this to\n"
+            "your liking.\n"
+            "For film without a color mask like slide film this\n"
+            "can be used to simulate other inter-layer effects. Should\n"
+            "probably set lower, but should be experimented with.",
         )
 
         self.mode = WideComboBox(self)
@@ -536,11 +542,11 @@ inter-layer effects. Should probably set lower, but should be experimented with.
             "Mode",
             "full",
             self.mode.setCurrentText,
-            tool_tip="""
-What part of the pipeline to simulate. Using *negative* + *print* in conjunction should
-give the same result as using *full*. *Grain* expects as input the output of *negative*
-and is to be used as a multiplicative intensity scale for a grain overlay.
-        """,
+            tool_tip="What part of the pipeline to simulate. Using *negative* +\n"
+            "*print* in conjunction should give the same result as using\n"
+            "*full*. *Grain* expects as input the output of *negative* and\n"
+            "is to be used as a multiplicative intensity scale for a grain\n"
+            "overlay.",
         )
 
         self.adx_scale = WideComboBox(self)
@@ -558,27 +564,23 @@ and is to be used as a multiplicative intensity scale for a grain overlay.
             "ADX d-max",
             "Density 2",
             self.adx_scale.setCurrentText,
-            tool_tip="""
-What density does 100% output of the negative LUT respond to. Matching values
-have to be used for print and grain LUTs. No effect when using the full mode.
-
-Density 2 matches ADX10 and should be used for Cineon like workflows. Density 8
-matches ADX16. When using density 2 there is risk of clipping for some negative
-film stocks.
-            """,
+            tool_tip="What density does 100% output of the negative LUT respond to.\n"
+            "Matching values have to be used for print and grain LUTs. No\n"
+            "effect when using the full mode.\n"
+            "Density 2 matches ADX10 and should be used for Cineon like\n"
+            "workflows. Density 8 matches ADX16. When using density 2 there\n"
+            "is risk of clipping for some negative film stocks.",
         )
 
         self.save_lut_button = AnimatedButton("Save LUT")
         """Export the LUT."""
         self.save_lut_button.clicked.connect(self.save_lut)
-        add_option(self.save_lut_button, tool_tip="""Export the LUT.""")
+        add_option(self.save_lut_button, tool_tip="Export the LUT.")
 
         self.noise_button = AnimatedButton("Export Grain")
         """Open the grain overlay export dialog."""
         self.noise_button.clicked.connect(self.export_noise)
-        add_option(
-            self.noise_button, tool_tip="""Open the grain overlay export dialog."""
-        )
+        add_option(self.noise_button, tool_tip="Open the grain overlay export dialog.")
 
         self.input_colorspace_selector.currentTextChanged.connect(
             self.parameter_changed
@@ -592,6 +594,7 @@ film stocks.
         self.exp_comp.valueChanged.connect(self.parameter_changed)
         self.exp_wb.valueChanged.connect(self.parameter_changed)
         self.tint.valueChanged.connect(self.parameter_changed)
+        self.push_pull.valueChanged.connect(self.parameter_changed)
         self.red_light.valueChanged.connect(self.lights_changed)
         self.green_light.valueChanged.connect(self.lights_changed)
         self.blue_light.valueChanged.connect(self.lights_changed)
@@ -643,6 +646,7 @@ film stocks.
         exp_wb = self.exp_wb.getValue()
         tint = self.tint.getValue()
         sat_adjust = self.sat_adjust.getValue()
+        push_pull = self.push_pull.getValue()
 
         adx_scaling = {"Density 2": 4.0, "Density 4": 2.0, "Density 8": 1.0}[
             self.adx_scale.currentText()
@@ -671,6 +675,7 @@ film stocks.
             tint=tint,
             sat_adjust=sat_adjust,
             adx_scaling=adx_scaling,
+            push_pull=push_pull,
         )
         return lut
 

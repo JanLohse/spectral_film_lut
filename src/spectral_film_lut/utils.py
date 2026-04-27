@@ -41,6 +41,7 @@ def film_conversion(
     sat_adjust: float = 1.0,
     shadow_comp: float = 0.0,
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
+    push_pull: float = 0.0,
 ) -> np.ndarray:
     """
     Emulates the full film pipeline including exposure, printing, and projection.
@@ -78,6 +79,7 @@ def film_conversion(
             clipped details. Function is based on the ITU Bt.1886 function and acts like
             a OOTF or inverse OOTF function for values of 1.0 and -1.0.
         gamma_func: The gamma function the output is encoded with.
+        push_pull: By how many stops to push/pull the negative to adjust contrast.
 
     Returns:
         An image (or LUT) representing the transformed scene data after (partial) film
@@ -87,7 +89,13 @@ def film_conversion(
 
     if mode == "negative" or mode == "full":
         image = negative_film.input_transform(
-            image, input_colorspace, exp_comp, exp_kelvin, tint, color_masking
+            image,
+            input_colorspace,
+            exp_comp,
+            exp_kelvin,
+            tint,
+            color_masking,
+            push_pull,
         )
 
     if adx_coding and mode == "negative":

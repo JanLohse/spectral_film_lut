@@ -165,12 +165,12 @@ class FilmSpectral:
             self.extend_characteristic_curve()
         log_H_min = min([x.min() for x in self.log_exposure])
         log_H_max = max([x.max() for x in self.log_exposure])
-        x_new = np.linspace(log_H_min, log_H_max, 100, dtype=DEFAULT_DTYPE)
+        x_new = np.linspace(log_H_min, log_H_max, 1024, dtype=DEFAULT_DTYPE)
         self.density_curve = [
-            PchipInterpolator(x, y)(x_new)
+            PchipInterpolator(x, y)(x_new).astype(DEFAULT_DTYPE)
             for x, y in zip(self.log_exposure, self.density_curve)
         ]
-        self.log_exposure = [x_new] * len(self.log_exposure)
+        self.log_exposure = x_new
         self.d_min = np.array([np.min(x) for x in self.density_curve])
         self.density_curve = [x - d for x, d in zip(self.density_curve, self.d_min)]
         if self.log_H_ref is not None:
@@ -242,7 +242,9 @@ class FilmSpectral:
                             np.asarray(a), np.asarray(sorted_b), np.asarray(sorted_c)
                         )
                         for a, b, c in zip(
-                            self.lad, self.density_curve, self.log_exposure
+                            self.lad,
+                            self.density_curve,
+                            [self.log_exposure] * len(self.lad),
                         )
                         for sorted_b, sorted_c in [zip(*sorted(zip(b, c)))]
                     ]
@@ -321,8 +323,9 @@ class FilmSpectral:
 
         # compute gamma
         index = 1 if len(self.log_exposure) == 3 else 0
-        log_exp_np = self.log_exposure[index]
-        density_np = self.get_density_curve()[index]
+        log_exp_np, density_np = self.get_density_curve()
+        log_exp_np = log_exp_np[index]
+        density_np = density_np[index]
         d_density_d_logH = np.gradient(density_np, log_exp_np)
         log_H_val = self.log_H_ref[index]
         gamma_interp = scipy.interpolate.interp1d(
@@ -518,29 +521,37 @@ class FilmSpectral:
 
         return sd
 
-    def log_exposure_to_density(self, log_exposure, color_masking: None | float = None):
+    def log_exposure_to_density(
+        self,
+        log_exposure: np.ndarray,
+        color_masking: None | float = None,
+        push_pull: float = 0.0,
+    ):
         """
         Convert log_exposure to density values for current film stock.
 
         Args:
             log_exposure: Log exposure data to convert as array.
             color_masking: Color Masking factor in range [0, 1].
-            gray. Deactivated for -4 or lower.
+            push_pull: By how many stops to push/pull the negative to adjust contrast.
         """
-        log_exposure_curve = self.log_exposure
         density = multi_channel_interp(
-            log_exposure, log_exposure_curve, self.get_density_curve(color_masking)
+            log_exposure,
+            *self.get_density_curve(color_masking, push_pull),
         )
 
         return density
 
-    def get_density_curve(self, color_masking: None | float = None):
+    def get_density_curve(
+        self, color_masking: None | float = None, push_pull: float = 0.0
+    ) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """
         Get characteristic density curve for current film stock.
 
         Args:
             color_masking: Color Masking factor in range [0, 1]. If None use default for
-            current film stock.
+                current film stock.
+            push_pull: By how many stops to push/pull the negative to adjust contrast.
 
         Returns:
             The density curve.
@@ -548,11 +559,27 @@ class FilmSpectral:
         if color_masking is None:
             color_masking = self.color_masking
         if self.density_curve_pure is None:
-            return self.density_curve
-        return [
-            a * color_masking + b * (1 - color_masking)
-            for a, b in zip(self.density_curve_pure, self.density_curve)
-        ]
+            density_curve = self.density_curve
+        else:
+            density_curve = [
+                a * color_masking + b * (1 - color_masking)
+                for a, b in zip(self.density_curve_pure, self.density_curve)
+            ]
+
+        log_exposure = self.log_exposure
+
+        if push_pull != 0:
+            idx = 0 if len(density_curve) == 1 else 1
+            d_ref = np.interp(self.log_H_ref[idx], log_exposure, density_curve[idx])
+            log_exposure = log_exposure + push_pull * math.log10(2)
+            d_post = np.interp(self.log_H_ref[idx], log_exposure, density_curve[idx])
+            scaling = d_ref / d_post
+            # TODO: try per layer scaling
+            density_curve = [x * scaling for x in density_curve]
+
+        log_exposure = [log_exposure] * len(density_curve)
+
+        return log_exposure, density_curve
 
     def get_spectral_density(self, color_masking=None):
         """
@@ -719,7 +746,7 @@ class FilmSpectral:
             gamma_values = []
 
             for i, (log_exp, density) in enumerate(
-                zip(film.log_exposure, film.get_density_curve(color_masking))
+                zip(*film.get_density_curve(color_masking))
             ):
                 color = colors[i] if i < len(colors) else None
                 axes[1, ax_col].plot(log_exp, density, color=color)
@@ -797,6 +824,7 @@ class FilmSpectral:
 
     def grain_transform(self, rgb, scale=1.0, std_div=1.0):
         """Encoding for the grain intensity LUT."""
+        # TODO: fix for BW film
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm,
         # default for 3840 / 24mm
         # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay
@@ -920,6 +948,7 @@ class FilmSpectral:
         exp_kelvin=6500,
         tint=0.0,
         color_masking: None | float = None,
+        push_pull: float = 0.0,
     ):
         """
         Transform from scene referred image data to the per layer activation in absolute
@@ -936,6 +965,7 @@ class FilmSpectral:
                 >1 for increased saturation. Most film stocks don't provide exact data.
                 For films with orange mask can be close to 1, for other (e.g. slide
                 film) should be set quite low.
+            push_pull: By how many stops to push/pull the negative to adjust contrast.
 
         Returns:
             The resulting layer activation as densities.
@@ -948,8 +978,8 @@ class FilmSpectral:
         image = apply_2d_lut(np.clip(image, 0, None), input_lut)
 
         image = np.log10(np.clip(image, 10**-16, None))
-        # TODO: combine these and move exp_comp, push/pull there
-        image = self.log_exposure_to_density(image, color_masking)
+
+        image = self.log_exposure_to_density(image, color_masking, push_pull)
 
         return image
 
