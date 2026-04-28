@@ -127,6 +127,9 @@ def output_color_transform(
     Returns:
         The transformed image in the output gamut.
     """
+    if image.shape[-1] == 1:
+        return np.repeat(image, 3, axis=-1)
+
     # initialize 2.5D XYZ LUT
     x = np.linspace(0, 1, lut_size, dtype=np.float32)
     xx, yy = np.meshgrid(x, x, indexing="ij")

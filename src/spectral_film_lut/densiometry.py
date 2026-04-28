@@ -2,6 +2,8 @@
 Here data and functions for handling and specifying density values is included.
 """
 
+from typing import Literal
+
 import colour
 import numpy as np
 from scipy import ndimage
@@ -344,6 +346,9 @@ DENSIOMETRY = {
     "absolute": STATUS_A,
 }
 """A dict with relevant density measures."""
+
+DENSITY_MEASURE = Literal["status_a", "status_m", "apd", "absolute"]
+"""The available density measures."""
 
 
 def wavelength_argmax(

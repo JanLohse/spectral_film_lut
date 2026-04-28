@@ -252,6 +252,7 @@ class MainWindow(QMainWindow):
             "D-max",
         ]
         self.filmstocks["None"] = None
+        self.filmstocks["Inversion"] = None
         self.negative_selector = FilmStockSelector(
             negative_info,
             self,
@@ -389,6 +390,7 @@ class MainWindow(QMainWindow):
 
         print_info = {x: y for x, y in filmstock_info.items() if y["stage"] == "print"}
         print_info["None"] = {}
+        print_info["Inversion"] = {}
         sort_keys_print = ["Name", "Year", "Gamma", "D-max"]
         group_keys_print = ["Manufacturer", "Type", "Decade", "Medium"]
         list_keys_print = ["Manufacturer", "Type", "Year", "Chromaticity"]
@@ -640,6 +642,7 @@ class MainWindow(QMainWindow):
     def generate_lut(self, name="temp", cube=True):
         negative_film = self.filmstocks[self.negative_selector.currentText()]
         print_film = self.filmstocks[self.print_selector.currentText()]
+        inversion = self.print_selector.currentText() == "Inversion"
         input_colorspace = self.input_colorspace_selector.currentText()
         projector_kelvin = self.projector_kelvin.getValue()
         exp_comp = self.exp_comp.getValue()
@@ -691,6 +694,7 @@ class MainWindow(QMainWindow):
             sat_adjust=sat_adjust,
             adx_scaling=adx_scaling,
             push_pull=push_pull,
+            inversion=inversion,
         )
         return lut
 
@@ -712,7 +716,10 @@ class MainWindow(QMainWindow):
             self.parameter_changed()
 
     def print_light_changed(self):
-        if self.print_selector.currentText() == "None":
+        if (
+            self.print_selector.currentText() == "None"
+            or self.print_selector.currentText() == "Inversion"
+        ):
             self.red_light.setDisabled(True)
             self.green_light.setDisabled(True)
             self.blue_light.setDisabled(True)

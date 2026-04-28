@@ -348,12 +348,18 @@ class FilmSpectral:
             print_stock: Use this film as the print film for the color checker if
                 provided.
         """
+        inversion = False
         if negative is None:
             negative = self
+            if self.film_type == "negative":
+                inversion = True
+
         elif print_stock is None:
             print_stock = self
 
-        color_checker = film_conversion(COLORCHECKER_2005, negative, print_stock)
+        color_checker = film_conversion(
+            COLORCHECKER_2005, negative, print_stock, inversion=inversion
+        )
         color_checker *= 255
         self.color_checker = color_checker.astype(np.uint8)
 
@@ -1074,7 +1080,7 @@ class FilmSpectral:
         color_masking: None | float = None,
         white_comp: bool = False,
         white_balance: bool = False,
-    ):
+    ) -> tuple[np.ndarray, np.ndarray | None]:
         """
         Get the scene referred output from projection or viewing under an illuminant.
 
@@ -1095,10 +1101,13 @@ class FilmSpectral:
             The projected image in linear CIE XYZ color space.
         """
         if self.density_measure == "bw":
-            image = 1 / 10**-self.d_min * 10**-image
+            image = 10**-image
+            out_gray = 10**-self.d_ref
 
             if not 6500 <= projector_kelvin <= 6505:
-                image = image * np.asarray(CCT_to_XYZ(projector_kelvin))
+                adjust = np.asarray(CCT_to_XYZ(projector_kelvin))
+                image = image * adjust
+
         else:
             projection_light, xyz_cmfs = self.compute_projection_light(
                 projector_kelvin=projector_kelvin, white_comp=white_comp
@@ -1111,15 +1120,17 @@ class FilmSpectral:
             output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
             density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
 
+            mid_gray = (
+                10 ** -(self.get_d_ref(color_masking) @ density_mat.T) @ output_mat
+            )
             if white_balance:
-                mid_gray = (
-                    10 ** -(self.get_d_ref(color_masking) @ density_mat.T) @ output_mat
-                )
                 out_gray = np.asarray(CCT_to_XYZ(projector_kelvin, mid_gray[1]))
                 output_mat = np.asarray(
                     colour.chromatic_adaptation(output_mat, mid_gray, out_gray)
                 )
+            else:
+                out_gray = mid_gray
 
             image = 10 ** -(image @ density_mat.T) @ output_mat
 
-        return image
+        return image, out_gray

@@ -577,8 +577,6 @@ class SliderLog(QWidget):
 
     def sliderValueChanged(self):
         value = self.getValue()
-        if self.precision is not None:
-            value = round(value, self.precision)
         if value.is_integer():
             self.text.setText(str(int(value)))
         else:
@@ -586,7 +584,10 @@ class SliderLog(QWidget):
 
     def getValue(self):
         fraction = self.slider.value() / self.steps
-        return self.min * (self.max / self.min) ** fraction
+        value = self.min * (self.max / self.min) ** fraction
+        if self.precision is not None:
+            value = round(value, self.precision)
+        return value
 
     def setValue(self, value):
         fraction = math.log(value / self.min) / math.log(self.max / self.min)
