@@ -136,6 +136,8 @@ def output_color_transform(
     lut_id = np.stack([xx, yy, np.ones_like(xx)], axis=-1)
     lut_XYZ = xyS_to_XYZ(lut_id)
 
+    lut_Y_original = lut_XYZ[..., 1:2].copy()
+
     # adjust saturation
     if sat_adjust != 1:
         lut_oklab = colour.XYZ_to_Oklab(lut_XYZ)
@@ -148,6 +150,13 @@ def output_color_transform(
 
     # compress gamut
     lut_XYZ = gamut_compression(lut_XYZ)
+
+    # restore correct luminance after gamut compression
+    if output_gamut != "CIE XYZ":
+        lut_Y_compressed = (lut_XYZ @ COLOR_SPACES[output_gamut].rgb_to_xyz.T)[..., 1:2]
+    else:
+        lut_Y_compressed = lut_XYZ[..., 1:2]
+    lut_XYZ *= lut_Y_original / lut_Y_compressed
 
     # apply to image safely
     image = np.clip(image, 0, None)
