@@ -827,17 +827,24 @@ class FilmSpectral:
         plt.tight_layout()
         plt.show()
 
-    def grain_transform(self, rgb, scale=1.0, std_div=1.0):
+    def grain_transform(self, rgb, scale=1.0, std_div=1.0, adx=True):
         """Encoding for the grain intensity LUT."""
-        # TODO: fix for BW film
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm,
         # default for 3840 / 24mm
         # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay
         # in [0, 1] range
-        adx_density_scale = np.array([1.00, 0.92, 0.95], dtype=DEFAULT_DTYPE) * (
-            8000.0 / 65535.0
+        std_factor = np.array(
+            (math.sqrt(math.pi) * 0.024 * scale / std_div,), dtype=DEFAULT_DTYPE
         )
-        std_factor = math.sqrt(math.pi) * 0.024 * scale * adx_density_scale / std_div
+        if adx and self.density_measure != "bw":
+            adx_density_scale = np.array([1.00, 0.92, 0.95], dtype=DEFAULT_DTYPE) * (
+                8000.0 / 65535.0
+            )
+            std_factor = std_factor * adx_density_scale
+        elif adx:
+            std_factor *= 8000.0 / 65535.0
+        elif self.density_measure != "bw":
+            std_factor = std_factor.repeat(3)
         xps = [rms_density for rms_density in self.rms_density]
         fps = [rms * std_factor[i] for i, rms in enumerate(self.rms_curve)]
         noise_factors = multi_channel_interp(rgb, xps, fps)
