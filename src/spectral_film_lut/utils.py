@@ -11,7 +11,10 @@ import numpy as np
 from colour.hints import LiteralRGBColourspace
 from numba import njit, prange
 
-from spectral_film_lut.color_processing import CCT_to_XYZ, output_transform
+from spectral_film_lut.color_processing import (
+    output_transform,
+    photographic_inversion,
+)
 from spectral_film_lut.color_space import COLOR_SPACE_KEYS, GAMMA_KEYS
 from spectral_film_lut.config import DEFAULT_DTYPE
 
@@ -43,6 +46,7 @@ def film_conversion(
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
     push_pull: float = 0.0,
     inversion: bool = False,
+    inversion_gamma: float = 3.0,
 ) -> np.ndarray:
     """
     Emulates the full film pipeline including exposure, printing, and projection.
@@ -82,6 +86,7 @@ def film_conversion(
         gamma_func: The gamma function the output is encoded with.
         push_pull: By how many stops to push/pull the negative to adjust contrast.
         inversion: Apply inversion to the final output.
+        inversion_gamma: The gamma used for inversion.
 
     Returns:
         An image (or LUT) representing the transformed scene data after (partial) film
@@ -129,11 +134,7 @@ def film_conversion(
         )
 
         if inversion:
-            target_gray = 0.18
-            if len(out_gray) == 3:
-                target_gray = np.asarray(CCT_to_XYZ(6500, target_gray))
-            exponent = np.log10(target_gray) / np.log10(1 - out_gray)
-            image = (1 - image) ** exponent
+            image = photographic_inversion(image, out_gray, inversion_gamma)
 
         image = output_transform(
             image,

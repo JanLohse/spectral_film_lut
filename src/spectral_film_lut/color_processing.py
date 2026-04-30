@@ -217,7 +217,7 @@ def output_transform(
     return image
 
 
-def CCT_to_XYZ(CCT: float | int, Y: float = 1.0, tint: float = 0.0):
+def CCT_to_XYZ(CCT: float | int, Y: float = 1.0, tint: float = 0.0) -> np.ndarray:
     """Converts from a color temperature in kelvin to a XYZ triplet."""
     xy = CCT_to_xy(CCT)
     xyY = (xy[0], xy[1], Y)
@@ -226,3 +226,56 @@ def CCT_to_XYZ(CCT: float | int, Y: float = 1.0, tint: float = 0.0):
     Lab += np.array([0, 0.9849548, -0.17281227]) * tint / 15
     XYZ = colour.Oklab_to_XYZ(Lab)
     return XYZ
+
+
+def photographic_inversion(
+    image: np.ndarray,
+    reference_gray: np.ndarray,
+    inversion_gamma: float = 3.0,
+    output_gray: float = 0.18,
+    output_wb: int | float = 6500,
+    colorspace: COLOR_SPACE_KEYS | None = None,
+) -> np.ndarray:
+    r"""
+    Invert a photographic scan of a film negative.
+    The mathematical transform transforms to a log space, adjusts gamma and white
+    balance, and then inverts it by doing $10^{-x}$. This way it is inspired by printing
+    and projecting the print. To add a smooth rolloff and keep the output in [0, 1] we
+    apply $\frac{x}{x + 1}$
+
+    Note:
+        This approach is highly dependent on the primaries of the color space the
+        inversion is performed in. To keep it simple and not make any opinionated
+        choices we keep the default in CIE XYZ.
+
+    Tip:
+        Due to being color space independent this mode works best with BW film.
+
+    Args:
+        image: The linear film scan in CIE XYZ.
+        reference_gray: The CIE XYZ reference gray.
+        inversion_gamma: The gamma used for inversion. Adjusts contrast.
+        output_gray: The target luminance of the gray patch.
+        output_wb: The target WB in kelvin.
+        colorspace: The colorspace the transform is performed in.
+
+    Returns:
+        The inverted image in linear XYZ in the [0, 1] range.
+    """
+    if len(reference_gray) == 3:
+        output_gray = CCT_to_XYZ(output_wb, output_gray)
+
+        if colorspace is not None:
+            reference_gray @= COLOR_SPACES[colorspace].xyz_to_rgb.T
+            output_gray @= COLOR_SPACES[colorspace].xyz_to_rgb.T
+            image @= COLOR_SPACES[colorspace].xyz_to_rgb.T
+            image = np.clip(image, 1e-10, None)
+
+    offset = np.log10(reference_gray) * inversion_gamma + np.log10(output_gray)
+    image = 10 ** (-np.log10(image) * inversion_gamma + offset)
+    image /= image + 1
+
+    if colorspace is not None and len(reference_gray) == 3:
+        image @= COLOR_SPACES[colorspace].rgb_to_xyz.T
+
+    return image

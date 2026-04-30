@@ -441,11 +441,23 @@ class MainWindow(QMainWindow):
         )
         add_option(
             self.projector_kelvin,
-            "Projector wb",
+            "Projector WB",
             6500,
             self.projector_kelvin.setValue,
             tool_tip="The color of the projection lamp or the viewing lamp for paper \n"
             "prints.",
+        )
+
+        self.inversion_gamma = Slider()
+        """The gamma applied using the inversion if 'Inversion' is selected."""
+        self.inversion_gamma.setMinMaxTicks(1, 5, 1, 10)
+        add_option(
+            self.inversion_gamma,
+            "Inversion gamma",
+            3.0,
+            self.inversion_gamma.setValue,
+            tool_tip="The gamma applied using the inversion if 'Inversion' is\n"
+            "selected.",
         )
 
         self.white_comp = QCheckBox()
@@ -608,6 +620,7 @@ class MainWindow(QMainWindow):
         self.print_selector.currentTextChanged.connect(self.print_light_changed)
         self.image_selector.textChanged.connect(self.parameter_changed)
         self.projector_kelvin.valueChanged.connect(self.parameter_changed)
+        self.inversion_gamma.valueChanged.connect(self.parameter_changed)
         self.exp_comp.valueChanged.connect(self.parameter_changed)
         self.exp_wb.valueChanged.connect(self.parameter_changed)
         self.tint.valueChanged.connect(self.parameter_changed)
@@ -645,6 +658,7 @@ class MainWindow(QMainWindow):
         inversion = self.print_selector.currentText() == "Inversion"
         input_colorspace = self.input_colorspace_selector.currentText()
         projector_kelvin = self.projector_kelvin.getValue()
+        inversion_gamma = self.inversion_gamma.getValue()
         exp_comp = self.exp_comp.getValue()
         red_light = self.red_light.getValue()
         green_light = self.green_light.getValue()
@@ -695,6 +709,7 @@ class MainWindow(QMainWindow):
             adx_scaling=adx_scaling,
             push_pull=push_pull,
             inversion=inversion,
+            inversion_gamma=inversion_gamma,
         )
         return lut
 
