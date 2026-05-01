@@ -647,7 +647,7 @@ class FilmSpectral:
         return density_matrix, peak_exposure - density_base
 
     def compute_printer_light(
-        self, print_film, red_light=0.0, green_light=0.0, blue_light=0.0, **kwargs
+        self, print_film: "FilmSpectral", red_light=0.0, green_light=0.0, blue_light=0.0
     ):
         """
         Compute printer light needed to print onto target print film to generate neutral
@@ -663,30 +663,22 @@ class FilmSpectral:
         Returns:
             Printer light as spectral curve.
         """
-        compensation = 2 ** np.array(
-            [red_light, green_light, blue_light], dtype=DEFAULT_DTYPE
-        )
-        # transmitted printer lights by middle gray negative
-        reduced_lights = (PRINTER_LIGHTS.T * 10**-self.d_ref_sd).T
-
-        target_exp = np.multiply(print_film.H_ref, compensation)
-        # adjust printer lights to produce neutral exposure with middle gray negative
         if print_film.density_measure == "bw":
-            light_factors = (
-                (print_film.sensitivity.T @ reduced_lights) ** -1 * target_exp
-            ).min()
-        elif print_film.density_measure == "absolute":
-            black_body = np.asarray(colour.sd_blackbody(10000, SPECTRAL_SHAPE).values)
-            lights = black_body[:, np.newaxis] * (
-                target_exp
-                / (print_film.sensitivity.T @ (black_body * 10**-self.d_ref_sd))
-            )
-            return lights
+            target_exp = 2**green_light * print_film.H_ref
+            reduced_lights = 10**-self.d_ref_sd
+            printer_light = np.ones_like(reduced_lights, DEFAULT_DTYPE)
+            printer_light *= target_exp / (print_film.sensitivity.T @ reduced_lights)
         else:
+            compensation = 2 ** np.array(
+                [red_light, green_light, blue_light], dtype=DEFAULT_DTYPE
+            )
+            target_exp = np.multiply(print_film.H_ref, compensation)
+            # transmitted printer lights by middle gray negative
+            reduced_lights = (PRINTER_LIGHTS.T * 10**-self.d_ref_sd).T
             light_factors = (
                 np.linalg.inv(print_film.sensitivity.T @ reduced_lights) @ target_exp
             )
-        printer_light = np.sum(PRINTER_LIGHTS * light_factors, axis=1)
+            printer_light = np.sum(PRINTER_LIGHTS * light_factors, axis=1)
         return printer_light
 
     def compute_projection_light(
@@ -1042,7 +1034,6 @@ class FilmSpectral:
         Returns:
             The resulting layer activations of the print stock.
         """
-        # TODO: check printing color on BW film
         return self.printing_process(
             image,
             self,
