@@ -2,6 +2,8 @@
 A helper function to load film stocks with a dynamic loading bar.
 """
 
+import sys
+
 import colour
 
 from spectral_film_lut import FILM_STOCKS
@@ -47,3 +49,5 @@ def load_ui(main_window, splash_screen, app, gray_value=None):
 
     window.show()
     splash_screen.close()
+
+    sys.exit(app.exec())

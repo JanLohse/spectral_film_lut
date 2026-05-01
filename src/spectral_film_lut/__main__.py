@@ -1,7 +1,7 @@
 import ctypes
 import sys
 
-from PyQt6.QtCore import QObject, QSize, QThread, pyqtSignal
+from PyQt6.QtCore import QSize
 from PyQt6.QtGui import QIcon
 
 from spectral_film_lut import BASE_DIR, __version__
@@ -23,29 +23,10 @@ def run():
 
     app.setWindowIcon(icon)
 
-    class LoaderWorker(QObject):
-        finished = pyqtSignal()
+    from spectral_film_lut.film_loader import load_ui
+    from spectral_film_lut.gui import MainWindow
 
-        def run(self):
-
-            self.finished.emit()
-
-    thread = QThread()
-    worker = LoaderWorker()
-    worker.moveToThread(thread)
-
-    def on_finished():
-        from spectral_film_lut.film_loader import load_ui
-        from spectral_film_lut.gui import MainWindow
-
-        load_ui(MainWindow, splash_screen, app)
-
-    worker.finished.connect(on_finished)
-    thread.started.connect(worker.run)
-
-    thread.start()
-
-    sys.exit(app.exec())
+    load_ui(MainWindow, splash_screen, app)
 
 
 if __name__ == "__main__":
