@@ -29,7 +29,11 @@ from spectral_film_lut.densiometry import (
     output_to_density,
 )
 from spectral_film_lut.film_data import FilmData
-from spectral_film_lut.utils import film_conversion, multi_channel_interp
+from spectral_film_lut.utils import (
+    film_conversion,
+    multi_channel_interp,
+    smooth_roll_off,
+)
 from spectral_film_lut.xy_lut import SPECTRUM_LUT, XYZ_CMFS, apply_2d_lut
 
 
@@ -326,12 +330,11 @@ class FilmSpectral:
         log_exp_np, density_np = self.get_density_curve()
         log_exp_np = log_exp_np[index]
         density_np = density_np[index]
-        d_density_d_logH = np.gradient(density_np, log_exp_np)
-        log_H_val = self.log_H_ref[index]
-        gamma_interp = scipy.interpolate.interp1d(
-            log_exp_np, d_density_d_logH, kind="linear", fill_value="extrapolate"
-        )
-        self.gamma = abs(gamma_interp(log_H_val))
+        grad = np.abs(np.gradient(density_np, log_exp_np))
+        window = 32
+        kernel = np.ones(window) / window
+        running_avg = np.convolve(grad, kernel, mode="valid")
+        self.gamma = running_avg.max()
 
     def set_color_checker(
         self,
@@ -532,6 +535,8 @@ class FilmSpectral:
         log_exposure: np.ndarray,
         color_masking: None | float = None,
         push_pull: float = 0.0,
+        idealized_curve: bool = False,
+        idealized_gamma: float = 3.0,
     ) -> np.ndarray:
         """
         Convert log_exposure to density values for current film stock.
@@ -540,7 +545,16 @@ class FilmSpectral:
             log_exposure: Log exposure data to convert as array.
             color_masking: Color Masking factor in range [0, 1].
             push_pull: By how many stops to push/pull the negative to adjust contrast.
+            idealized_curve: Replace the characteristic curve with an ideal gamma curve.
+            idealized_gamma: The gamma of the idealized curve when it is used.
         """
+        if idealized_curve:
+            if self.film_type == "positive":
+                idealized_gamma = -idealized_gamma
+            return smooth_roll_off(
+                log_exposure, self.log_H_ref, self.d_ref, idealized_gamma * 1.2
+            )
+
         density = multi_channel_interp(
             log_exposure,
             *self.get_density_curve(color_masking, push_pull),
@@ -997,12 +1011,14 @@ class FilmSpectral:
 
     def print_to(
         self,
-        image,
-        print_film,
+        image: np.ndarray,
+        print_film: "FilmSpectral",
         color_masking: None | float = None,
-        red_light=0.0,
-        green_light=0.0,
-        blue_light=0.0,
+        red_light: float = 0.0,
+        green_light: float = 0.0,
+        blue_light: float = 0.0,
+        idealized_curve: bool = False,
+        idealized_gamma: float = 3.0,
     ):
         """
         Print to another film stock.
@@ -1010,7 +1026,6 @@ class FilmSpectral:
         Args:
             image: The image (or LUT) containing layer activations in absolute
                 densities.
-            negative_film: The film stock from which to print.
             print_film: The film stock to print onto.
             color_masking: How strong the color mask is on the negative film. 0 for no
                 mask. 1 for a perfectly optimized mask (no pollution of other layers).
@@ -1020,23 +1035,37 @@ class FilmSpectral:
             red_light: Offset of the red printer light from neutral.
             green_light: Offset of the green printer light from neutral.
             blue_light: Offset of the blue printer light from neutral.
+            idealized_curve: Replace the characteristic curve of the print stock with
+                an ideal gamma curve.
+            idealized_gamma: The gamma of the idealized curve when it is used.
 
         Returns:
             The resulting layer activations of the print stock.
         """
+        # TODO: check printing color on BW film
         return self.printing_process(
-            image, self, print_film, color_masking, red_light, green_light, blue_light
+            image,
+            self,
+            print_film,
+            color_masking,
+            red_light,
+            green_light,
+            blue_light,
+            idealized_curve,
+            idealized_gamma,
         )
 
     @staticmethod
     def printing_process(
-        image,
+        image: np.ndarray,
         negative_film: "FilmSpectral",
         print_film: "FilmSpectral",
         color_masking: None | float = None,
-        red_light=0.0,
-        green_light=0.0,
-        blue_light=0.0,
+        red_light: float = 0.0,
+        green_light: float = 0.0,
+        blue_light: float = 0.0,
+        idealized_curve: bool = False,
+        idealized_gamma: float = 3.0,
     ):
         """
         Print from one film stock onto another.
@@ -1054,6 +1083,10 @@ class FilmSpectral:
             red_light: Offset of the red printer light from neutral.
             green_light: Offset of the green printer light from neutral.
             blue_light: Offset of the blue printer light from neutral.
+            idealized_curve: Replace the characteristic curve of the print stock with
+                an ideal gamma curve.
+            idealized_gamma: The gamma of the idealized curve when it is used.
+
 
         Returns:
             The resulting layer activations of the print stock.
@@ -1076,7 +1109,11 @@ class FilmSpectral:
                 np.clip(10 ** -(image @ density_neg.T) @ printing_mat, 0.00001, None)
             )
 
-        image = print_film.log_exposure_to_density(image)
+        image = print_film.log_exposure_to_density(
+            image,
+            idealized_curve=idealized_curve,
+            idealized_gamma=idealized_gamma,
+        )
 
         return image
 

@@ -47,6 +47,7 @@ def film_conversion(
     push_pull: float = 0.0,
     inversion: bool = False,
     inversion_gamma: float = 3.0,
+    idealized_curve: bool = False,
 ) -> np.ndarray:
     """
     Emulates the full film pipeline including exposure, printing, and projection.
@@ -87,6 +88,8 @@ def film_conversion(
         push_pull: By how many stops to push/pull the negative to adjust contrast.
         inversion: Apply inversion to the final output.
         inversion_gamma: The gamma used for inversion.
+        idealized_curve: Replace the characteristic curve of the print film with an
+            idealized one using `inversion_gamma` as the gamma factor.
 
     Returns:
         An image (or LUT) representing the transformed scene data after (partial) film
@@ -115,7 +118,14 @@ def film_conversion(
         if print_film is not None:
             output_film = print_film
             image = negative_film.print_to(
-                image, print_film, color_masking, red_light, green_light, blue_light
+                image,
+                print_film,
+                color_masking,
+                red_light,
+                green_light,
+                blue_light,
+                idealized_curve,
+                inversion_gamma,
             )
             color_masking = None
         else:
@@ -411,3 +421,22 @@ def apply_lut_tetrahedral_int(
                 out[y, x, 2] = np.uint16(c[2] // scale_out)
 
     return out
+
+
+def smooth_roll_off(
+    x: np.ndarray,
+    x0: float | np.ndarray,
+    y0: float | np.ndarray,
+    gamma: float,
+):
+    """
+    Function that rolls-off smoothly towards 0.
+
+    Args:
+        x: Values that are to be mapped.
+        x0: At which position to hit y0.
+        y0: Which value to hit at x0.
+        gamma: The slope of the curve.
+    """
+    offset = np.log(np.expm1(y0)) - gamma * x0
+    return np.log1p(np.exp(gamma * x + offset))

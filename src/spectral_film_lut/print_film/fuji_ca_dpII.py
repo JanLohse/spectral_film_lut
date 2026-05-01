@@ -259,3 +259,8 @@ FUJI_CA_DPII = FilmData(
     ],
 )
 """Fuji Crystal Archive DPII"""
+
+if __name__ == "__main__":
+    from spectral_film_lut.film_spectral import FilmSpectral
+
+    FilmSpectral(FUJI_CA_DPII).plot_data()

@@ -450,14 +450,30 @@ class MainWindow(QMainWindow):
 
         self.inversion_gamma = Slider()
         """The gamma applied using the inversion if 'Inversion' is selected."""
-        self.inversion_gamma.setMinMaxTicks(1, 5, 1, 10)
+        self.inversion_gamma.setMinMaxTicks(1, 7, 1, 10)
         add_option(
             self.inversion_gamma,
             "Inversion gamma",
-            3.0,
+            4.0,
             self.inversion_gamma.setValue,
             tool_tip="The gamma applied using the inversion if 'Inversion' is\n"
             "selected.",
+        )
+
+        self.idealized_curve = QCheckBox()
+        """
+        Replace the characteristic curve of the print film with an ideal gamma curve.
+        Preserves the sensitivity and dye densities of the print film.
+        When activated, the gamma is controlled by the inversion gamma.
+        """
+        add_option(
+            self.idealized_curve,
+            "Idealized curve",
+            False,
+            self.idealized_curve.setChecked,
+            "Replace the characteristic curve of the print film with an ideal gamma\n"
+            "curve. Preserves the sensitivity and dye densities of the print film.\n"
+            "When activated, the gamma is controlled by the inversion gamma.",
         )
 
         self.white_comp = QCheckBox()
@@ -631,6 +647,7 @@ class MainWindow(QMainWindow):
         self.lut_size.valueChanged.connect(self.parameter_changed)
         self.shadow_comp.valueChanged.connect(self.parameter_changed)
         self.color_masking.valueChanged.connect(self.parameter_changed)
+        self.idealized_curve.stateChanged.connect(self.parameter_changed)
         self.white_comp.stateChanged.connect(self.parameter_changed)
         self.white_balance.stateChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
@@ -679,6 +696,7 @@ class MainWindow(QMainWindow):
         tint = self.tint.getValue()
         sat_adjust = self.sat_adjust.getValue()
         push_pull = self.push_pull.getValue()
+        idealized_curve = self.idealized_curve.isChecked()
 
         adx_scaling = {"Density 2": 4.0, "Density 4": 2.0, "Density 8": 1.0}[
             self.adx_scale.currentText()
@@ -710,6 +728,7 @@ class MainWindow(QMainWindow):
             push_pull=push_pull,
             inversion=inversion,
             inversion_gamma=inversion_gamma,
+            idealized_curve=idealized_curve,
         )
         return lut
 
