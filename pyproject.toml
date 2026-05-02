@@ -13,9 +13,9 @@ dependencies = [
     "colour-science>=0.4.7",
     "imageio>=2.37.3",
     "ipykernel>=7.2.0",
-    "matplotlib>=3.10.8",
+    "matplotlib>=3.10.9",
     "networkx>=3.6.1",
-    "numba>=0.65.0",
+    "numba>=0.65.1",
     "numpy>=2.4.4",
     "opencv-python>=4.13.0.92",
     "pyqt6>=6.11.0",
@@ -25,9 +25,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "mkdocstrings-python>=2.0.3",
-    "pre-commit>=4.5.1",
-    "ruff>=0.15.9",
-    "zensical>=0.0.32",
+    "pre-commit>=4.6.0",
+    "ruff>=0.15.12",
+    "zensical>=0.0.39",
 ]
 
 [project.urls]
