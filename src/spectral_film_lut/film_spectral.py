@@ -3,6 +3,7 @@ The main class for handling all film data procesing and rendering.
 """
 
 import math
+from collections.abc import Callable
 
 import colour.plotting
 import numpy as np
@@ -967,6 +968,7 @@ class FilmSpectral:
         tint=0.0,
         color_masking: None | float = None,
         push_pull: float = 0.0,
+        halation_func: Callable[[np.ndarray], np.ndarray] | None = None,
     ):
         """
         Transform from scene referred image data to the per layer activation in absolute
@@ -984,6 +986,8 @@ class FilmSpectral:
                 For films with orange mask can be close to 1, for other (e.g. slide
                 film) should be set quite low.
             push_pull: By how many stops to push/pull the negative to adjust contrast.
+            halation_func: Optional function to add halation in linear layer exposure
+                space.
 
         Returns:
             The resulting layer activation as densities.
@@ -994,6 +998,9 @@ class FilmSpectral:
         input_lut = self.get_input_lut(exp_kelvin, tint, exp_comp)
 
         image = apply_2d_lut(np.clip(image, 0, None), input_lut)
+
+        if halation_func is not None:
+            image = halation_func(image)
 
         image = np.log10(np.clip(image, 10**-16, None))
 

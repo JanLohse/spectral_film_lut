@@ -4,6 +4,7 @@ Additional utility functions.
 
 import os
 import time
+from collections.abc import Callable
 from typing import Literal
 
 import colour
@@ -48,6 +49,7 @@ def film_conversion(
     inversion: bool = False,
     inversion_gamma: float = 3.0,
     idealized_curve: bool = False,
+    halation_func: Callable[[np.ndarray], np.ndarray] | None = None,
 ) -> np.ndarray:
     """
     Emulates the full film pipeline including exposure, printing, and projection.
@@ -90,6 +92,7 @@ def film_conversion(
         inversion_gamma: The gamma used for inversion.
         idealized_curve: Replace the characteristic curve of the print film with an
             idealized one using `inversion_gamma` as the gamma factor.
+        halation_func: Optional function to add halation in linear layer exposure space.
 
     Returns:
         An image (or LUT) representing the transformed scene data after (partial) film
@@ -106,6 +109,7 @@ def film_conversion(
             tint,
             color_masking,
             push_pull,
+            halation_func=halation_func,
         )
 
     if adx_coding and mode == "negative":
