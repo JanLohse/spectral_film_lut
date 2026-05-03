@@ -319,7 +319,7 @@ def uniform_multi_channel_interp(
 
 @njit(parallel=True)
 def apply_lut_tetrahedral_int(
-    image: np.ndarray, lut: np.ndarray, bit_depth: int = 16, out_bit_depth: int = 8
+    image: np.ndarray, lut: np.ndarray, bit_depth: int = 16, lut_depth: int = 8
 ) -> np.ndarray:
     """Apply a 3D LUT using tetrahedral interpolation.
 
@@ -329,9 +329,11 @@ def apply_lut_tetrahedral_int(
 
     Args:
         image: Input image of shape ``(H, W, 3)``,
-            dtype ``uint16``.
+            dtype ``uint16`` or ``uint8``.
         lut: 3D lookup table of shape
-            ``(size, size, size, 3)``, dtype ``uint8``.
+            ``(size, size, size, 3)``, dtype ``uint16`` or ``uint8``.
+        bit_depth: Bit depth of the image.
+        lut_depth: Bit depth of the lookup table.
 
     Returns:
         Output image of shape ``(H, W, 3)``, dtype ``uint8``.
@@ -340,7 +342,7 @@ def apply_lut_tetrahedral_int(
     size = lut.shape[0]
     max_value = 2**bit_depth - 1
     scale = max_value // (size - 1)
-    scale_out = scale * 2 ** (bit_depth - out_bit_depth)
+    scale_out = scale * 2 ** (lut_depth - 8)
 
     out = np.empty((h, w, 3), dtype=np.uint8)
 
@@ -419,14 +421,9 @@ def apply_lut_tetrahedral_int(
                     )
 
             # Convert back to uint8 safely
-            if out_bit_depth == 8:
-                out[y, x, 0] = np.uint8(c[0] // scale_out)
-                out[y, x, 1] = np.uint8(c[1] // scale_out)
-                out[y, x, 2] = np.uint8(c[2] // scale_out)
-            else:
-                out[y, x, 0] = np.uint16(c[0] // scale_out)
-                out[y, x, 1] = np.uint16(c[1] // scale_out)
-                out[y, x, 2] = np.uint16(c[2] // scale_out)
+            out[y, x, 0] = np.uint8(c[0] // scale_out)
+            out[y, x, 1] = np.uint8(c[1] // scale_out)
+            out[y, x, 2] = np.uint8(c[2] // scale_out)
 
     return out
 
