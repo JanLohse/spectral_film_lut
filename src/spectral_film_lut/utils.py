@@ -171,6 +171,7 @@ def create_lut(
     name: str = "test",
     cube: bool = True,
     verbose: bool = False,
+    linear_scaling: float = 1.0,
     **kwargs,
 ) -> np.ndarray | str:
     """
@@ -178,7 +179,9 @@ def create_lut(
     """
     lut = colour.LUT3D(size=lut_size, name="test")
     start = time.time()
-    table = film_conversion(lut.table, negative_film, print_film, **kwargs)
+    table = film_conversion(
+        lut.table * linear_scaling, negative_film, print_film, **kwargs
+    )
     if table.shape[-1] == 1:
         table = table.repeat(3, -1)
     if cube:
