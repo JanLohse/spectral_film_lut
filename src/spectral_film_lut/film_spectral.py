@@ -32,6 +32,7 @@ from spectral_film_lut.densiometry import (
 from spectral_film_lut.film_data import FilmData
 from spectral_film_lut.utils import (
     film_conversion,
+    log_clip,
     multi_channel_interp,
     smooth_roll_off,
 )
@@ -1002,7 +1003,7 @@ class FilmSpectral:
         if halation_func is not None:
             image = halation_func(image)
 
-        image = np.log10(np.clip(image, 10**-16, None))
+        log_clip(image)
 
         image = self.log_exposure_to_density(image, color_masking, push_pull)
 

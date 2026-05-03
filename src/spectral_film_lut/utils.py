@@ -2,6 +2,7 @@
 Additional utility functions.
 """
 
+import math
 import os
 import time
 from collections.abc import Callable
@@ -447,3 +448,14 @@ def smooth_roll_off(
     """
     offset = np.log(np.expm1(y0)) - gamma * x0
     return np.log1p(np.exp(gamma * x + offset))
+
+
+@njit(parallel=True)
+def log_clip(image: np.ndarray):
+    """Apply log10 efficiently and clip to 1e-16 for safety."""
+    n = image.size
+    for i in prange(n):
+        x = image.flat[i]
+        x = max(x, 1e-16)
+        x = math.log10(x)
+        image.flat[i] = x
