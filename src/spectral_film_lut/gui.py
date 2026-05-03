@@ -320,7 +320,7 @@ class MainWindow(QMainWindow):
         add_option(
             self.color_masking,
             "Color masking",
-            1,
+            1.0,
             self.color_masking.setValue,
             tool_tip="How effective the orange color mask of the film is. Value of 1\n"
             "perfectly compensates for color layer cross contamination. An\n"
@@ -460,47 +460,42 @@ class MainWindow(QMainWindow):
             "selected.",
         )
 
-        self.idealized_curve = QCheckBox()
+        self.idealized_curve = QCheckBox("Pure curve")
         """
         Replace the characteristic curve of the print film with an ideal gamma curve.
         Preserves the sensitivity and dye densities of the print film.
         When activated, the gamma is controlled by the inversion gamma.
         """
-        add_option(
-            self.idealized_curve,
-            "Idealized curve",
-            False,
-            self.idealized_curve.setChecked,
+        self.idealized_curve.setToolTip(
             "Replace the characteristic curve of the print film with an ideal gamma\n"
             "curve. Preserves the sensitivity and dye densities of the print film.\n"
-            "When activated, the gamma is controlled by the inversion gamma.",
+            "When activated, the gamma is controlled by the inversion gamma."
         )
 
-        self.white_comp = QCheckBox()
+        self.white_clip = QCheckBox("Clip")
         """
         When viewing print film brightness will be increased to clip at exactly 1.0.
         When viewing slide film white balancing is applied, so that a gray patch will
         actually produce the color temperature specified by the  projector kelvin.
         """
-        add_option(
-            self.white_comp,
-            "White adjust",
-            True,
-            self.white_comp.setChecked,
-            tool_tip="When viewing print film brightness will be increased to clip at\n"
+        self.white_clip.setToolTip(
+            "When viewing print film brightness will be increased to clip at\n"
             "exactly 1.0. When viewing slide film white balancing is\n"
             "applied, so that a gray patch will actually produce the color\n"
-            "temperature specified by the  projector kelvin.",
+            "temperature specified by the  projector kelvin."
         )
-        self.white_balance = QCheckBox()
+
+        self.white_balance = QCheckBox("WB")
         """Whether to white balance slide film."""
-        add_option(
-            self.white_balance,
-            "White balance",
-            True,
-            self.white_balance.setChecked,
-            tool_tip="Whether to white balance slide film.",
-        )
+        self.white_balance.setToolTip("Whether to white balance slide film.")
+
+        checker_widget = QWidget()
+        checker_widget_layout = QHBoxLayout(checker_widget)
+        checker_widget.setLayout(QHBoxLayout())
+        checker_widget_layout.addWidget(self.idealized_curve)
+        checker_widget_layout.addWidget(self.white_clip)
+        checker_widget_layout.addWidget(self.white_balance)
+        add_option(checker_widget)
 
         self.sat_adjust = Slider()
         self.sat_adjust.set_color_gradient(
@@ -540,6 +535,7 @@ class MainWindow(QMainWindow):
             tool_tip="Lift or lower dark areas. For 1 or -1 it acts like an OOTF or\n"
             "inverse OOTF respectively.",
         )
+        # TODO: add film emulation based shadow comp, not EOTF based
 
         self.output_gamut = WideComboBox(self)
         """In what color space to encode the output."""
@@ -648,7 +644,7 @@ class MainWindow(QMainWindow):
         self.shadow_comp.valueChanged.connect(self.parameter_changed)
         self.color_masking.valueChanged.connect(self.parameter_changed)
         self.idealized_curve.stateChanged.connect(self.parameter_changed)
-        self.white_comp.stateChanged.connect(self.parameter_changed)
+        self.white_clip.stateChanged.connect(self.parameter_changed)
         self.white_balance.stateChanged.connect(self.parameter_changed)
         self.mode.currentTextChanged.connect(self.parameter_changed)
         self.sat_adjust.valueChanged.connect(self.parameter_changed)
@@ -687,7 +683,7 @@ class MainWindow(QMainWindow):
         if output_gamut == "CIE XYZ 1931":
             output_gamut = None
         size = int(self.lut_size.getValue())
-        white_comp = self.white_comp.isChecked()
+        white_clip = self.white_clip.isChecked()
         white_balance = self.white_balance.isChecked()
         shadow_comp = self.shadow_comp.getValue()
         color_masking = self.color_masking.getValue()
@@ -713,7 +709,7 @@ class MainWindow(QMainWindow):
             gamma_func=gamma_func,
             projector_kelvin=projector_kelvin,
             exp_comp=exp_comp,
-            white_comp=white_comp,
+            white_clip=white_clip,
             white_balance=white_balance,
             exp_kelvin=exp_wb,
             mode=mode,
