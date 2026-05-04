@@ -7,6 +7,7 @@ import os
 import sys
 from functools import cache
 
+import cv2 as cv
 import imageio
 import imageio.v3 as iio
 import numpy as np
@@ -23,6 +24,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from spectral_film_lut.config import DEFAULT_DTYPE
 from spectral_film_lut.css_theme import (
     BASE_COLOR,
     BUTTON_RADIUS,
@@ -39,19 +41,12 @@ from spectral_film_lut.gui_objects import (
     SliderLog,
     WideComboBox,
 )
-from spectral_film_lut.utils import (
-    CUDA_AVAILABLE,
-    convolution_filter,
-    default_dtype,
-    to_numpy,
-    xp,
-)
 
 
 @cache
 def gaussian_noise_cache(shape):
     """Computes and pre caches gaussian noise."""
-    return xp.random.default_rng().standard_normal(shape, dtype=default_dtype)
+    return np.random.default_rng().standard_normal(shape, dtype=DEFAULT_DTYPE)
 
 
 def gaussian_noise(shape, cached=False):
@@ -60,23 +55,15 @@ def gaussian_noise(shape, cached=False):
     If cached noise is used a random crop is used to not get identical noise every time.
     """
     if not cached:
-        return xp.random.default_rng().standard_normal(shape, dtype=default_dtype)
+        return np.random.default_rng().standard_normal(shape, dtype=DEFAULT_DTYPE)
     noise_size = ((max(shape[:2]) + 100) // 1024 + 1) * 1024
     noise_map = gaussian_noise_cache((noise_size, noise_size))
-    if CUDA_AVAILABLE:
-        offsets = xp.stack(
-            [
-                xp.random.randint(0, x, size=shape[2])
-                for x in [noise_size - shape[0] + 1, noise_size - shape[1] + 1]
-            ]
-        ).T
-    else:
-        offsets = xp.random.randint(
-            [0, 0],
-            [noise_size - shape[0] + 1, noise_size - shape[1] + 1],
-            size=(shape[2], 2),
-        )
-    noise = xp.stack(
+    offsets = np.random.randint(
+        [0, 0],
+        [noise_size - shape[0] + 1, noise_size - shape[1] + 1],
+        size=(shape[2], 2),
+    )
+    noise = np.stack(
         [noise_map[x : shape[0] + x, y : shape[1] + y] for x, y in offsets], axis=-1
     )
     return noise
@@ -116,7 +103,7 @@ def two_component_params(
 
 def grain_kernel(
     pixel_size_mm: float, grain_size_mm=0.006, grain_sigma=0.3
-) -> xp.ndarray:
+) -> np.ndarray:
     r"""
     Computes a convolution kernel for film grain.
     Based on the paper *Simulating Film Grain using the Noise-Power Spectrum* by Ian
@@ -139,24 +126,24 @@ def grain_kernel(
         return None
 
     # Frequency grid (cycles per mm)
-    fx = xp.fft.fftfreq(kernel_size, d=pixel_size_mm)
-    fy = xp.fft.fftfreq(kernel_size, d=pixel_size_mm)
-    FX, FY = xp.meshgrid(fx, fy)
-    f = xp.sqrt(FX**2 + FY**2)  # radial frequency
+    fx = np.fft.fftfreq(kernel_size, d=pixel_size_mm)
+    fy = np.fft.fftfreq(kernel_size, d=pixel_size_mm)
+    FX, FY = np.meshgrid(fx, fy)
+    f = np.sqrt(FX**2 + FY**2)  # radial frequency
 
     # Gaussian model for dye NPS: exp(-(pi*f*D)^2)
-    nps1 = xp.exp(-((xp.pi * f * dye_size1_mm) ** 2)) * w1
-    nps2 = xp.exp(-((xp.pi * f * dye_size2_mm) ** 2)) * w2
+    nps1 = np.exp(-((np.pi * f * dye_size1_mm) ** 2)) * w1
+    nps2 = np.exp(-((np.pi * f * dye_size2_mm) ** 2)) * w2
 
     # Total NPS (weighted sum)
     nps = nps1 + nps2
     # generate convolution kernel
     # Get spatial kernel by inverse FFT
-    kernel = xp.fft.ifft2(xp.sqrt(nps))
-    kernel = xp.fft.fftshift(kernel.real)  # center it
+    kernel = np.fft.ifft2(np.sqrt(nps))
+    kernel = np.fft.fftshift(kernel.real)  # center it
 
     # normalize kernel
-    kernel /= xp.sqrt(xp.sum(kernel))
+    kernel /= np.sqrt(np.sum(kernel))
 
     return kernel
 
@@ -169,7 +156,7 @@ def generate_grain(
     cached=False,
     grain_sigma=0.3,
     **kwargs,
-) -> xp.ndarray:
+) -> np.ndarray:
     """
     Computes random grain somewhat efficiently with the grain smoothing inspired by
     the paper *Simulating Film Grain using the Noise-Power Spectrum* by Ian Stephenson
@@ -195,9 +182,9 @@ def generate_grain(
         1 / scale, grain_size_mm=grain_size_mm, grain_sigma=grain_sigma
     )
     if kernel is not None:
-        noise = convolution_filter(noise, kernel)
+        noise = cv.filter2D(noise, -1, kernel)
     if len(noise.shape) == 2:
-        noise = noise[..., xp.newaxis]
+        noise = noise[..., np.newaxis]
     if bw_grain:
         noise /= 1.5
     return noise
@@ -216,8 +203,8 @@ def generate_grain_frame(
         )
         * scale
     )
-    noise = (xp.clip(noise * std_div + 0.5, 0, 1) * 255).astype(xp.uint8)
-    noise = to_numpy(noise)
+    noise = (np.clip(noise * std_div + 0.5, 0, 1) * 255).astype(np.uint8)
+    noise = noise
     return noise
 
 

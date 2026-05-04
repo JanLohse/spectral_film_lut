@@ -2,68 +2,191 @@
 Additional utility functions.
 """
 
+import math
 import os
-import sys
 import time
-import warnings
+from collections.abc import Callable
+from typing import Literal
 
 import colour
-import cv2
 import numpy as np
-from matplotlib import pyplot as plt
-from numba import cuda, njit, prange
+from colour.hints import LiteralRGBColourspace
+from numba import njit, prange
 
-warnings.filterwarnings("ignore", category=FutureWarning)
+from spectral_film_lut.color_processing import (
+    output_transform,
+    photographic_inversion,
+)
+from spectral_film_lut.color_space import COLOR_SPACE_KEYS, GAMMA_KEYS
+from spectral_film_lut.config import DEFAULT_DTYPE
 
-CUDA_AVAILABLE = False
-"""Whether cuda is available through cupy."""
-
-try:
-    if "--no-cuda" in sys.argv:
-        raise ImportError()
-    import cupy as xp
-    from cupyx.scipy import ndimage as xdimage
-    from cupyx.scipy import signal
-
-    CUDA_AVAILABLE = True
-except ImportError:
-    import numpy as xp
-    from scipy import ndimage as xdimage
-    from scipy import signal
+MODES = Literal["full", "print", "negative", "grain"]
+"""Conversion modes, i.e., what steps of the pipeline to activate."""
 
 
-def to_numpy(x):
-    if CUDA_AVAILABLE:
-        return xp.asnumpy(x)
-    else:
-        return x
+def film_conversion(
+    image: np.ndarray,
+    negative_film,
+    print_film=None,
+    mode: MODES = "full",
+    input_colorspace: LiteralRGBColourspace | None = None,
+    exp_kelvin: int | float = 6500,
+    tint: float = 0.0,
+    exp_comp: float = 0.0,
+    color_masking: None | float = None,
+    adx_coding: bool = True,
+    adx_scaling: float | int = 1.0,
+    red_light: float = 0.0,
+    green_light: float = 0.0,
+    blue_light: float = 0.0,
+    projector_kelvin: int | float = 6500,
+    white_clip: bool = True,
+    white_balance: bool = True,
+    output_gamut: COLOR_SPACE_KEYS = "Rec. 709",
+    sat_adjust: float = 1.0,
+    shadow_comp: float = 0.0,
+    gamma_func: GAMMA_KEYS = "Gamma 2.4",
+    push_pull: float = 0.0,
+    inversion: bool = False,
+    inversion_gamma: float = 3.0,
+    idealized_curve: bool = False,
+    halation_func: Callable[[np.ndarray], np.ndarray] | None = None,
+) -> np.ndarray:
+    """
+    Emulates the full film pipeline including exposure, printing, and projection.
 
+    Args:
+        image: The image (or LUT) containing the scene referred data.
+        negative_film: The film stock to capture the scene.
+        print_film: The optional print stock.
+        mode: Which part of the pipeline to emulate.
+        input_colorspace: The colorspace if the image. If None CIE XYZ is used.
+        exp_kelvin: The scene WB in kelvin.
+        tint: The tint adjustment on the green -- red/purple axis.
+        exp_comp: Exposure compensation in stops.
+        color_masking: How strong the color mask is on the negative film. 0 for no mask.
+            1 for a perfectly optimized mask (no pollution of other layers). >1 for
+            increased saturation. Most film stocks don't provide exact data. For films
+            with orange mask can be close to 1, for other (e.g. slide film) should be
+            set quite low.
+        adx_scaling: When ADX encoding is used for negative/print/grain stages, what is
+            by what factor to divide the output. For 1.0 we have pure ADX16 with a max
+            density of 8, and for 4.0 we have ADX10 with a max density of 2.
+        adx_coding: Whether to activate ADX encoding for partial pipelines. Ensures
+            values stay within [0, 1] range. Necessary for save LUT generation.
+        red_light: Offset of the red printer light from neutral.
+        green_light: Offset of the green printer light from neutral.
+        blue_light: Offset of the blue printer light from neutral.
+        projector_kelvin: The white balance in kelvin of the projection or viewing
+            illuminant.
+        white_clip: Whether to adjust the output brightness that it clips at exactly 1.
+        white_balance: Whether to white balance slide film.
+        output_gamut: The gamut of the output color space.
+        sat_adjust: A saturation adjustment factor applied in OkLab. 1.0 for neutral,
+            0.0 for monochrome, and >1.0 for increased saturation.
+        shadow_comp: Shadow compensation to smoothly brighten or dark areas without
+            clipped details. Function is based on the ITU Bt.1886 function and acts like
+            a OOTF or inverse OOTF function for values of 1.0 and -1.0.
+        gamma_func: The gamma function the output is encoded with.
+        push_pull: By how many stops to push/pull the negative to adjust contrast.
+        inversion: Apply inversion to the final output.
+        inversion_gamma: The gamma used for inversion.
+        idealized_curve: Replace the characteristic curve of the print film with an
+            idealized one using `inversion_gamma` as the gamma factor.
+        halation_func: Optional function to add halation in linear layer exposure space.
 
-default_dtype = xp.float32
-colour.utilities.set_default_float_dtype(default_dtype)
-spectral_shape = colour.SpectralShape(380, 780, 5)
+    Returns:
+        An image (or LUT) representing the transformed scene data after (partial) film
+        emulation.
+    """
+    image = np.ascontiguousarray(image)
+
+    if mode == "negative" or mode == "full":
+        image = negative_film.input_transform(
+            image,
+            input_colorspace,
+            exp_comp,
+            exp_kelvin,
+            tint,
+            color_masking,
+            push_pull,
+            halation_func=halation_func,
+        )
+
+    if adx_coding and mode == "negative":
+        image = negative_film.adx_encoding(image, adx_scaling, color_masking)
+
+    if adx_coding and (mode == "print" or mode == "grain"):
+        image = negative_film.adx_decoding(image, adx_scaling, color_masking)
+
+    if mode == "print" or mode == "full":
+        if print_film is not None:
+            output_film = print_film
+            image = negative_film.print_to(
+                image,
+                print_film,
+                color_masking,
+                red_light,
+                green_light,
+                blue_light,
+                idealized_curve,
+                inversion_gamma,
+            )
+            color_masking = None
+        else:
+            output_film = negative_film
+
+        if inversion:
+            projector_kelvin = 6500
+            white_balance = False
+
+        image, out_gray = output_film.project(
+            image,
+            projector_kelvin,
+            color_masking,
+            white_clip,
+            white_balance and print_film is None,
+        )
+
+        if inversion:
+            image = photographic_inversion(image, out_gray, inversion_gamma)
+
+        image = output_transform(
+            image,
+            output_gamut,
+            sat_adjust=sat_adjust,
+            shadow_comp=shadow_comp,
+            gamma_func=gamma_func,
+        )
+
+    if mode == "grain":
+        image = negative_film.grain_transform(image, std_div=0.001, scale=adx_scaling)
+
+    return image
 
 
 def create_lut(
     negative_film,
     print_film=None,
-    lut_size=33,
-    name="test",
-    cube=True,
-    verbose=False,
+    lut_size: int = 33,
+    name: str = "test",
+    cube: bool = True,
+    verbose: bool = False,
+    linear_scaling: float = 1.0,
     **kwargs,
-):
+) -> np.ndarray | str:
     """
     Creates a cube LUT from using `.film_spectral.FilmSpectral.generate_conversion`.
     """
     lut = colour.LUT3D(size=lut_size, name="test")
-    transform = negative_film.generate_conversion(negative_film, print_film, **kwargs)
     start = time.time()
-    table = transform(lut.table)
+    table = film_conversion(
+        lut.table * linear_scaling, negative_film, print_film, **kwargs
+    )
     if table.shape[-1] == 1:
         table = table.repeat(3, -1)
     if cube:
-        lut.table = to_numpy(table)
+        lut.table = table
     else:
         return table
     end = time.time()
@@ -77,13 +200,10 @@ def create_lut(
 
 
 def multi_channel_interp(
-    x,
+    x: np.ndarray,
     xps,
     fps,
     num_bins=1024,
-    interpolate=False,
-    left_extrapolate=False,
-    right_extrapolate=False,
 ):
     """
     Resamples each (xp, fp) pair to a uniform grid for fast lookup.
@@ -92,69 +212,22 @@ def multi_channel_interp(
         xp_common: np.ndarray, shape (num_bins,)
         fp_uniform: np.ndarray, shape (n_channels, num_bins)
     """
-    if CUDA_AVAILABLE:
-        extrapolation_distance = 100
-        if right_extrapolate:
-            slopes = [
-                (f_p[-1] - f_p[-2]) / (x_p[-1] - x_p[-2]) for x_p, f_p in zip(xps, fps)
-            ]
-            xps = [
-                xp.concatenate((x_p, xp.array([x_p[-1] + extrapolation_distance])))
-                for x_p in xps
-            ]
-            fps = [
-                xp.concatenate(
-                    (f_p, xp.array([f_p[-1] + extrapolation_distance * slope]))
-                )
-                for f_p, slope in zip(fps, slopes)
-            ]
-        if left_extrapolate:
-            slopes = [
-                (f_p[0] - f_p[1]) / (x_p[0] - x_p[1]) for x_p, f_p in zip(xps, fps)
-            ]
-            xps = [
-                xp.concatenate((xp.array([x_p[0] - extrapolation_distance]), x_p))
-                for x_p in xps
-            ]
-            fps = [
-                xp.concatenate(
-                    (xp.array([f_p[0] - extrapolation_distance * slope])), f_p
-                )
-                for f_p, slope in zip(fps, slopes)
-            ]
-        return xp.stack(
-            [
-                xp.interp(
-                    xp.ascontiguousarray(x[..., i]),
-                    xp.ascontiguousarray(x_p),
-                    xp.ascontiguousarray(f_p),
-                )
-                for i, (x_p, f_p) in enumerate(zip(xps, fps))
-            ],
-            dtype=default_dtype,
-            axis=-1,
-        )
     n_channels = len(xps)
     xp_min = min(x[0] for x in xps)
     xp_max = max(x[-1] for x in xps)
-    xp_common = xp.linspace(xp_min, xp_max, num_bins).astype(default_dtype)
+    xp_common = np.linspace(xp_min, xp_max, num_bins).astype(DEFAULT_DTYPE)
 
-    fp_uniform = xp.empty((n_channels, num_bins), dtype=default_dtype)
+    fp_uniform = np.empty((n_channels, num_bins), dtype=DEFAULT_DTYPE)
     for ch in range(n_channels):
-        fp_uniform[ch] = xp.interp(xp_common, xps[ch], fps[ch])
-    return uniform_multi_channel_interp(
-        x, xp_common, fp_uniform, interpolate, left_extrapolate, right_extrapolate
-    )
+        fp_uniform[ch] = np.interp(xp_common, xps[ch], fps[ch])
+    return uniform_multi_channel_interp(x, xp_common, fp_uniform)
 
 
-@njit
+@njit(parallel=True)
 def uniform_multi_channel_interp(
     x: np.ndarray,
     xp_common: np.ndarray,
     fp_uniform: np.ndarray,
-    interpolate=True,
-    left_extrapolate=False,
-    right_extrapolate=False,
 ) -> np.ndarray:
     """Interpolate values in an N-D array over the last dimension.
 
@@ -170,75 +243,47 @@ def uniform_multi_channel_interp(
             ``(num_bins,)`` representing the shared grid points.
         fp_uniform: Array of shape ``(channels, num_bins)``
             containing function values at each grid point for every channel.
-        interpolate: If ``True``, perform linear interpolation.
-            If ``False``, use nearest-neighbor selection.
-        left_extrapolate: If ``True``, apply linear extrapolation
-            for values less than ``xp_common[0]``.
-        right_extrapolate: If ``True``, apply linear extrapolation
-            for values greater than ``xp_common[-1]``.
 
     Returns:
         Interpolated array with the same shape as ``x``.
     """
-    shape = x.shape
-    ndim = len(shape)
-    n_channels = shape[ndim - 1]
+    orig_shape = x.shape
+    c = orig_shape[-1]
 
-    flat_size = 1
-    for i in range(ndim - 1):
-        flat_size *= shape[i]
+    n = 1
+    for i in range(len(orig_shape) - 1):
+        n *= orig_shape[i]
+
+    x_flat = x.reshape(n, c)
 
     num_bins = xp_common.shape[0]
     xp_min = xp_common[0]
     xp_max = xp_common[-1]
     bin_width = (xp_max - xp_min) / (num_bins - 1)
 
-    x_contig = np.ascontiguousarray(x)
-    result = np.empty_like(x_contig, dtype=default_dtype)
+    result = np.empty((n, c), dtype=DEFAULT_DTYPE)
 
-    x_flat = x_contig.reshape(flat_size, n_channels)
-    r_flat = result.reshape(flat_size, n_channels)
-
-    for idx in range(flat_size):
-        for ch in range(n_channels):
-            xi = x_flat[idx, ch]
+    for i in prange(n):
+        for ch in range(c):
+            xi = x_flat[i, ch]
             if xi <= xp_min:
-                if left_extrapolate:
-                    x0 = xp_common[0]
-                    x1 = xp_common[1]
-                    y0 = fp_uniform[ch, 0]
-                    y1 = fp_uniform[ch, 1]
-                    slope = (y1 - y0) / (x1 - x0)
-                    r_flat[idx, ch] = y0 + slope * (xi - x0)
-                else:
-                    r_flat[idx, ch] = fp_uniform[ch, 0]
+                result[i, ch] = fp_uniform[ch, 0]
             elif xi >= xp_max:
-                if right_extrapolate:
-                    x0 = xp_common[-2]
-                    x1 = xp_common[-1]
-                    y0 = fp_uniform[ch, -2]
-                    y1 = fp_uniform[ch, -1]
-                    slope = (y1 - y0) / (x1 - x0)
-                    r_flat[idx, ch] = y1 + slope * (xi - x1)
-                else:
-                    r_flat[idx, ch] = fp_uniform[ch, -1]
+                result[i, ch] = fp_uniform[ch, -1]
             else:
                 pos = (xi - xp_min) / bin_width
-                i = int(pos)
-                if interpolate:
-                    f = pos - i
-                    y0 = fp_uniform[ch, i]
-                    y1 = fp_uniform[ch, i + 1]
-                    r_flat[idx, ch] = y0 + f * (y1 - y0)
-                else:
-                    r_flat[idx, ch] = fp_uniform[ch, i]
+                idx = int(pos)
+                f = pos - idx
+                y0 = fp_uniform[ch, idx]
+                y1 = fp_uniform[ch, idx + 1]
+                result[i, ch] = y0 + f * (y1 - y0)
 
-    return result
+    return result.reshape(orig_shape)
 
 
 @njit(parallel=True)
 def apply_lut_tetrahedral_int(
-    image: np.ndarray, lut, bit_depth=16, out_bit_depth=8
+    image: np.ndarray, lut: np.ndarray, bit_depth: int = 16, lut_depth: int = 8
 ) -> np.ndarray:
     """Apply a 3D LUT using tetrahedral interpolation.
 
@@ -248,9 +293,11 @@ def apply_lut_tetrahedral_int(
 
     Args:
         image: Input image of shape ``(H, W, 3)``,
-            dtype ``uint16``.
+            dtype ``uint16`` or ``uint8``.
         lut: 3D lookup table of shape
-            ``(size, size, size, 3)``, dtype ``uint8``.
+            ``(size, size, size, 3)``, dtype ``uint16`` or ``uint8``.
+        bit_depth: Bit depth of the image.
+        lut_depth: Bit depth of the lookup table.
 
     Returns:
         Output image of shape ``(H, W, 3)``, dtype ``uint8``.
@@ -259,7 +306,7 @@ def apply_lut_tetrahedral_int(
     size = lut.shape[0]
     max_value = 2**bit_depth - 1
     scale = max_value // (size - 1)
-    scale_out = scale * 2 ** (bit_depth - out_bit_depth)
+    scale_out = scale * 2 ** (lut_depth - 8)
 
     out = np.empty((h, w, 3), dtype=np.uint8)
 
@@ -338,1015 +385,38 @@ def apply_lut_tetrahedral_int(
                     )
 
             # Convert back to uint8 safely
-            if out_bit_depth == 8:
-                out[y, x, 0] = np.uint8(c[0] // scale_out)
-                out[y, x, 1] = np.uint8(c[1] // scale_out)
-                out[y, x, 2] = np.uint8(c[2] // scale_out)
-            else:
-                out[y, x, 0] = np.uint16(c[0] // scale_out)
-                out[y, x, 1] = np.uint16(c[1] // scale_out)
-                out[y, x, 2] = np.uint16(c[2] // scale_out)
+            out[y, x, 0] = np.uint8(c[0] // scale_out)
+            out[y, x, 1] = np.uint8(c[1] // scale_out)
+            out[y, x, 2] = np.uint8(c[2] // scale_out)
 
     return out
 
 
-if CUDA_AVAILABLE:
-
-    @cuda.jit
-    def apply_lut_tetrahedral_int_cuda(image, lut, out, size, scale, scale_out):
-        """
-        CUDA kernel: Apply a 3D LUT with tetrahedral interpolation.
-        Input : uint16 image in [0, 65535]
-        Output: uint8 image in [0, 255]
-        """
-        idx = cuda.grid(1)
-        h, w, _ = image.shape
-        total = h * w
-
-        if idx >= total:
-            return
-
-        y = idx // w
-        x = idx % w
-
-        r = image[y, x, 0]
-        g = image[y, x, 1]
-        b = image[y, x, 2]
-
-        r0 = r // scale
-        g0 = g // scale
-        b0 = b // scale
-
-        dr = r % scale
-        dg = g % scale
-        db = b % scale
-
-        r1 = min(r0 + 1, size - 1)
-        g1 = min(g0 + 1, size - 1)
-        b1 = min(b0 + 1, size - 1)
-
-        # Fetch cube corners
-        c000 = lut[r0, g0, b0]
-        c100 = lut[r1, g0, b0]
-        c010 = lut[r0, g1, b0]
-        c001 = lut[r0, g0, b1]
-        c110 = lut[r1, g1, b0]
-        c101 = lut[r1, g0, b1]
-        c011 = lut[r0, g1, b1]
-        c111 = lut[r1, g1, b1]
-
-        c = cuda.local.array(3, dtype=default_dtype)
-
-        # Tetrahedral interpolation in float
-        for ch in range(3):
-            if dr >= dg:
-                if dg >= db:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + dr * (c100[ch] - c000[ch])
-                        + dg * (c110[ch] - c100[ch])
-                        + db * (c111[ch] - c110[ch])
-                    )
-                elif dr >= db:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + dr * (c100[ch] - c000[ch])
-                        + db * (c101[ch] - c100[ch])
-                        + dg * (c111[ch] - c101[ch])
-                    )
-                else:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + db * (c001[ch] - c000[ch])
-                        + dr * (c101[ch] - c001[ch])
-                        + dg * (c111[ch] - c101[ch])
-                    )
-            else:
-                if db >= dg:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + db * (c001[ch] - c000[ch])
-                        + dg * (c011[ch] - c001[ch])
-                        + dr * (c111[ch] - c011[ch])
-                    )
-                elif db >= dr:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + dg * (c010[ch] - c000[ch])
-                        + db * (c011[ch] - c010[ch])
-                        + dr * (c111[ch] - c011[ch])
-                    )
-                else:
-                    c[ch] = (
-                        c000[ch] * scale
-                        + dg * (c010[ch] - c000[ch])
-                        + dr * (c110[ch] - c010[ch])
-                        + db * (c111[ch] - c110[ch])
-                    )
-
-        # Normalize back to uint8
-        out[y, x, 0] = min(255, max(0, int(c[0] / scale_out)))
-        out[y, x, 1] = min(255, max(0, int(c[1] / scale_out)))
-        out[y, x, 2] = min(255, max(0, int(c[2] / scale_out)))
-
-    def run_lut_cuda(
-        image: np.ndarray, lut: np.ndarray, exponent=16, out_exponent=8
-    ) -> np.ndarray:
-        """
-        Wrapper: runs the CUDA kernel on an image + LUT.
-        """
-        h, w, _ = image.shape
-        size = lut.shape[0]
-
-        max_value = 2**exponent - 1
-        scale = max_value // (size - 1)
-        scale_out = scale * 2 ** (exponent - out_exponent)
-
-        # Allocate GPU arrays
-        d_image = cuda.to_device(image)
-        d_lut = cuda.to_device(lut)
-        d_out = cuda.device_array((h, w, 3), dtype=np.uint8)
-
-        threads = 256
-        blocks = (h * w + threads - 1) // threads
-
-        apply_lut_tetrahedral_int_cuda[blocks, threads](
-            d_image, d_lut, d_out, size, scale, scale_out
-        )
-
-        return d_out.copy_to_host()
-
-
-def construct_spectral_density(
-    ref_density: colour.SpectralDistribution, sigma=25
-) -> xp.ndarray:
-    """Split single density curve into separate layers using local extrema."""
-    red_peak = wavelength_argmax(ref_density, 600, min(750, spectral_shape.end))
-    green_peak = wavelength_argmax(ref_density, 500, 600)
-    blue_peak = wavelength_argmax(ref_density, max(400, spectral_shape.start), 500)
-    bg_cutoff = wavelength_argmin(ref_density, blue_peak, green_peak)
-    gr_cutoff = wavelength_argmin(ref_density, green_peak, red_peak)
-
-    wavelengths = xp.asarray(ref_density.wavelengths)
-    factors = xp.stack(
-        (
-            xp.where(gr_cutoff <= wavelengths, 1.0, 0.0),
-            xp.where((bg_cutoff < wavelengths) & (wavelengths < gr_cutoff), 1.0, 0.0),
-            xp.where(wavelengths <= bg_cutoff, 1.0, 0.0),
-        )
-    )
-    factors = xdimage.gaussian_filter(
-        factors, sigma=(0, sigma / spectral_shape.interval)
-    ).astype(default_dtype)
-
-    out = (factors * xp.asarray(ref_density.values)).T
-    return out
-
-
-def wavelength_argmax(
-    distribution: colour.SpectralDistribution, low=None, high=None
-) -> int:
-    """Gets the argmax of a spectral distribution."""
-    range = distribution.copy()
-    if low is not None and high is not None:
-        range.trim(colour.SpectralShape(low, high, 1))
-    peak = range.wavelengths[range.values.argmax()]
-    return peak
-
-
-def wavelength_argmin(
-    distribution: colour.SpectralDistribution, low=None, high=None
-) -> int:
-    """Gets the argmax of a spectral distribution."""
-    range = distribution.copy()
-    if low is not None and high is not None:
-        range.trim(colour.SpectralShape(low, high, 1))
-    peak = range.wavelengths[range.values.argmin()]
-    return peak
-
-
-def plot_gamuts(rgb_to_xyz: list[xp.ndarray], labels=None):
-    """Plots the gamut of CST matrices."""
-    rgb_to_xyz = [to_numpy(x) for x in rgb_to_xyz]
-
-    # RGB cube corners (R, G, B) in [0, 1]
-    rgb_primaries = np.identity(3)
-
-    # Convert RGB primaries to XYZ
-    xyz_primaries = [rgb_primaries @ x.T for x in rgb_to_xyz]
-
-    # Convert XYZ to xy chromaticities
-    xy_primaries = [colour.XYZ_to_xy(x) for x in xyz_primaries]
-
-    # Compute the whitepoint (assumes white = [1, 1, 1] in RGB)
-    xyz_white = [np.dot(x, np.ones(3)) for x in rgb_to_xyz]
-    xy_white = [colour.XYZ_to_xy(x) for x in xyz_white]
-
-    # Close the triangle by appending the first point at the end
-    xy_gamut = [np.vstack((x, x[0])) for x in xy_primaries]
-
-    # Plot the CIE 1931 Chromaticity Diagram
-    colour.plotting.plot_chromaticity_diagram_CIE1931(standalone=False)
-
-    # Plot the RGB gamut triangle
-    if labels is None or len(labels) != len(rgb_to_xyz):
-        labels = list(range(len(rgb_to_xyz)))
-
-    for i, x, y in zip(labels, xy_gamut, xy_white):
-        (line,) = plt.plot(x[:, 0], x[:, 1], "o-", label=i)
-        # Use the same color to plot the white point
-        plt.plot(y[0], y[1], "x", color=line.get_color())
-
-    plt.legend()
-    plt.title("RGB Gamut on CIE 1931 Chromaticity Diagram")
-    plt.show()
-
-
-def plot_gamut(rgb_to_xyz: xp.ndarray, label=None):
-    """Plots the gamut of a CST matrix."""
-    plot_gamuts([rgb_to_xyz], [label])
-
-
-def plot_chromaticity(chromaticity, label=None):
-    """Plot a chromaticity value."""
-    plot_chromaticties([chromaticity], [label])
-
-
-def plot_chromaticties(chromaticies, labels=None):
-    """Plot a chromaticity values."""
-    # Plot the CIE 1931 Chromaticity Diagram
-    colour.plotting.plot_chromaticity_diagram_CIE1931(standalone=False)
-
-    if labels is None or len(labels) != len(chromaticies):
-        labels = list(range(len(chromaticies)))
-
-    for chromaticity, label in zip(chromaticies, labels):
-        chromaticity = to_numpy(chromaticity)
-
-        if chromaticity.ndim == 1:
-            chromaticity = chromaticity.reshape(1, -1)
-
-        # Convert XYZ to xy chromaticities
-        xy = colour.XYZ_to_xy(chromaticity).T
-
-        plt.scatter(xy[0], xy[1], label=label)
-
-    plt.legend()
-    plt.title("RGB Gamut on CIE 1931 Chromaticity Diagram")
-    plt.show()
-
-
-def generate_combinations(steps):
-    values = np.linspace(0, 1, steps + 1)[:-1]
-    result = []
-
-    # First: zero in position 2 -> [a, b, 0]
-    for a in values:
-        b = 1 - a
-        result.append([b, a, 0.0])
-
-    # Second: zero in position 0 -> [0, a, b]
-    for a in values:
-        b = 1 - a
-        result.append([0.0, b, a])
-
-    # Third: zero in position 1 -> [a, 0, b]
-    for a in values:
-        b = 1 - a
-        result.append([b, 0.0, a])
-
-    return xp.array(result)
-
-
-def generate_all_summing_to_one(steps):
+def smooth_roll_off(
+    x: np.ndarray,
+    x0: float | np.ndarray,
+    y0: float | np.ndarray,
+    gamma: float,
+):
     """
-    Generate all (a, b, c) such that a + b + c = 1 and a, b, c ∈ [0, 1]
-    with a specified number of steps (granularity).
+    Function that rolls-off smoothly towards 0.
 
-    Parameters:
-        steps (int): The number of divisions of the interval [0, 1].
-
-    Returns:
-        np.ndarray: Array of shape (n, 3) with all combinations summing to 1.
+    Args:
+        x: Values that are to be mapped.
+        x0: At which position to hit y0.
+        y0: Which value to hit at x0.
+        gamma: The slope of the curve.
     """
-    result = []
-    for i in range(steps + 1):
-        for j in range(steps + 1 - i):
-            k = steps - i - j
-            result.append([i / steps, j / steps, k / steps])
-    return xp.array(result)
-
-
-def CCT_to_xy(CCT):
-    CCT_3 = CCT**3
-    CCT_2 = CCT**2
-
-    if CCT <= 7000:
-        x = (
-            -4.607 * 10**9 / CCT_3
-            + 2.9678 * 10**6 / CCT_2
-            + 0.09911 * 10**3 / CCT
-            + 0.244063
-        )
-    else:
-        x = (
-            -2.0064 * 10**9 / CCT_3
-            + 1.9018 * 10**6 / CCT_2
-            + 0.24748 * 10**3 / CCT
-            + 0.23704
-        )
-
-    y = -3.000 * x**2 + 2.870 * x - 0.275
-    return np.array([x, y])
-
-
-def xy_to_illuminant_D(xy, spectral_shape=None):
-    xy = np.concatenate((np.ones(1), xy))
-    xy /= np.array([0.0241, 0.2562, -0.7341]) @ xy
-    M = np.array([[-1.3515, -1.7703, 5.9114], [0.030, -31.4424, 30.0717]]) @ xy
-    M = np.concatenate((np.ones(1), M))
-    illuminant = (
-        np.array(
-            [
-                [
-                    0.04,
-                    3.02,
-                    6.00,
-                    17.80,
-                    29.60,
-                    42.45,
-                    55.30,
-                    56.30,
-                    57.30,
-                    59.55,
-                    61.80,
-                    61.65,
-                    61.50,
-                    65.15,
-                    68.80,
-                    66.10,
-                    63.40,
-                    64.60,
-                    65.80,
-                    80.30,
-                    94.80,
-                    99.80,
-                    104.80,
-                    105.35,
-                    105.90,
-                    101.35,
-                    96.80,
-                    105.35,
-                    113.90,
-                    119.75,
-                    125.60,
-                    125.55,
-                    125.50,
-                    123.40,
-                    121.30,
-                    121.30,
-                    121.30,
-                    117.40,
-                    113.50,
-                    113.30,
-                    113.10,
-                    111.95,
-                    110.80,
-                    108.65,
-                    106.50,
-                    107.65,
-                    108.80,
-                    107.05,
-                    105.30,
-                    104.85,
-                    104.40,
-                    102.20,
-                    100.00,
-                    98.00,
-                    96.00,
-                    95.55,
-                    95.10,
-                    92.10,
-                    89.10,
-                    89.80,
-                    90.50,
-                    90.40,
-                    90.30,
-                    89.35,
-                    88.40,
-                    86.20,
-                    84.00,
-                    84.55,
-                    85.10,
-                    83.50,
-                    81.90,
-                    82.25,
-                    82.60,
-                    83.75,
-                    84.90,
-                    83.10,
-                    81.30,
-                    76.60,
-                    71.90,
-                    73.10,
-                    74.30,
-                    75.35,
-                    76.40,
-                    69.85,
-                    63.30,
-                    67.50,
-                    71.70,
-                    74.35,
-                    77.00,
-                    71.10,
-                    65.20,
-                    56.45,
-                    47.70,
-                    58.15,
-                    68.60,
-                    66.80,
-                    65.00,
-                    65.50,
-                    66.00,
-                    63.50,
-                    61.00,
-                    57.15,
-                    53.30,
-                    56.10,
-                    58.90,
-                    60.40,
-                    61.90,
-                ],
-                [
-                    0.02,
-                    2.26,
-                    4.50,
-                    13.45,
-                    22.40,
-                    32.20,
-                    42.00,
-                    41.30,
-                    40.60,
-                    41.10,
-                    41.60,
-                    39.80,
-                    38.00,
-                    40.20,
-                    42.40,
-                    40.45,
-                    38.50,
-                    36.75,
-                    35.00,
-                    39.20,
-                    43.40,
-                    44.85,
-                    46.30,
-                    45.10,
-                    43.90,
-                    40.50,
-                    37.10,
-                    36.90,
-                    36.70,
-                    36.30,
-                    35.90,
-                    34.25,
-                    32.60,
-                    30.25,
-                    27.90,
-                    26.10,
-                    24.30,
-                    22.20,
-                    20.10,
-                    18.15,
-                    16.20,
-                    14.70,
-                    13.20,
-                    10.90,
-                    8.60,
-                    7.35,
-                    6.10,
-                    5.15,
-                    4.20,
-                    3.05,
-                    1.90,
-                    0.95,
-                    0.00,
-                    -0.80,
-                    -1.60,
-                    -2.55,
-                    -3.50,
-                    -3.50,
-                    -3.50,
-                    -4.65,
-                    -5.80,
-                    -6.50,
-                    -7.20,
-                    -7.90,
-                    -8.60,
-                    -9.05,
-                    -9.50,
-                    -10.20,
-                    -10.90,
-                    -10.80,
-                    -10.70,
-                    -11.35,
-                    -12.00,
-                    -13.00,
-                    -14.00,
-                    -13.80,
-                    -13.60,
-                    -12.80,
-                    -12.00,
-                    -12.65,
-                    -13.30,
-                    -13.10,
-                    -12.90,
-                    -11.75,
-                    -10.60,
-                    -11.10,
-                    -11.60,
-                    -11.90,
-                    -12.20,
-                    -11.20,
-                    -10.20,
-                    -9.00,
-                    -7.80,
-                    -9.50,
-                    -11.20,
-                    -10.80,
-                    -10.40,
-                    -10.50,
-                    -10.60,
-                    -10.15,
-                    -9.70,
-                    -9.00,
-                    -8.30,
-                    -8.80,
-                    -9.30,
-                    -9.55,
-                    -9.80,
-                ],
-                [
-                    0.00,
-                    1.00,
-                    2.00,
-                    3.00,
-                    4.00,
-                    6.25,
-                    8.50,
-                    8.15,
-                    7.80,
-                    7.25,
-                    6.70,
-                    6.00,
-                    5.30,
-                    5.70,
-                    6.10,
-                    4.55,
-                    3.00,
-                    2.10,
-                    1.20,
-                    0.05,
-                    -1.10,
-                    -0.80,
-                    -0.50,
-                    -0.60,
-                    -0.70,
-                    -0.95,
-                    -1.20,
-                    -1.90,
-                    -2.60,
-                    -2.75,
-                    -2.90,
-                    -2.85,
-                    -2.80,
-                    -2.70,
-                    -2.60,
-                    -2.60,
-                    -2.60,
-                    -2.20,
-                    -1.80,
-                    -1.65,
-                    -1.50,
-                    -1.40,
-                    -1.30,
-                    -1.25,
-                    -1.20,
-                    -1.10,
-                    -1.00,
-                    -0.75,
-                    -0.50,
-                    -0.40,
-                    -0.30,
-                    -0.15,
-                    0.00,
-                    0.10,
-                    0.20,
-                    0.35,
-                    0.50,
-                    1.30,
-                    2.10,
-                    2.65,
-                    3.20,
-                    3.65,
-                    4.10,
-                    4.40,
-                    4.70,
-                    4.90,
-                    5.10,
-                    5.90,
-                    6.70,
-                    7.00,
-                    7.30,
-                    7.95,
-                    8.60,
-                    9.20,
-                    9.80,
-                    10.00,
-                    10.20,
-                    9.25,
-                    8.30,
-                    8.95,
-                    9.60,
-                    9.05,
-                    8.50,
-                    7.75,
-                    7.00,
-                    7.30,
-                    7.60,
-                    7.80,
-                    8.00,
-                    7.35,
-                    6.70,
-                    5.95,
-                    5.20,
-                    6.30,
-                    7.40,
-                    7.10,
-                    6.80,
-                    6.90,
-                    7.00,
-                    6.70,
-                    6.40,
-                    5.95,
-                    5.50,
-                    5.80,
-                    6.10,
-                    6.30,
-                    6.50,
-                ],
-            ]
-        ).T
-        @ M
-    )
-    if spectral_shape is not None:
-        illuminant = colour.SpectralDistribution(
-            to_numpy(illuminant), colour.SpectralShape(300, 830, 5)
-        ).align(spectral_shape)
-    return illuminant
-
-
-def CCT_to_illuminant_D(CCT, spectral_shape=None):
-    xy = CCT_to_xy(CCT)
-    illuminant = xy_to_illuminant_D(xy, spectral_shape)
-    return illuminant
-
-
-@njit
-def _rgb_to_hsv_pixel(r, g, b):
-    """Convert one RGB pixel to HSV (all values in [0,1])."""
-    c_max = max(r, g, b)
-    c_min = min(r, g, b)
-    diff = c_max - c_min
-
-    # Value
-    v = c_max
-
-    # Saturation
-    if c_max == 0.0:
-        s = 0.0
-    else:
-        s = diff / c_max
-
-    # Hue
-    if diff == 0.0:
-        h = 0.0
-    elif c_max == r:
-        h = (g - b) / diff % 6.0
-    elif c_max == g:
-        h = (b - r) / diff + 2.0
-    else:  # mx == b
-        h = (r - g) / diff + 4.0
-
-    h /= 6.0  # normalize to [0,1]
-
-    return h, s, v
-
-
-@njit
-def _hsv_to_rgb_pixel(h, s, v):
-    """Convert one HSV pixel to RGB (all values in [0,1])."""
-    c = v * s
-    x = c * (1 - abs(h * 6 % 2 - 1))
-    m = v - c
-
-    # rgb temp
-    if 0 <= h < 1 / 6:
-        r, g, b = c, x, 0
-    elif 1 / 6 <= h < 2 / 6:
-        r, g, b = x, c, 0
-    elif 2 / 6 <= h < 3 / 6:
-        r, g, b = 0, c, x
-    elif 3 / 6 <= h < 4 / 6:
-        r, g, b = 0, x, c
-    elif 4 / 6 <= h < 5 / 6:
-        r, g, b = x, 0, c
-    else:
-        r, g, b = c, 0, x
-
-    # rgb
-    r += m
-    g += m
-    b += m
-
-    return r, g, b
-
-
-@njit
-def _rgb_to_hsl_pixel(r, g, b):
-    """Convert one RGB pixel to HSL (all values in [0,1])."""
-    c_max = max(r, g, b)
-    c_min = min(r, g, b)
-    diff = c_max - c_min
-
-    # Value
-    lum = (c_max + c_min) / 2
-
-    # Saturation
-    if c_max == 0.0 or lum == 1.0:
-        s = 0.0
-    else:
-        s = diff / (1 - abs(2 * lum - 1))
-
-    # Hue
-    if diff == 0.0:
-        h = 0.0
-    elif c_max == r:
-        h = (g - b) / diff % 6.0
-    elif c_max == g:
-        h = (b - r) / diff + 2.0
-    else:  # mx == b
-        h = (r - g) / diff + 4.0
-
-    h /= 6.0  # normalize to [0,1]
-
-    return h, s, lum
-
-
-@njit
-def _hsl_to_rgb_pixel(h, s, lum):
-    """Convert one HSL pixel to RGB (all values in [0,1])."""
-    c = (1 - abs(2 * lum - 1)) * s
-    x = c * (1 - abs(h * 6 % 2 - 1))
-    m = lum - c / 2
-
-    # rgb temp
-    if 0 <= h < 1 / 6:
-        r, g, b = c, x, 0
-    elif 1 / 6 <= h < 2 / 6:
-        r, g, b = x, c, 0
-    elif 2 / 6 <= h < 3 / 6:
-        r, g, b = 0, c, x
-    elif 3 / 6 <= h < 4 / 6:
-        r, g, b = 0, x, c
-    elif 4 / 6 <= h < 5 / 6:
-        r, g, b = x, 0, c
-    else:
-        r, g, b = c, 0, x
-
-    # rgb
-    r += m
-    g += m
-    b += m
-
-    return r, g, b
-
-
-# Reference white (D65)
-REF_X = 0.95047
-REF_Y = 1.00000
-REF_Z = 1.08883
-
-
-@njit
-def _f(t):
-    delta = 6 / 29
-    if t > delta**3:
-        return t ** (1 / 3)
-    else:
-        return (t / (3 * delta**2)) + (4 / 29)
-
-
-@njit
-def apply_per_pixel(rgb, function):
-    """
-    Convert a 3D (H, W, 3) or 4D (N, H, W, 3) RGB array to HSV.
-    RGB values are expected in range [0, 1].
-    Returns array of same shape with HSV values.
-
-    H in [0, 1], S in [0, 1], V in [0, 1].
-    """
-    shape = rgb.shape
-    ndim = rgb.ndim
-
-    if ndim == 2:
-        out = np.empty_like(rgb)
-        for i in range(shape[0]):
-            r, g, b = rgb[i]
-            out[i] = np.array(function(r, g, b), dtype=default_dtype)
-        return out
-
-    elif ndim == 3:  # (H, W, 3)
-        out = np.empty_like(rgb)
-        for i in range(shape[0]):
-            for j in range(shape[1]):
-                r, g, b = rgb[i, j]
-                out[i, j] = np.array(function(r, g, b), dtype=default_dtype)
-        return out
-
-    elif ndim == 4:  # (N, H, W, 3)
-        out = np.empty_like(rgb)
-        for n in range(shape[0]):
-            for i in range(shape[1]):
-                for j in range(shape[2]):
-                    r, g, b = rgb[n, i, j]
-                    out[n, i, j] = np.array(function(r, g, b), dtype=default_dtype)
-        return out
-
-    else:
-        raise ValueError("Input must be 3D or 4D with last dimension == 3")
-
-
-@njit
-def rgb_to_hsv(rgb):
-    return apply_per_pixel(rgb, _rgb_to_hsv_pixel)
-
-
-@njit
-def hsv_to_rgb(hsv):
-    return apply_per_pixel(hsv, _hsv_to_rgb_pixel)
-
-
-@njit
-def rgb_to_hsl(rgb):
-    return apply_per_pixel(rgb, _rgb_to_hsl_pixel)
-
-
-@njit
-def hsl_to_rgb(hsl):
-    return apply_per_pixel(hsl, _hsl_to_rgb_pixel)
-
-
-@njit
-def saturation_adjust_hsv_linear(rgb, sat_adjust, density=1):
-    hsv = rgb_to_hsv(rgb)
-    hsv[..., 1] *= sat_adjust
-    hsv[..., 1] = np.clip(hsv[..., 1], 0, 1)
-    rgb = hsv_to_rgb(hsv)
-    return rgb
-
-
-@njit
-def saturation_adjust_hsv_density(rgb, sat_adjust, density=1):
-    hsv = rgb_to_hsv(rgb)
-    if sat_adjust < 1:
-        hsv[..., 1] *= sat_adjust
-    else:
-        hsv[..., 2] *= density * (1 - sat_adjust) * hsv[..., 1] ** 2 + 1
-        hsv[..., 1] = (1 - sat_adjust) * hsv[..., 1] ** 2 + sat_adjust * hsv[..., 1]
-
-    rgb = hsv_to_rgb(hsv)
-    return rgb
-
-
-@njit
-def saturation_adjust_hsl_linear(rgb, sat_adjust, density=1):
-    hsl = rgb_to_hsl(rgb)
-    hsl[..., 1] = np.clip(hsl[..., 1] * sat_adjust, 0, 1)
-    rgb = hsl_to_rgb(hsl)
-    return rgb
-
-
-@njit
-def saturation_adjust_hsl_density(rgb, sat_adjust, density=1):
-    hsl = rgb_to_hsl(rgb)
-
-    if sat_adjust < 1:
-        hsl[..., 1] *= sat_adjust
-    else:
-        hsl[..., 2] *= density * (1 - sat_adjust) * hsl[..., 1] ** 2 + 1
-        hsl[..., 1] = (1 - sat_adjust) * hsl[..., 1] ** 2 + sat_adjust * hsl[..., 1]
-
-    rgb = hsl_to_rgb(hsl)
-    return rgb
-
-
-def linear_gamut_compression(rgb, gamut_compression=0):
-    A = xp.identity(3, rgb.dtype) * (1 - gamut_compression) + gamut_compression / 3
-    A_inv = xp.linalg.inv(A)
-    rgb = xp.clip(rgb @ A_inv, -0.1, None) @ A
-    return rgb
-
-
-def saturation_adjust_simple(rgb, sat_adjust, density=0.5, luminance_factors=None):
-    if luminance_factors is None:
-        luminance_factors = np.ones(3, dtype=default_dtype) / 3
-    else:
-        luminance_factors = luminance_factors.astype(default_dtype)
-    Y = rgb @ luminance_factors.reshape(-1, 1)
-    if sat_adjust <= 1:
-        rgb = (1 - sat_adjust) * Y + sat_adjust * rgb
-    else:
-        rgb_saturated = (1 - sat_adjust) * Y + sat_adjust * rgb
-        achromaticity = (
-            np.divide(-rgb_saturated.min(axis=-1, keepdims=True), Y, where=(Y != 0)) + 1
-        )
-        achromaticity /= sat_adjust
-        achromaticity = np.clip(achromaticity, 0, 1)
-        rgb = (rgb * achromaticity + rgb_saturated * (1 - achromaticity)) * (
-            1 - achromaticity * density * (sat_adjust - 1)
-        )
-    return rgb
-
-
-def gamut_compression_matrices(matrix, gamut_compression=0.0):
-    A = (
-        xp.identity(3, dtype=default_dtype) * (1 - gamut_compression)
-        + gamut_compression / 3
-    )
-    A_inv = xp.linalg.inv(A)
-    return matrix @ A_inv, A
-
-
-COLORCHECKER_2005 = np.array(
-    [
-        [0.3457, 0.3585, 100.0],
-        [0.4316, 0.3777, 10.08],
-        [0.4197, 0.3744, 34.95],
-        [0.2760, 0.3016, 18.36],
-        [0.3703, 0.4499, 13.25],
-        [0.2999, 0.2856, 23.04],
-        [0.2848, 0.3911, 41.78],
-        [0.5295, 0.4055, 31.18],
-        [0.2305, 0.2106, 11.26],
-        [0.5012, 0.3273, 19.38],
-        [0.3319, 0.2482, 6.37],
-        [0.3984, 0.5008, 44.46],
-        [0.4957, 0.4427, 43.57],
-        [0.2018, 0.1692, 5.75],
-        [0.3253, 0.5032, 23.18],
-        [0.5686, 0.3303, 12.57],
-        [0.4697, 0.4734, 59.81],
-        [0.4159, 0.2688, 20.09],
-        [0.2131, 0.3023, 19.30],
-        [0.3469, 0.3608, 91.31],
-        [0.3440, 0.3584, 58.94],
-        [0.3432, 0.3581, 36.32],
-        [0.3446, 0.3579, 19.15],
-        [0.3401, 0.3548, 8.83],
-        [0.3406, 0.3537, 3.11],
-    ],
-    default_dtype,
-)
-COLORCHECKER_2005 = colour.xyY_to_XYZ(COLORCHECKER_2005)
-COLORCHECKER_2005 *= np.array([0.95047, 1.00000, 1.08883]) / COLORCHECKER_2005[0]
-COLORCHECKER_2005 = COLORCHECKER_2005[1:]
-COLORCHECKER_OKLAB = colour.convert(COLORCHECKER_2005, "CIE XYZ", "Oklab")
-COLORCHECKER_2005 = xp.asarray(COLORCHECKER_2005, default_dtype)
-
-
-def smooth_piecewise(x, threshold, max_value):
-    k = 1 / (max_value - threshold)
-
-    x = xp.where(
-        x < threshold,
-        x,
-        max_value - (max_value - threshold) * np.exp(-k * (x - threshold)),
-    )
-
-    return x
-
-
-def convolution_filter(rgb, kernel, padding=False):
-    if not CUDA_AVAILABLE:
-        return cv2.filter2D(rgb, -1, kernel)
-    else:
-        if len(kernel.shape) == 2:
-            kernel = kernel[..., xp.newaxis]
-        if padding:
-            pad_h = kernel.shape[0] // 2
-            pad_w = kernel.shape[1] // 2
-            rgb = xp.pad(rgb, ((pad_h, pad_h), (pad_w, pad_w), (0, 0)), "reflect")
-            return signal.oaconvolve(rgb, kernel, mode="valid", axes=(0, 1))
-        else:
-            return signal.oaconvolve(rgb, kernel, mode="same", axes=(0, 1))
+    offset = np.log(np.expm1(y0)) - gamma * x0
+    return np.log1p(np.exp(gamma * x + offset))
+
+
+@njit(parallel=True)
+def log_clip(image: np.ndarray):
+    """Apply log10 efficiently and clip to 1e-16 for safety."""
+    n = image.size
+    for i in prange(n):
+        x = image.flat[i]
+        x = max(x, 1e-16)
+        x = math.log10(x)
+        image.flat[i] = x

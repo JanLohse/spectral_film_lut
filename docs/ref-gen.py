@@ -19,6 +19,8 @@ SPECIAL_CAPS = {
     "100F",
     "100D",
     "IV",
+    "XY",
+    "LUT",
 }  # always uppercase
 
 TAG_MAPPING = {
@@ -27,6 +29,8 @@ TAG_MAPPING = {
         "densiometry",
         "film_spectral",
         "grain_generation",
+        "xy_lut",
+        "color_processing",
     ],
     "Data": [
         "color_space",
@@ -43,6 +47,8 @@ TAG_MAPPING = {
         "film_loader",
         "gui_objects",
         "grain_generation",
+        "xy_lut",
+        "color_processing",
     ],
     "Module": ["init", "index"],
     "Film Stock": ["negative", "print", "reversal"],

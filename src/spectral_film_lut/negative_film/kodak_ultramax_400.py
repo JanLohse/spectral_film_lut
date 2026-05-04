@@ -1,9 +1,9 @@
-"""Kodak Ultramax 500"""
+"""Kodak Ultramax 400"""
 
 from spectral_film_lut.film_data import FilmData
 
 KODAK_ULTRAMAX_400 = FilmData(
-    name="Kodak Ultramax 500",
+    name="Kodak Ultramax 400",
     iso=400,
     density_measure="status_m",
     year=2007,
@@ -496,4 +496,4 @@ KODAK_ULTRAMAX_400 = FilmData(
     ],
     rms=4.6,  # guessed value
 )
-"""Kodak Ultramax 500"""
+"""Kodak Ultramax 400"""

@@ -3,19 +3,23 @@ The main class for storing unprocessed film data.
 """
 
 from dataclasses import dataclass
+from typing import Literal
+
+import numpy as np
+
+from spectral_film_lut.densiometry import DENSITY_MEASURE
 
 
 @dataclass
 class FilmData:
     """Store data collected from a film datasheet."""
 
-    # Required
     name: str
     manufacturer: str
-    film_type: str
-    stage: str
-    medium: str
-    density_measure: str
+    film_type: Literal["positive", "negative"]
+    stage: Literal["camera", "print"]
+    medium: Literal["cine", "photo"]
+    density_measure: DENSITY_MEASURE
     sensiometric_curve: list[dict[float, float]]
     year: int | None = None
     iso: int | None = None
@@ -29,7 +33,7 @@ class FilmData:
     lad: list[float] | None = None
     d_min_adjustment: bool | None = None
     log_sensitivity: list[dict[float, float]] | None = None
-    sensitivity: list[dict[float, float]] | None = None
+    sensitivity: np.ndarray | None = None
     spectral_density: list[dict[float, float]] | None = None
     d_ref_sd: dict[float, float] | None = None
     d_min_sd: dict[float, float] | None = None

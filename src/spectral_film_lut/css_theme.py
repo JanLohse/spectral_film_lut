@@ -8,31 +8,48 @@ from spectral_film_lut import BASE_DIR
 
 
 def oklch_to_hex(luminance: float, c=0.0, h=0.0) -> str:
-    """Convert from oklch to hex with default c and h values."""
+    """Convert from OkLch to hex with."""
     return colour.convert((luminance, c, h), "Oklch", "Hexadecimal")
 
 
 BASE_COLOR = oklch_to_hex(0.2175)
+"""The base color for the settings panel."""
 BACKGROUND_COLOR = oklch_to_hex(0.276)
-ACCENT_COLOR = oklch_to_hex(0.55)
+"""The main window background color."""
 BORDER_RADIUS = 12
+"""The border radius for panels."""
 BUTTON_RADIUS = 6
+"""The border radius for buttons."""
 HOVER_COLOR = oklch_to_hex(0.35)
+"""The color for buttons when hovering."""
 OUTLINE_COLOR = oklch_to_hex(0.4)
+"""The outline color for widgets."""
 PRESSED_COLOR = oklch_to_hex(0.3)
+"""The color of pressed buttons."""
 CHECKED_COLOR = oklch_to_hex(0.24675)
+"""The color of checked buttons."""
 MENU_COLOR = oklch_to_hex(0.25)
+"""The color of menus and combobox pop-ups."""
 TEXT_PRIMARY = oklch_to_hex(0.9)
+"""The primary text color."""
 TEXT_SECONDARY = oklch_to_hex(0.7)
+"""The secondary text color."""
 LINEEDIT_COLOR = oklch_to_hex(0.24675)
+"""The color of line edit widgets."""
 SCROLLBAR_HOVER_COLOR = oklch_to_hex(0.24)
+"""The hover color for a scrollbar."""
 SCROLLBAR_THICKNESS = 11
+"""The thickness of the scrollbar."""
 SCROLLBAR_MARGIN = 2
+"""The margins of a scrollbar."""
 SCROLLBAR_HANDLE_COLOR = oklch_to_hex(0.3633)
+"""The color of the scrollbar handle."""
 SCROLLBAR_HANDLE_HOVER = oklch_to_hex(0.4535)
-HIGHLIGHT_COLOR = oklch_to_hex(0.75)
+"""The hover color of the scrollbar handle."""
 HOVER_DURATION = 150
+"""How long the hover animation takes."""
 PRESS_DURATION = 75
+"""How long the button press animation takes."""
 
 THEME = f"""
 QMainWindow > QWidget, QDialog > QWidget {{
@@ -283,3 +300,4 @@ QProgressBar::chunk {{
     border-radius: {BORDER_RADIUS}px;
 }}
 """
+"""The main style sheet."""

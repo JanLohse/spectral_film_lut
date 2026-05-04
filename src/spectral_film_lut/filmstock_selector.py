@@ -27,7 +27,7 @@ from spectral_film_lut.gui_objects import (
     WideComboBox,
 )
 
-icon_path = f"{BASE_DIR}/resources/search.svg"
+ICON_PATH = f"{BASE_DIR}/resources/search.svg"
 
 
 class FilmStockSelector(QWidget):
@@ -49,7 +49,7 @@ class FilmStockSelector(QWidget):
         self.film_combo = WideComboBox(parent)
         self.film_combo.addItems(self.film_stocks.keys())
         self.select_button = AnimatedButton()
-        self.select_button.setIcon(QIcon(icon_path))
+        self.select_button.setIcon(QIcon(ICON_PATH))
         self.select_button.setFixedWidth(25)
         layout = QHBoxLayout()
         self.setLayout(layout)
@@ -136,11 +136,7 @@ class FilmStockSelectorWindow(QDialog):
 
         self.film_stocks = film_stocks
         self.film_tags = {
-            x: x.lower()
-            + " "
-            + " ".join((str(z).lower() for z in y.values()))
-            + " "
-            + x
+            x: x.lower() + " " + " ".join(str(z).lower() for z in y.values()) + " " + x
             for x, y in self.film_stocks.items()
         }
 

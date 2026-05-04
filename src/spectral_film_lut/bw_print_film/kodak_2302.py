@@ -135,7 +135,7 @@ KODAK_2302 = FilmData(
         },
     ],
     sensiometric_curve=[curve[5]],
-    rms_curve=[
+    rms_density=[
         {
             -0.0046: 0.0624,
             0.3563: 0.0684,
@@ -154,7 +154,7 @@ KODAK_2302 = FilmData(
             2.3176: 3.4000,
         }
     ],
-    rms_density=[
+    rms_curve=[
         {
             -0.0017: 0.0018,
             0.1229: 0.0020,
