@@ -808,7 +808,6 @@ class MainWindow(QMainWindow):
 
         src = self.image_selector.currentText()
         image = self.load_image_data(src)
-        bit_depth = 16
         height, width, _ = image.shape
         image_widget_size = self.image.size() * self.devicePixelRatioF()
         height_target = image_widget_size.height()
@@ -822,8 +821,8 @@ class MainWindow(QMainWindow):
         scale_factor = math.floor(1 / scale_factor)
         image = image[::scale_factor, ::scale_factor, :]
         height, width, _ = image.shape
-        lut = (lut * (2**bit_depth - 1)).astype(np.uint)
-        image = apply_lut_tetrahedral_int(image, lut, bit_depth=bit_depth)
+        lut = (lut * (2**8 - 1)).astype(np.uint8)
+        image = apply_lut_tetrahedral_int(image, lut)
 
         image = QImage(image, width, height, 3 * width, QImage.Format.Format_RGB888)
         pixmap = QPixmap.fromImage(image)

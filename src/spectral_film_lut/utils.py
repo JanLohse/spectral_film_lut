@@ -204,9 +204,6 @@ def multi_channel_interp(
     xps,
     fps,
     num_bins=1024,
-    interpolate=False,
-    left_extrapolate=False,
-    right_extrapolate=False,
 ):
     """
     Resamples each (xp, fp) pair to a uniform grid for fast lookup.
@@ -223,19 +220,14 @@ def multi_channel_interp(
     fp_uniform = np.empty((n_channels, num_bins), dtype=DEFAULT_DTYPE)
     for ch in range(n_channels):
         fp_uniform[ch] = np.interp(xp_common, xps[ch], fps[ch])
-    return uniform_multi_channel_interp(
-        x, xp_common, fp_uniform, interpolate, left_extrapolate, right_extrapolate
-    )
+    return uniform_multi_channel_interp(x, xp_common, fp_uniform)
 
 
-@njit
+@njit(parallel=True)
 def uniform_multi_channel_interp(
     x: np.ndarray,
     xp_common: np.ndarray,
     fp_uniform: np.ndarray,
-    interpolate=True,
-    left_extrapolate=False,
-    right_extrapolate=False,
 ) -> np.ndarray:
     """Interpolate values in an N-D array over the last dimension.
 
@@ -251,70 +243,42 @@ def uniform_multi_channel_interp(
             ``(num_bins,)`` representing the shared grid points.
         fp_uniform: Array of shape ``(channels, num_bins)``
             containing function values at each grid point for every channel.
-        interpolate: If ``True``, perform linear interpolation.
-            If ``False``, use nearest-neighbor selection.
-        left_extrapolate: If ``True``, apply linear extrapolation
-            for values less than ``xp_common[0]``.
-        right_extrapolate: If ``True``, apply linear extrapolation
-            for values greater than ``xp_common[-1]``.
 
     Returns:
         Interpolated array with the same shape as ``x``.
     """
-    shape = x.shape
-    ndim = len(shape)
-    n_channels = shape[ndim - 1]
+    orig_shape = x.shape
+    c = orig_shape[-1]
 
-    flat_size = 1
-    for i in range(ndim - 1):
-        flat_size *= shape[i]
+    n = 1
+    for i in range(len(orig_shape) - 1):
+        n *= orig_shape[i]
+
+    x_flat = x.reshape(n, c)
 
     num_bins = xp_common.shape[0]
     xp_min = xp_common[0]
     xp_max = xp_common[-1]
     bin_width = (xp_max - xp_min) / (num_bins - 1)
 
-    x_contig = np.ascontiguousarray(x)
-    result = np.empty_like(x_contig, dtype=DEFAULT_DTYPE)
+    result = np.empty((n, c), dtype=DEFAULT_DTYPE)
 
-    x_flat = x_contig.reshape(flat_size, n_channels)
-    r_flat = result.reshape(flat_size, n_channels)
-
-    for idx in range(flat_size):
-        for ch in range(n_channels):
-            xi = x_flat[idx, ch]
+    for i in prange(n):
+        for ch in range(c):
+            xi = x_flat[i, ch]
             if xi <= xp_min:
-                if left_extrapolate:
-                    x0 = xp_common[0]
-                    x1 = xp_common[1]
-                    y0 = fp_uniform[ch, 0]
-                    y1 = fp_uniform[ch, 1]
-                    slope = (y1 - y0) / (x1 - x0)
-                    r_flat[idx, ch] = y0 + slope * (xi - x0)
-                else:
-                    r_flat[idx, ch] = fp_uniform[ch, 0]
+                result[i, ch] = fp_uniform[ch, 0]
             elif xi >= xp_max:
-                if right_extrapolate:
-                    x0 = xp_common[-2]
-                    x1 = xp_common[-1]
-                    y0 = fp_uniform[ch, -2]
-                    y1 = fp_uniform[ch, -1]
-                    slope = (y1 - y0) / (x1 - x0)
-                    r_flat[idx, ch] = y1 + slope * (xi - x1)
-                else:
-                    r_flat[idx, ch] = fp_uniform[ch, -1]
+                result[i, ch] = fp_uniform[ch, -1]
             else:
                 pos = (xi - xp_min) / bin_width
-                i = int(pos)
-                if interpolate:
-                    f = pos - i
-                    y0 = fp_uniform[ch, i]
-                    y1 = fp_uniform[ch, i + 1]
-                    r_flat[idx, ch] = y0 + f * (y1 - y0)
-                else:
-                    r_flat[idx, ch] = fp_uniform[ch, i]
+                idx = int(pos)
+                f = pos - idx
+                y0 = fp_uniform[ch, idx]
+                y1 = fp_uniform[ch, idx + 1]
+                result[i, ch] = y0 + f * (y1 - y0)
 
-    return result
+    return result.reshape(orig_shape)
 
 
 @njit(parallel=True)
