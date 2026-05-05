@@ -8,7 +8,7 @@ from spectral_film_lut import BASE_DIR, __version__
 from spectral_film_lut.splash_screen import launch_splash_screen
 
 
-def run():
+def run(exit_immediately: bool = False):
     if sys.platform == "win32":
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
             "jan_lohse.spectral_film_lut"
@@ -26,7 +26,7 @@ def run():
     from spectral_film_lut.film_loader import load_ui
     from spectral_film_lut.gui import MainWindow
 
-    load_ui(MainWindow, splash_screen, app)
+    load_ui(MainWindow, splash_screen, app, exit_immediately=exit_immediately)
 
 
 if __name__ == "__main__":
