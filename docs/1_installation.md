@@ -35,29 +35,27 @@ Install the application using your preferred Python package manager.
     Installs the package into the current Python environment:
 
     ```bash
-    pip install git+https://github.com/JanLohse/spectral_film_lut
+    pip install spectral_film_lut
     ```
 
 === "pipx"
     Recommended for installing standalone applications globally in an isolated environment:
 
     ```bash
-    pipx install git+https://github.com/JanLohse/spectral_film_lut
+    pipx install spectral_film_lut
     ```
 
 === "uv"
     Install the application as an isolated tool:
 
     ```bash
-    uv tool install git+https://github.com/JanLohse/spectral_film_lut
+    uv tool install spectral_film_lut
     ```
 
-    Alternatively, run directly from a cloned repository without installing:
+    Alternatively, run it directly:
 
     ```bash
-    git clone https://github.com/JanLohse/spectral_film_lut
-    cd spectral_film_lut
-    uv run spectral_film_lut
+    uvx spectral_film_lut
     ```
 
 After installation, run the application:
@@ -66,11 +64,13 @@ After installation, run the application:
 spectral_film_lut
 ```
 
-## CUDA support
+## Legacy CUDA support
 
-For hardware acceleration we make use of CuPy. It might be removed in future releases though.
-There is not a relevant speed-up for generating LUTs, that justifies the added complexity in code.
+CUDA support has been removed in the current versions. The current pipeline and LUT
+application is much faster than it was in the past. To keep the code more streamlined
+we have thus removed the CUDA support.
 
-Once CUDA support is removed, a legacy CUDA branch will be added. To use CUDA pull that branch
-and install using pip, and additionally install the https://cupy.dev/ package.
-To disable CUDA on an installation with CUDA capabilities, use the argument `--no-cuda`.
+A legacy CUDA branch has been added. Importantly it is also far out of date in many
+regards. When using it additionally installing [CuPy package](https://cupy.dev) is
+necessary to activate the GPU functionality. To disable CUDA on an installation with
+CUDA capabilities, use the argument `--no-cuda`.

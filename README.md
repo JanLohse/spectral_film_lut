@@ -1,5 +1,6 @@
 # Spectral Film LUT
 
+[![PyPI version](https://img.shields.io/pypi/v/spectral-film-lut)](https://pypi.org/project/spectral-film-lut/)
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://janlohse.github.io/spectral_film_lut/)
 [![CI](https://github.com/JanLohse/spectral_film_lut/actions/workflows/python-app.yml/badge.svg)](https://github.com/JanLohse/spectral_film_lut/actions/workflows/python-app.yml)
 [![Version](https://img.shields.io/github/v/release/JanLohse/spectral_film_lut)](https://github.com/JanLohse/spectral_film_lut/releases)
@@ -52,7 +53,7 @@ Install the application using your preferred Python package manager. We show it 
 default pip. Others can be found in the full documentation.
 
 ```bash
-pip install git+https://github.com/JanLohse/spectral_film_lut
+pip install spectral_film_lut
 ```
 
 Then just run with:
@@ -60,15 +61,6 @@ Then just run with:
 ```bash
 spectral_film_lut
 ```
-
-## CUDA support
-
-For hardware acceleration we make use of CuPy. It might be removed in future releases though.
-There is not a relevant speed-up for generating LUTs, that justifies the added complexity in code.
-
-Once CUDA support is removed, a legacy CUDA branch will be added. To use CUDA pull that branch
-and install using pip, and additionally install the https://cupy.dev/ package.
-To disable CUDA on an installation with CUDA capabilities, use the argument `--no-cuda`.
 
 ## Usage
 

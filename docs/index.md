@@ -7,6 +7,7 @@ tags:
 
 # Spectral Film LUT
 
+[![PyPI version](https://img.shields.io/pypi/v/spectral-film-lut)](https://pypi.org/project/spectral-film-lut/)
 [![GitHub](https://img.shields.io/badge/GitHub-repo-blue?logo=github)](https://github.com/JanLohse/spectral_film_lut)
 [![CI](https://github.com/JanLohse/spectral_film_lut/actions/workflows/python-app.yml/badge.svg)](https://github.com/JanLohse/spectral_film_lut/actions/workflows/python-app.yml)
 [![Version](https://img.shields.io/github/v/release/JanLohse/spectral_film_lut)](https://github.com/JanLohse/spectral_film_lut/releases)
