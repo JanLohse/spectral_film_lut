@@ -32,6 +32,10 @@ jobs:
       - name: Build
         run: uv build
       # Check that basic features work and we didn't miss to include crucial files
+      - name: Install Qt system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1
       - name: Smoke test (wheel)
         run: uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
       - name: Smoke test (source distribution)
