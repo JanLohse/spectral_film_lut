@@ -32,7 +32,13 @@ def load_filmstocks(progress_callback, gray_value=None):
     return {stock.name: stock for stock in result}
 
 
-def load_ui(main_window, splash_screen, app, gray_value=None):
+def load_ui(
+    main_window,
+    splash_screen,
+    app,
+    gray_value: float | None = None,
+    exit_immediately: bool = False,
+):
     """
     Helper function for loading UI elements in *spectral_film_lut* and *raw2film*.
     """
@@ -49,5 +55,10 @@ def load_ui(main_window, splash_screen, app, gray_value=None):
 
     window.show()
     splash_screen.close()
+
+    if exit_immediately:
+        from PyQt6.QtCore import QTimer
+
+        QTimer.singleShot(1000, app.quit)
 
     sys.exit(app.exec())
