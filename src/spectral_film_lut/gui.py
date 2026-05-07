@@ -23,7 +23,10 @@ from PyQt6.QtWidgets import (
 
 from spectral_film_lut import BASE_DIR, __version__
 from spectral_film_lut.color_space import COLOR_SPACES, GAMMA_FUNCTIONS
-from spectral_film_lut.css_theme import BASE_COLOR, BORDER_RADIUS
+from spectral_film_lut.css_theme import (
+    BASE_COLOR,
+    BORDER_RADIUS,
+)
 from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.grain_generation import ExportGrainDialog
 from spectral_film_lut.gui_objects import (
@@ -109,6 +112,7 @@ class MainWindow(QMainWindow):
 
         colourspaces = ["CIE XYZ 1931"] + list(RGB_COLOURSPACES.data.keys())
         self.input_colorspace_selector = WideComboBox()
+
         """
         What color space is the reference image in?
         """
@@ -491,7 +495,7 @@ class MainWindow(QMainWindow):
 
         checker_widget = QWidget()
         checker_widget_layout = QHBoxLayout(checker_widget)
-        checker_widget.setLayout(QHBoxLayout())
+        # checker_widget.setLayout(QHBoxLayout())
         checker_widget_layout.addWidget(self.idealized_curve)
         checker_widget_layout.addWidget(self.white_clip)
         checker_widget_layout.addWidget(self.white_balance)

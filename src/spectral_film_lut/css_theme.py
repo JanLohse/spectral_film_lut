@@ -101,7 +101,6 @@ AnimatedButton:disabled {{
 QComboBox QAbstractItemView {{
     padding: 5px 5px;
     outline: none;
-    border: 1px solid {OUTLINE_COLOR};
     background-color: {MENU_COLOR};
     border-radius: {BORDER_RADIUS}px;
 }}
@@ -298,6 +297,10 @@ QProgressBar::chunk {{
 #scroll {{
     background-color: {BASE_COLOR};
     border-radius: {BORDER_RADIUS}px;
+}}
+
+QFileDialog {{
+    background-color: {BACKGROUND_COLOR};
 }}
 """
 """The main style sheet."""

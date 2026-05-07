@@ -156,7 +156,7 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
 
         S = r + g + b
 
-        if S == 0.0:
+        if S < 1e-12:
             for ch in range(k):
                 out_flat[i, ch] = 0.0
             continue
@@ -166,8 +166,11 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
         r *= inv_sum
         g *= inv_sum
 
-        r_ind = math.floor(r)
-        g_ind = math.floor(g)
+        r_ind = int(math.floor(r))
+        g_ind = int(math.floor(g))
+
+        r_ind = min(max(r_ind, 0), lut_size - 2)
+        g_ind = min(max(g_ind, 0), lut_size - 2)
 
         r_factor = r % 1
         g_factor = g % 1

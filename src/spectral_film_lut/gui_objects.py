@@ -44,12 +44,14 @@ from PyQt6.QtWidgets import (
 )
 
 from spectral_film_lut.css_theme import (
+    BACKGROUND_COLOR,
     BASE_COLOR,
     BORDER_RADIUS,
     CHECKED_COLOR,
     HOVER_COLOR,
     HOVER_DURATION,
     LINEEDIT_COLOR,
+    OUTLINE_COLOR,
     PRESS_DURATION,
     PRESSED_COLOR,
     TEXT_PRIMARY,
@@ -95,6 +97,21 @@ class WideComboBox(QComboBox):
         # Background animation
         self._anim = QPropertyAnimation(self, b"color", self)
         self._anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+
+        self.view().setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        popup = self.view().window()
+        popup.setMaximumHeight(400)
+        popup.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        popup.setStyleSheet(f"""
+        QFrame {{
+            background-color: {BACKGROUND_COLOR};
+            border: 1px solid {OUTLINE_COLOR};
+            border-radius: {BORDER_RADIUS}px;
+        }}
+        QAbstractItemView {{
+            border: none;
+        }}
+        """)
 
         self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
 
