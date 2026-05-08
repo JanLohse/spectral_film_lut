@@ -3,7 +3,6 @@ Additional utility functions.
 """
 
 import math
-import os
 import time
 from collections.abc import Callable
 from typing import Literal
@@ -191,8 +190,6 @@ def create_lut(
         return table
     end = time.time()
     path = f"{name}.cube"
-    if not os.path.exists("../../LUTs"):
-        os.makedirs("../../LUTs")
     colour.io.write_LUT(lut, path)
     if verbose:
         print(f"created {path} in {end - start:.2f} seconds")
