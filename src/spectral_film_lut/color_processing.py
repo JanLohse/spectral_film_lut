@@ -201,6 +201,37 @@ def shadow_compensation(image: np.ndarray, intensity: float = 0.0) -> np.ndarray
     return image
 
 
+def simple_shadow_compensation(
+    image: np.ndarray, intensity: float = 0.0, d_max: float = 2.0
+):
+    r"""
+    A simpler shadow compensation function. For it is designed so that for an intensity
+    of 1.0 we lift the shadow such that the black level is that of a print with density
+    d_min. The functions is supposed to be simple, but still resemble the natural
+    shadow roll-off of a photographic print. $\sqrt{x^2 + black^2}$, where
+    $black = 10^{-d_{max}}$.
+
+    For negative intensities we apply the same function, but then shift and scale it
+    so that 0% brightness stays at 0% and 100% stays at 100%.
+
+    Args:
+        image: The image (or LUT) to transform.
+        intensity: The intensity in the range [-1, 1], where 0 has no effect.
+        d_max: The maximal density that is achieved when intensity = 1.
+
+    Returns:
+        The image with adjusted shadow compensation.
+    """
+    if not intensity:
+        return image
+    transmittance_min = 10 ** (-d_max)
+    rolloff = abs(intensity) * transmittance_min
+    image = np.sqrt(image**2 + rolloff**2)
+    if intensity < 0:
+        image = image / (1 - rolloff) - (rolloff / (1 - rolloff))
+    return image
+
+
 def output_transform(
     image: np.ndarray,
     output_gamut: COLOR_SPACE_KEYS,
@@ -209,9 +240,26 @@ def output_transform(
     shadow_comp: float = 0.0,
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
 ):
+    """
+    Transform display referred linear CIE XYZ data to a display color space with some
+    post-processing adjustments.
+
+    Args:
+        image: The image (or LUT) in linear CIE XYZ in the range [0, 1] to transform.
+        output_gamut: The output display gamut.
+        sat_adjust: How much to adjust the saturation. Unchanged for 1.0, BW for 0.0,
+            and increased saturation for >1.0.
+        lut_size: The size of the 2D xy LUT used to apply output color transform.
+        shadow_comp: How much to compensate the shadows in the range [-1, 1].
+        gamma_func: The gamma function to encode the output in.
+
+    Returns:
+        The transformed image in the target gamma and gamut.
+    """
     image = output_color_transform(image, output_gamut, sat_adjust, lut_size)
     if shadow_comp:
-        image = shadow_compensation(image, shadow_comp)
+        image = simple_shadow_compensation(image, shadow_comp)
+
     image = GAMMA_FUNCTIONS[gamma_func](image)
 
     return image
@@ -249,7 +297,8 @@ def photographic_inversion(
         choices we keep the default in CIE XYZ.
 
     Tip:
-        Due to being color space independent this mode works best with BW film.
+        Due to the choice of color space being irrelevant, this mode works best with BW
+        film.
 
     Args:
         image: The linear film scan in CIE XYZ.

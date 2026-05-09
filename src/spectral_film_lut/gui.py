@@ -530,7 +530,7 @@ class MainWindow(QMainWindow):
         Lift or lower dark areas. For 1 or -1 it acts like an OOTF or inverse OOTF
         respectively.
         """
-        self.shadow_comp.setMinMaxTicks(-2, 2, 1, 50)
+        self.shadow_comp.setMinMaxTicks(-1, 1, 1, 50)
         add_option(
             self.shadow_comp,
             "Shadow comp.",
