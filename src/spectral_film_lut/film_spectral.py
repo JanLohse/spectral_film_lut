@@ -23,7 +23,6 @@ from spectral_film_lut.densiometry import (
     APD,
     DENSIOMETRY,
     PRINTER_LIGHTS,
-    STATUS_A,
     adx16_decode,
     adx16_encode,
     construct_spectral_density,
@@ -75,6 +74,7 @@ class FilmSpectral:
         self.XYZ_to_exp = None
         self.spectral_density_pure = None
         self.density_curve_pure = None
+        self.sensiometric_curve_pure = None
         self.d_min = None
         self.d_ref = None
         self.d_max = None
@@ -121,11 +121,7 @@ class FilmSpectral:
                 12.5 / self.iso
             )
             self.H_ref = 10**self.log_H_ref
-        elif self.density_measure == "absolute" or self.density_measure == "bw":
-            if self.density_measure == "absolute":
-                self.lad = np.linalg.inv(STATUS_A.T @ self.spectral_density) @ np.array(
-                    self.lad
-                )
+        elif self.density_measure == "bw":
             self.log_H_ref = np.array(
                 [
                     np.interp(np.asarray(a), np.asarray(sorted_b), np.asarray(sorted_c))
@@ -179,6 +175,7 @@ class FilmSpectral:
         self.log_exposure = x_new
         self.d_min = np.array([np.min(x) for x in self.density_curve])
         self.density_curve = [x - d for x, d in zip(self.density_curve, self.d_min)]
+        self.sensiometric_curve = np.stack((self.log_exposure, *self.density_curve))
         if self.log_H_ref is not None:
             self.d_ref = self.log_exposure_to_density(self.log_H_ref).reshape(-1)
         self.d_max = np.array([np.max(x) for x in self.density_curve])
@@ -256,7 +253,12 @@ class FilmSpectral:
                     ]
                 )
                 self.H_ref = 10**self.log_H_ref
-            self.d_ref = self.log_exposure_to_density(self.log_H_ref, 0.0).reshape(-1)
+            self.sensiometric_curve = np.stack(
+                (self.log_exposure, *self.density_curve), dtype=DEFAULT_DTYPE
+            )
+            self.d_ref = self.log_exposure_to_density(
+                self.log_H_ref, color_masking=0
+            ).reshape(-1)
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
 
         self.d_max = np.array([np.max(x) for x in self.density_curve])
@@ -268,31 +270,38 @@ class FilmSpectral:
             ]
             self.rms_curve = [x[0] for x in rms_temp]
             self.rms_density = [x[1] for x in rms_temp]
-            if len(self.rms_density) == 3:
+            n_channels = len(self.rms_density)
+            density_min = min(x.min() for x in self.rms_density)
+            density_max = max(x.max() for x in self.rms_density)
+            density_common = np.linspace(density_min, density_max, 1024).astype(
+                DEFAULT_DTYPE
+            )
+            rms_uniform = np.empty((n_channels, 1024), dtype=DEFAULT_DTYPE)
+            for ch in range(n_channels):
+                rms_uniform[ch] = np.interp(
+                    density_common, self.rms_density[ch], self.rms_curve[ch]
+                )
+            self.grain_curve = np.stack((density_common, *rms_uniform))
+            if n_channels == 3:
                 rms_color_factors = np.array([0.26, 0.57, 0.17], dtype=DEFAULT_DTYPE)
                 scaling = 1.2375
                 rms_color_factors /= rms_color_factors.sum()
                 ref_rms = (
                     np.sqrt(
                         np.sum(
-                            multi_channel_interp(
-                                np.ones(3), self.rms_density, self.rms_curve
-                            )
-                            ** 2
+                            multi_channel_interp(np.ones(3), self.grain_curve) ** 2
                             * rms_color_factors**2
                         )
                     )
                     / scaling
                 )
             else:
-                ref_rms = np.interp(
-                    np.asarray(1), self.rms_density[0], self.rms_curve[0]
-                )
+                ref_rms = multi_channel_interp(np.ones(1), self.grain_curve)[0]
             if self.rms is not None:
                 if self.rms > 1:
                     self.rms /= 1000
                 factor = self.rms / ref_rms
-                self.rms_curve = [x * factor for x in self.rms_curve]
+                self.grain_curve[1:] *= factor
             else:
                 self.rms = ref_rms
             self.rms = round(float(self.rms) * 10000) / 10
@@ -327,11 +336,21 @@ class FilmSpectral:
             if type(value) is np.ndarray and value.dtype is not DEFAULT_DTYPE:
                 self.__dict__[key] = value.astype(DEFAULT_DTYPE)
 
+        self.sensiometric_curve = np.stack(
+            (self.log_exposure, *self.density_curve), dtype=DEFAULT_DTYPE
+        )
+        if self.density_curve_pure is not None:
+            self.sensiometric_curve_pure = np.stack(
+                (self.log_exposure, *self.density_curve_pure), dtype=DEFAULT_DTYPE
+            )
+        else:
+            self.sensiometric_curve_pure = None
+
         # compute gamma
-        index = 1 if len(self.log_exposure) == 3 else 0
-        log_exp_np, density_np = self.get_density_curve()
-        log_exp_np = log_exp_np[index]
-        density_np = density_np[index]
+        index = 2 if len(self.log_exposure) == 3 else 1
+        density_curve = self.get_density_curve()
+        log_exp_np = density_curve[0]
+        density_np = density_curve[index]
         grad = np.abs(np.gradient(density_np, log_exp_np))
         window = 32
         kernel = np.ones(window) / window
@@ -559,14 +578,14 @@ class FilmSpectral:
 
         density = multi_channel_interp(
             log_exposure,
-            *self.get_density_curve(color_masking, push_pull),
+            self.get_density_curve(color_masking, push_pull),
         )
 
         return density
 
     def get_density_curve(
         self, color_masking: None | float = None, push_pull: float = 0.0
-    ) -> tuple[list[np.ndarray], list[np.ndarray]]:
+    ) -> np.ndarray:
         """
         Get characteristic density curve for current film stock.
 
@@ -580,27 +599,26 @@ class FilmSpectral:
         """
         if color_masking is None:
             color_masking = self.color_masking
-        if self.density_curve_pure is None:
-            density_curve = [self.density_curve[0].copy()]
+        if self.sensiometric_curve_pure is None:
+            sensiometric_curve = self.sensiometric_curve.copy()
         else:
-            density_curve = [
-                a * color_masking + b * (1 - color_masking)
-                for a, b in zip(self.density_curve_pure, self.density_curve)
-            ]
-
-        log_exposure = self.log_exposure
+            sensiometric_curve = (
+                self.sensiometric_curve * (1 - color_masking)
+                + self.sensiometric_curve_pure * color_masking
+            )
 
         if push_pull != 0:
             push_pull *= math.log10(2)
-            log_exposure = log_exposure + push_pull
-            for curve in density_curve:
+            sensiometric_curve[0] += push_pull
+            log_exposure = sensiometric_curve[0]
+            for i in range(len(sensiometric_curve) - 1):
+                curve = sensiometric_curve[i + 1]
                 d_ref = np.interp(self.log_H_ref[0] + push_pull, log_exposure, curve)
                 d_post = np.interp(self.log_H_ref[0], log_exposure, curve)
                 curve *= d_ref / d_post
+                sensiometric_curve[i + 1] = curve
 
-        log_exposure = [log_exposure] * len(density_curve)
-
-        return log_exposure, density_curve
+        return sensiometric_curve
 
     def get_spectral_density(self, color_masking=None):
         """
@@ -853,9 +871,9 @@ class FilmSpectral:
             std_factor *= 8000.0 / 65535.0
         elif self.density_measure != "bw":
             std_factor = std_factor.repeat(3)
-        xps = [rms_density for rms_density in self.rms_density]
-        fps = [rms * std_factor[i] for i, rms in enumerate(self.rms_curve)]
-        noise_factors = multi_channel_interp(rgb, xps, fps)
+        grain_curve = self.grain_curve.copy()
+        grain_curve[1:] *= std_factor.reshape(-1, 1)
+        noise_factors = multi_channel_interp(rgb, grain_curve)
 
         return noise_factors
 
@@ -1005,6 +1023,7 @@ class FilmSpectral:
 
         log_clip(image)
 
+        # image = self.log_exposure_to_density(image, color_masking, push_pull)
         image = self.log_exposure_to_density(image, color_masking, push_pull)
 
         return image
