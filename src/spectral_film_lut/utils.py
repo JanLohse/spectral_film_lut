@@ -196,35 +196,10 @@ def create_lut(
     return path
 
 
+@njit(parallel=True)
 def multi_channel_interp(
     x: np.ndarray,
-    xps,
-    fps,
-    num_bins=1024,
-):
-    """
-    Resamples each (xp, fp) pair to a uniform grid for fast lookup.
-
-    Returns:
-        xp_common: np.ndarray, shape (num_bins,)
-        fp_uniform: np.ndarray, shape (n_channels, num_bins)
-    """
-    n_channels = len(xps)
-    xp_min = min(x[0] for x in xps)
-    xp_max = max(x[-1] for x in xps)
-    xp_common = np.linspace(xp_min, xp_max, num_bins).astype(DEFAULT_DTYPE)
-
-    fp_uniform = np.empty((n_channels, num_bins), dtype=DEFAULT_DTYPE)
-    for ch in range(n_channels):
-        fp_uniform[ch] = np.interp(xp_common, xps[ch], fps[ch])
-    return uniform_multi_channel_interp(x, xp_common, fp_uniform)
-
-
-@njit(parallel=True)
-def uniform_multi_channel_interp(
-    x: np.ndarray,
-    xp_common: np.ndarray,
-    fp_uniform: np.ndarray,
+    curves: np.ndarray,
 ) -> np.ndarray:
     """Interpolate values in an N-D array over the last dimension.
 
@@ -236,10 +211,7 @@ def uniform_multi_channel_interp(
 
     Args:
         x : Input array of shape ``(..., channels)``.
-        xp_common: Monotonically increasing 1D array of shape
-            ``(num_bins,)`` representing the shared grid points.
-        fp_uniform: Array of shape ``(channels, num_bins)``
-            containing function values at each grid point for every channel.
+        curves: Single xps and per channel fps stacked to shape (channesl + 1, N).
 
     Returns:
         Interpolated array with the same shape as ``x``.
@@ -253,9 +225,9 @@ def uniform_multi_channel_interp(
 
     x_flat = x.reshape(n, c)
 
-    num_bins = xp_common.shape[0]
-    xp_min = xp_common[0]
-    xp_max = xp_common[-1]
+    num_bins = curves.shape[1]
+    xp_min = curves[0, 0]
+    xp_max = curves[0, -1]
     bin_width = (xp_max - xp_min) / (num_bins - 1)
 
     result = np.empty((n, c), dtype=DEFAULT_DTYPE)
@@ -264,15 +236,15 @@ def uniform_multi_channel_interp(
         for ch in range(c):
             xi = x_flat[i, ch]
             if xi <= xp_min:
-                result[i, ch] = fp_uniform[ch, 0]
+                result[i, ch] = curves[ch + 1, 0]
             elif xi >= xp_max:
-                result[i, ch] = fp_uniform[ch, -1]
+                result[i, ch] = curves[ch + 1, -1]
             else:
                 pos = (xi - xp_min) / bin_width
                 idx = int(pos)
                 f = pos - idx
-                y0 = fp_uniform[ch, idx]
-                y1 = fp_uniform[ch, idx + 1]
+                y0 = curves[ch + 1, idx]
+                y1 = curves[ch + 1, idx + 1]
                 result[i, ch] = y0 + f * (y1 - y0)
 
     return result.reshape(orig_shape)
