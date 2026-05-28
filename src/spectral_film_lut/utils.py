@@ -117,6 +117,8 @@ def film_conversion(
 
     if adx_coding and (mode == "print" or mode == "grain"):
         image = negative_film.adx_decoding(image, adx_scaling, color_masking)
+    elif mode == "print" and negative_film.density_measure == "bw":
+        image = image[..., 0][..., np.newaxis]  # reduce dim
 
     if mode == "print" or mode == "full":
         if print_film is not None:
