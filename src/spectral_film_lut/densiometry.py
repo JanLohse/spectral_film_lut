@@ -347,7 +347,7 @@ DENSIOMETRY = {
 }
 """A dict with relevant density measures."""
 
-DENSITY_MEASURE = Literal["status_a", "status_m", "apd", "absolute"]
+DENSITY_MEASURE = Literal["status_a", "status_m", "apd", "absolute", "bw"]
 """The available density measures."""
 
 

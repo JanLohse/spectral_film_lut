@@ -853,8 +853,8 @@ class FilmSpectral:
         plt.tight_layout()
         plt.show()
 
-    def grain_transform(self, rgb, scale=1.0, std_div=1.0, adx=True):
-        """Encoding for the grain intensity LUT."""
+    def get_grain_curve(self, scale=1.0, std_div=1.0, adx=True):
+        """Compute grain intensity 1D LUT."""
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm,
         # default for 3840 / 24mm
         # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay
@@ -873,6 +873,16 @@ class FilmSpectral:
             std_factor = std_factor.repeat(3)
         grain_curve = self.grain_curve.copy()
         grain_curve[1:] *= std_factor.reshape(-1, 1)
+
+        return grain_curve
+
+    def grain_transform(self, rgb, scale=1.0, std_div=1.0, adx=True):
+        """Encoding for the grain intensity LUT."""
+        # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm,
+        # default for 3840 / 24mm
+        # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay
+        # in [0, 1] range
+        grain_curve = self.get_grain_curve(scale, std_div, adx)
         noise_factors = multi_channel_interp(rgb, grain_curve)
 
         return noise_factors
