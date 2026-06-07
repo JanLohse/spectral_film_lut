@@ -185,8 +185,6 @@ def generate_grain(
         noise = cv.filter2D(noise, -1, kernel)
     if len(noise.shape) == 2:
         noise = noise[..., np.newaxis]
-    if bw_grain:
-        noise /= 1.5
     return noise
 
 
