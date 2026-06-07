@@ -118,7 +118,7 @@ def grain_kernel(
         grain_size_mm, grain_sigma
     )
 
-    kernel_size_mm = 4.24 * max(dye_size1_mm, dye_size2_mm)
+    kernel_size_mm = 1.5 * max(dye_size1_mm, dye_size2_mm)
     kernel_size = round(kernel_size_mm / pixel_size_mm)
     if kernel_size % 2 == 0:
         kernel_size += 1
