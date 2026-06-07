@@ -875,7 +875,7 @@ class FilmSpectral:
         grain_curve[1:] *= std_factor.reshape(-1, 1)
 
         if bw_grain and self.density_measure != "bw":
-            grain_curve[1:] /= 0.00005
+            grain_curve[1:] /= 1.5
 
         return grain_curve
 
