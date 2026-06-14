@@ -15,7 +15,6 @@ from scipy.interpolate import PchipInterpolator
 
 from spectral_film_lut.color_processing import (
     COLORCHECKER_2005,
-    CCT_to_xy,
     CCT_to_XYZ,
 )
 from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
@@ -701,51 +700,6 @@ class FilmSpectral:
             printer_light = np.sum(PRINTER_LIGHTS * light_factors, axis=1)
         return printer_light
 
-    def compute_projection_light(
-        self,
-        projector_kelvin: int | float = 5500,
-        reference_kelvin: int | float = 6504,
-        white_comp: bool = True,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Computes a projection light of the specified temperature whose intensity is
-        scaled so that minimum density of the current film will produce the specified
-        white point in linear rec. 709 on the maximum color channel. Also gives scaled
-        XYZ cmfs for use in conjunction with that light.
-
-        Args:
-            projector_kelvin: The light temperature of the projection lamp.
-            reference_kelvin: The reference temperature for the XYZ cmfs calibration.
-                Should be left unchanged under normal circumstances.
-            white_comp: Whether to scale the output to clip at 1.0 in sRGB gamut.
-
-        Returns:
-            A tuple (projector_light, xyz_cmfs).
-        """
-        reference_light = np.asarray(
-            colour.sd_blackbody(reference_kelvin)
-            .align(SPECTRAL_SHAPE)
-            .normalise()
-            .values
-        )
-        projector_light = np.asarray(
-            colour.sd_blackbody(projector_kelvin)
-            .align(SPECTRAL_SHAPE)
-            .normalise()
-            .values
-        )
-        reference_white = np.asarray(
-            colour.xyY_to_XYZ([*CCT_to_xy(reference_kelvin), 1.0])
-        )
-        xyz_cmfs = XYZ_CMFS * (reference_white / (XYZ_CMFS.T @ reference_light))
-        if white_comp:
-            peak_rgb = colour.XYZ_to_RGB(
-                xyz_cmfs.T @ (projector_light * 10**-self.d_min_sd), "sRGB"
-            )
-            peak = peak_rgb.max()
-            projector_light *= 1 / peak
-        return projector_light, xyz_cmfs
-
     def plot_data(self, film_b=None, color_masking=None):
         """Plots the spectral density, sensitivity, and sensiometric curve."""
         wavelengths = SPECTRAL_SHAPE.wavelengths
@@ -922,12 +876,10 @@ class FilmSpectral:
 
     def compute_lad(self, luminance=0.1):
         """Find the Lab Aim Density for a neutral gray."""
-        projection_light, xyz_cmfs = self.compute_projection_light(
-            projector_kelvin=6504
-        )
+        projection_light = apply_2d_lut(CCT_to_XYZ(6504), SPECTRUM_LUT)
         d_min_sd = self.d_min_sd
         density_mat = self.get_spectral_density()
-        output_mat = (xyz_cmfs.T * projection_light * 10**-d_min_sd).T
+        output_mat = (XYZ_CMFS.T * projection_light * 10**-d_min_sd).T
         lad = output_to_density(CCT_to_XYZ(6504, luminance), density_mat, output_mat)
         return lad
 
@@ -1184,27 +1136,32 @@ class FilmSpectral:
                 image = image * adjust
 
         else:
-            projection_light, xyz_cmfs = self.compute_projection_light(
-                projector_kelvin=projector_kelvin, white_comp=white_comp
-            )
-            d_min_sd = self.d_min_sd
+            projection_light = apply_2d_lut(CCT_to_XYZ(projector_kelvin), SPECTRUM_LUT)
 
             density_mat = self.get_spectral_density(color_masking)
 
-            output_mat = (xyz_cmfs.T * projection_light * 10**-d_min_sd).T
-            output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
-            density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
+            output_mat = (XYZ_CMFS.T * projection_light * 10**-self.d_min_sd).T
 
             mid_gray = (
                 10 ** -(self.get_d_ref(color_masking) @ density_mat.T) @ output_mat
             )
+
             if white_balance:
-                out_gray = np.asarray(CCT_to_XYZ(projector_kelvin, mid_gray[1]))
-                output_mat = np.asarray(
-                    colour.chromatic_adaptation(output_mat, mid_gray, out_gray)
-                )
-            else:
-                out_gray = mid_gray
+                mid_gray_sd = apply_2d_lut(mid_gray / mid_gray[1], SPECTRUM_LUT)
+
+                output_mat = output_mat * (projection_light / mid_gray_sd)[:, None]
+
+            output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
+            density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
+
+            if white_comp:
+                peak_rgb = colour.XYZ_to_RGB(output_mat.sum(axis=0), "sRGB")
+                peak = peak_rgb.max()
+                output_mat *= 1 / peak
+
+            out_gray = (
+                10 ** -(self.get_d_ref(color_masking) @ density_mat.T) @ output_mat
+            )
 
             image = 10 ** -(image @ density_mat.T) @ output_mat
 
