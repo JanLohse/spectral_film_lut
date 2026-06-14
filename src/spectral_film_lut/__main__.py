@@ -1,4 +1,5 @@
 import ctypes
+import multiprocessing
 import sys
 
 from PyQt6.QtCore import QSize
@@ -30,4 +31,5 @@ def run(exit_immediately: bool = False):
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     run()
