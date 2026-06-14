@@ -10,13 +10,13 @@ description = "GUI to create LUTs to emulate film from spectral datasheets."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-dependencies = ["colour-science>=0.4.7",
+dependencies = [
+    "colour-science>=0.4.7",
     "imageio>=2.37.3",
-    "ipykernel>=7.2.0",
     "matplotlib>=3.10.9",
     "networkx>=3.6.1",
     "numba>=0.65.1",
-    "numpy>=2.4.4",
+    "numpy>=2.4.6",
     "opencv-python>=4.13.0.92",
     "pyqt6>=6.11.0",
     "scipy>=1.17.1",
@@ -24,11 +24,11 @@ dependencies = ["colour-science>=0.4.7",
 
 [dependency-groups]
 dev = [
-    "mkdocstrings-python>=2.0.3",
+    "mkdocstrings-python>=2.0.4",
     "pre-commit>=4.6.0",
     "pyinstaller>=6.21.0",
-    "ruff>=0.15.12",
-    "zensical>=0.0.39",
+    "ruff>=0.15.17",
+    "zensical>=0.0.45",
 ]
 
 [project.urls]
