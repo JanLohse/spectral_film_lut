@@ -20,24 +20,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
       - name: Lint with Ruff
         uses: astral-sh/ruff-action@v3
         with:
           version: "latest"
+
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
+
       - name: Build
         run: uv build
-      # Check that basic features work and we didn't miss to include crucial files
+
       - name: Install Qt system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libegl1 libgl1
+
       - name: Smoke test (wheel)
         run: uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
+
       - name: Smoke test (source distribution)
         run: uv run --isolated --no-project --with dist/*.tar.gz tests/smoke_test.py
 
@@ -53,21 +58,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          python-version: "3.13"
-          cache: "pip"
+          python-version: "3.14"
+          enable-cache: true
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python docs/ref-gen.py
-          pip install --group dev
+        run: uv sync
 
       - name: Generate documentation
-        run: |
-          zensical build --clean
+        run: uv run zensical build --clean
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
@@ -151,26 +152,22 @@ jobs:
           ref: ${{ needs.create-tag.outputs.TAG }}
           fetch-depth: 0
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          python-version: "3.13"
-          cache: "pip"
+          python-version: "3.14"
+          enable-cache: true
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller build
-          pip install .
+      - name: Install PyInstaller and local package
+        run: uv sync
 
       - name: Build with PyInstaller
-        run: pyinstaller spectral_film_lut.spec
+        run: uv run pyinstaller spectral_film_lut.spec
 
       - name: Package binaries
         shell: bash
         run: |
           VERSION=${{ needs.create-tag.outputs.VERSION }}
-
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             mv dist/SpectralFilmLUT.exe SpectralFilmLUT-${VERSION}.exe
           else
