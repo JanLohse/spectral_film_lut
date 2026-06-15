@@ -56,6 +56,7 @@ XYZ_CMFS = np.asarray(
 """The CIE XYZ 1931 color matching functions."""
 
 
+@njit(parallel=True)
 def xyS_to_XYZ(xyS):
     """Convert from $xyS$ to $XYZ$."""
     h, w, c = xyS.shape
@@ -205,48 +206,105 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
     return out_flat.reshape(out_shape)
 
 
-def xy_to_spectrum_nnls(xy, loss_factor):
-    """
-    Get a non-negative spectrum that closely matches an xy pair, using least squares
-    regression.
-    """
-    x, y = xy
-    if x + y > 1:
-        return np.ones(XYZ_CMFS.shape[0])
-    if not y:
-        y = 1e-16
+# 1. PRE-COMPUTE ONCE OUTSIDE THE FUNCTION (Global Scope)
+_A_RAW = XYZ_CMFS.T
+_N_BINS = _A_RAW.shape[1]
 
+_D1_RAW = np.eye(_N_BINS, k=0) - np.eye(_N_BINS, k=1)
+_I_RAW = np.eye(_N_BINS)
+
+_NORM_A = np.linalg.norm(_A_RAW)
+_NORM_D1 = np.linalg.norm(_D1_RAW)
+_NORM_I = np.linalg.norm(_I_RAW)
+
+# Pre-scaled matrices that NEVER change
+A_STATIC_SCALED = _A_RAW / _NORM_A
+D1_STATIC_SCALED = _D1_RAW / _NORM_D1
+I_STATIC_SCALED = _I_RAW / _NORM_I
+
+# Extract wavelengths as a raw float array once for fast math
+_WAVELENGTHS_M = SPECTRAL_SHAPE.wavelengths * 1e-9  # Pre-convert nm to meters
+
+
+def _fast_planck_values(T):
+    """Fast vectorized Planck's Law (returns raw numpy array)"""
+    # h, c, k constants packed together
+    c1 = 3.741771e-16
+    c2 = 1.438777e-2
+    return c1 / (_WAVELENGTHS_M**5 * (np.exp(c2 / (_WAVELENGTHS_M * T)) - 1))
+
+
+def xy_to_spectrum(xy, loss_factor: float = 1.0, max_dist_uv: float = 0.03):
+    x, y = xy
+    if x + y > 1 or y <= 0:
+        return np.ones(_N_BINS)
+
+    # Map to XYZ target
     X = x / y
     Z = (1 - x - y) / y
-    XYZ = np.array([X, 1, Z])
+    XYZ_scaled = np.array([X, 1, Z]) / _NORM_A
 
-    A = XYZ_CMFS.T  # (3×N)
-    N = A.shape[1]
+    # CCT estimation using McCamy's Approximation
+    n = (x - 0.3320) / (y - 0.1858)
+    cct = -449 * n**3 + 3525 * n**2 - 6823.3 * n + 5524.4
 
-    # first derivative smoothness
-    D1 = np.eye(N, k=0) - np.eye(N, k=1)
+    # Distance-to-locus approximation using CIE 1960 UCS
+    uv = colour.xy_to_UCS_uv(xy)
+    target_uv = colour.CCT_to_uv(cct, method="Krystek 1985")
+    d_uv = np.linalg.norm(uv - target_uv)
 
-    # stack system instead of forming normal equations
-    C = np.vstack([A, np.sqrt(loss_factor) * D1])
-    d = np.concatenate([XYZ, np.zeros(N)])
+    if np.isnan(cct) or np.isnan(d_uv) or cct < 1000 or cct > 25000:
+        w = 0.0
+        bb_scaled = np.zeros(_N_BINS)
+    else:
+        w = 1.0 - np.clip(d_uv / max_dist_uv, 0.0, 1.0)
 
+        bb_values = _fast_planck_values(cct)
+        bb_Y = _A_RAW[1] @ bb_values
+
+        if bb_Y > 0:
+            bb_scaled = (bb_values / bb_Y) / _NORM_I
+        else:
+            w = 0.0
+            bb_scaled = np.zeros(_N_BINS)
+
+    # Weights
+    weight_smooth = np.sqrt(loss_factor)
+    weight_blackbody = np.sqrt(loss_factor * w)
+
+    # Stack system with pre-scaled constants
+    C = np.vstack(
+        [
+            A_STATIC_SCALED,
+            weight_smooth * D1_STATIC_SCALED,
+            weight_blackbody * I_STATIC_SCALED,
+        ]
+    )
+
+    d = np.concatenate([XYZ_scaled, np.zeros(_N_BINS), weight_blackbody * bb_scaled])
+
+    # 5. Solve
     spectrum, _ = nnls(C, d)
     return spectrum
 
 
-def xyS_to_spectrum_nnls(xyS, loss_factor) -> np.ndarray:
+def xyS_to_spectrum(
+    xyS, loss_factor: float = 1.0, max_dist_uv: float = 0.03
+) -> np.ndarray:
     """
     Get a non-negative spectrum that closely matches an xyS triplet, using least squares
     regression.
     """
     x, y, s = xyS
-    spectrum = xy_to_spectrum_nnls((x, y), loss_factor)
+    spectrum = xy_to_spectrum((x, y), loss_factor, max_dist_uv)
     s_spectrum = (spectrum @ XYZ_CMFS).sum()
     spectrum *= s / s_spectrum
     return spectrum
 
 
-def generate_spectral_sample_table(n, loss_factor):
+def generate_spectral_sample_table(
+    n, loss_factor: float = 1.0, max_dist_uv: float = 0.03
+):
     """
     Generate a full spectral data table of shape (n, n, SPECTRAL_SHAPE).
     """
@@ -257,7 +315,10 @@ def generate_spectral_sample_table(n, loss_factor):
     flat = lut_id.reshape(-1, 3)
 
     out_flat = np.array(
-        [xyS_to_spectrum_nnls(point, loss_factor).astype(np.float32) for point in flat]
+        [
+            xyS_to_spectrum(point, loss_factor, max_dist_uv).astype(np.float32)
+            for point in flat
+        ]
     )
 
     out = out_flat.reshape(n, n, -1)
@@ -265,5 +326,5 @@ def generate_spectral_sample_table(n, loss_factor):
     return out
 
 
-SPECTRUM_LUT = generate_spectral_sample_table(33, loss_factor=5)
+SPECTRUM_LUT = generate_spectral_sample_table(33, loss_factor=1, max_dist_uv=0.03)
 """A look-up table with spectral distributions across the CIE 1931 xy space."""
