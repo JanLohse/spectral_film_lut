@@ -138,7 +138,11 @@ jobs:
 
   build-artifacts:
     name: Build Artifacts
-    needs: checks
+    needs: [ checks, create-tag ]
+    if: |
+      always() &&
+      needs.checks.result == 'success' &&
+      (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -182,7 +186,6 @@ jobs:
           path: |
             SpectralFilmLUT.exe
             SpectralFilmLUT.AppImage
-
 
   release:
     name: Create Release
