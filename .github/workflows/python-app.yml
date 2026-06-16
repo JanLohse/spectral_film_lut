@@ -214,8 +214,7 @@ jobs:
           tag_name: ${{ needs.create-tag.outputs.TAG }}
           name: Version ${{ needs.create-tag.outputs.VERSION }}
           files: |
-            release-artifacts/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.exe
-            release-artifacts/Release-artifacts/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.AppImage
+            release-artifacts/SpectralFilmLUT-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
