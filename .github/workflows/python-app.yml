@@ -146,10 +146,9 @@ jobs:
         os: [ windows-latest, ubuntu-latest ]
 
     steps:
-      - name: Checkout tagged commit
+      - name: Checkout commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ needs.create-tag.outputs.TAG }}
           fetch-depth: 0
 
       - name: Install uv
@@ -167,38 +166,47 @@ jobs:
       - name: Package binaries
         shell: bash
         run: |
-          VERSION=${{ needs.create-tag.outputs.VERSION }}
+          VERSION=$(uv pip list --format freeze | grep "^zensical=" | cut -d'=' -f3 || echo "dev")
+
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            mv dist/SpectralFilmLUT.exe SpectralFilmLUT-${VERSION}.exe
+            mv dist/SpectralFilmLUT.exe SpectralFilmLUT.exe
           else
             chmod +x dist/SpectralFilmLUT
-            mv dist/SpectralFilmLUT SpectralFilmLUT-${VERSION}.AppImage
+            mv dist/SpectralFilmLUT SpectralFilmLUT.AppImage
           fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
           name: spectral-film-lut-${{ matrix.os }}
-          path: SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.*
+          path: |
+            SpectralFilmLUT.exe
+            SpectralFilmLUT.AppImage
 
 
   release:
     name: Create Release
     needs: [ create-tag, build-artifacts ]
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Windows artifact
+      - name: Download all artifacts
         uses: actions/download-artifact@v8
         with:
-          name: spectral-film-lut-windows-latest
-          path: dist/
+          path: release-artifacts/
+          merge-multiple: true
 
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: spectral-film-lut-ubuntu-latest
-          path: dist/
+      - name: Rename artifacts with version
+        run: |
+          VERSION="${{ needs.create-tag.outputs.VERSION }}"
+          cd release-artifacts/
+          if [ -f "SpectralFilmLUT.exe" ]; then
+            mv SpectralFilmLUT.exe "SpectralFilmLUT-${VERSION}.exe"
+          fi
+          if [ -f "SpectralFilmLUT.AppImage" ]; then
+            mv SpectralFilmLUT.AppImage "SpectralFilmLUT-${VERSION}.AppImage"
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v3
@@ -206,14 +214,15 @@ jobs:
           tag_name: ${{ needs.create-tag.outputs.TAG }}
           name: Version ${{ needs.create-tag.outputs.VERSION }}
           files: |
-            dist/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.exe
-            dist/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.AppImage
+            release-artifacts/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.exe
+            release-artifacts/Release-artifacts/SpectralFilmLUT-${{ needs.create-tag.outputs.VERSION }}.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-pypi:
     name: Publish to PyPI
     needs: create-tag
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     environment:
