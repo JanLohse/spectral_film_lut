@@ -605,7 +605,9 @@ PRINTER_LIGHTS = compute_printer_lights()
 """The RGB printer lights build from the APD documentation."""
 
 
-def adx16_encode(apd: np.ndarray, apd_min=None, scaling=1.0) -> np.ndarray:
+def adx16_encode(
+    apd: np.ndarray, apd_min: np.ndarray | None = None, scaling: float = 1.0
+) -> np.ndarray:
     """
     Converts from absolute APD density values to ADX16 values.
     Instead of as 16 bit int, the output is encoded as a float in the range [0, 1].
@@ -640,7 +642,7 @@ def adx16_encode(apd: np.ndarray, apd_min=None, scaling=1.0) -> np.ndarray:
 
 def adx16_decode(
     adx: np.ndarray, apd_min: np.ndarray | None = None, scaling: float = 1.0
-):
+) -> np.ndarray:
     """
     Converts from ADX16 values to absolute APD density.
     Instead of as 16 bit int the output is expected as a float in the range [0, 1].

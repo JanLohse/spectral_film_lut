@@ -34,4 +34,4 @@ Printer light controlls should be done after the additive mixer and before the p
 
 When clicking on the magnifying glass a window opens to search and browse through the
 available film stocks.
-<img width="100%" alt="Film stock selection ui" src="https://github.com/user-attachments/assets/5af71ab0-3802-4d22-b9e7-6f9e09efc7c4" />
+<img width="100%" alt="Film stock selection UI" src="https://github.com/user-attachments/assets/f04175e3-2860-4cba-ad79-b49c28540146" />

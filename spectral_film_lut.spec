@@ -40,7 +40,6 @@ icon = os.path.join(specpath, "src", "spectral_film_lut", "resources", "spectral
 
 # ---- entry script ----
 entry_script = "src/spectral_film_lut/__main__.py"
-
 a = Analysis(
     [entry_script],
     pathex=["."],
@@ -52,16 +51,23 @@ a = Analysis(
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    binaries_ignore=['libfontconfig.so.1'],
     cipher=block_cipher,
 )
+
+filtered_binaries = []
+for name, path, typecode in a.binaries:
+    if "libfontconfig" in name:
+        print(f"--> Forcefully excluding binary: {name} from {path}")
+        continue
+    filtered_binaries.append((name, path, typecode))
+a.binaries = filtered_binaries
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
+    a.binaries,    # This will now use our filtered list
     a.zipfiles,
     a.datas,
     name="SpectralFilmLUT",

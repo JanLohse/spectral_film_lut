@@ -203,7 +203,7 @@ def shadow_compensation(image: np.ndarray, intensity: float = 0.0) -> np.ndarray
 
 def simple_shadow_compensation(
     image: np.ndarray, intensity: float = 0.0, d_max: float = 2.0
-):
+) -> np.ndarray:
     r"""
     A simpler shadow compensation function. For it is designed so that for an intensity
     of 1.0 we lift the shadow such that the black level is that of a print with density
@@ -239,7 +239,7 @@ def output_transform(
     lut_size: int = 33,
     shadow_comp: float = 0.0,
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
-):
+) -> np.ndarray:
     """
     Transform display referred linear CIE XYZ data to a display color space with some
     post-processing adjustments.

@@ -4,6 +4,7 @@ The main class for handling all film data procesing and rendering.
 
 import math
 from collections.abc import Callable
+from typing import Any
 
 import colour.plotting
 import numpy as np
@@ -386,7 +387,7 @@ class FilmSpectral:
         color_checker *= 255
         self.color_checker = color_checker.astype(np.uint8)
 
-    def extend_characteristic_curve(self, height=3):
+    def extend_characteristic_curve(self, height: float = 3.0):
         """
         Extend the characteristic curve of the current film with a smooth rolloff.
 
@@ -417,7 +418,7 @@ class FilmSpectral:
             self.log_exposure[i] = np.concatenate([log_exposure, logistic_func_x[1:]])
             self.density_curve[i] = np.concatenate([density_curve, logistic_func_y[1:]])
 
-    def get_d_ref(self, color_masking: float | None = None):
+    def get_d_ref(self, color_masking: float | None = None) -> np.ndarray:
         """
         Get the d_ref of the current film stock under specified color masking intensity.
 
@@ -427,7 +428,7 @@ class FilmSpectral:
                 to get a highly saturated look.
 
         Returns:
-            np.array: d_ref value for each channel.
+            d_ref value for each channel.
         """
         if color_masking is None:
             color_masking = self.color_masking
@@ -479,7 +480,7 @@ class FilmSpectral:
             self.d_min_sd = np.asarray(self.d_min_sd.align(SPECTRAL_SHAPE).values)
 
     @staticmethod
-    def prepare_rms_data(rms, density):
+    def prepare_rms_data(rms: dict, density: dict) -> tuple[np.ndarray, np.ndarray]:
         """
         Align the provided rms granularity and density data.
 
@@ -501,7 +502,9 @@ class FilmSpectral:
         return rms, density
 
     @staticmethod
-    def gaussian_extrapolation(sd):
+    def gaussian_extrapolation(
+        sd: colour.SpectralDistribution,
+    ) -> colour.SpectralDistribution:
         """
         Extrapolate using a Gaussian distribution. Intended to be used for extrapolating
         spectral data.
@@ -619,13 +622,13 @@ class FilmSpectral:
 
         return sensiometric_curve
 
-    def get_spectral_density(self, color_masking=None):
+    def get_spectral_density(self, color_masking: float | None = None) -> np.ndarray:
         """
         Get spectral density for current film stock.
 
         Args:
             color_masking: Color Masking factor in range [0, 1]. If None use default for
-            current film stock.
+                current film stock.
 
         Returns:
             Spectral density.
@@ -638,7 +641,9 @@ class FilmSpectral:
             1 - color_masking
         )
 
-    def compute_print_matrix(self, print_film, **kwargs):
+    def compute_print_matrix(
+        self, print_film: "FilmSpectral", **kwargs: Any
+    ) -> np.ndarray:
         """
         Computed matrix to convert from density of current film stock to log exposure of
         print film stock.
@@ -666,8 +671,12 @@ class FilmSpectral:
         return density_matrix, peak_exposure - density_base
 
     def compute_printer_light(
-        self, print_film: "FilmSpectral", red_light=0.0, green_light=0.0, blue_light=0.0
-    ):
+        self,
+        print_film: "FilmSpectral",
+        red_light: float = 0.0,
+        green_light: float = 0.0,
+        blue_light: float = 0.0,
+    ) -> np.ndarray:
         """
         Compute printer light needed to print onto target print film to generate neutral
         exposure.
@@ -677,7 +686,6 @@ class FilmSpectral:
             red_light: Red printer light offset.
             green_light: Green printer light offset.
             blue_light: Blue printer light offset.
-            **kwargs: Not used.
 
         Returns:
             Printer light as spectral curve.
@@ -844,7 +852,12 @@ class FilmSpectral:
 
         return noise_factors
 
-    def get_input_lut(self, exposure_kelvin=6500, tint=0.0, exp_comp=0.0) -> np.ndarray:
+    def get_input_lut(
+        self,
+        exposure_kelvin: int | float = 6500,
+        tint: float = 0.0,
+        exp_comp: float = 0.0,
+    ) -> np.ndarray:
         """
         Compute a 2D LUT for use with [`apply_2d_lut`][] that converts from scene linear
         CIE XYZ the per layer exposure.
@@ -892,7 +905,9 @@ class FilmSpectral:
             return np.ones((1, 1), dtype=DEFAULT_DTYPE)
         return APD.T @ self.get_spectral_density(color_masking)
 
-    def apd_to_layer_activation_matrix(self, color_masking: None | float = None):
+    def apd_to_layer_activation_matrix(
+        self, color_masking: None | float = None
+    ) -> np.ndarray:
         """
         Get the matrix that converts from ACES Printing Density to layer activation for
         ADX decoding.
@@ -901,7 +916,12 @@ class FilmSpectral:
             return np.ones((1, 1), dtype=DEFAULT_DTYPE)
         return np.linalg.inv(self.layer_activation_to_apd_matrix(color_masking))
 
-    def adx_encoding(self, image, scaling=1.0, color_masking: None | float = None):
+    def adx_encoding(
+        self,
+        image: np.ndarray,
+        scaling: float = 1.0,
+        color_masking: None | float = None,
+    ) -> np.ndarray:
         """
         Encode layer activation in absolute densities as ADX16 data in the [0, 1] range.
 
@@ -920,7 +940,12 @@ class FilmSpectral:
 
         return image
 
-    def adx_decoding(self, image, scaling=1.0, color_masking: None | float = None):
+    def adx_decoding(
+        self,
+        image: np.ndarray,
+        scaling: float = 1.0,
+        color_masking: None | float = None,
+    ) -> np.ndarray:
         """
         Decode layer activation from ADX16 data in the [0, 1] range to absolute
         densities.
@@ -945,15 +970,15 @@ class FilmSpectral:
 
     def input_transform(
         self,
-        image,
+        image: np.ndarray,
         colorspace: LiteralRGBColourspace | None = None,
-        exp_comp=0.0,
-        exp_kelvin=6500,
-        tint=0.0,
+        exp_comp: float = 0.0,
+        exp_kelvin: int = 6500,
+        tint: float = 0.0,
         color_masking: None | float = None,
         push_pull: float = 0.0,
         halation_func: Callable[[np.ndarray], np.ndarray] | None = None,
-    ):
+    ) -> np.ndarray:
         """
         Transform from scene referred image data to the per layer activation in absolute
         densities.
@@ -1003,7 +1028,7 @@ class FilmSpectral:
         blue_light: float = 0.0,
         idealized_curve: bool = False,
         idealized_gamma: float = 3.0,
-    ):
+    ) -> np.ndarray:
         """
         Print to another film stock.
 
@@ -1049,7 +1074,7 @@ class FilmSpectral:
         blue_light: float = 0.0,
         idealized_curve: bool = False,
         idealized_gamma: float = 3.0,
-    ):
+    ) -> np.ndarray:
         """
         Print from one film stock onto another.
 

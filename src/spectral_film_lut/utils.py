@@ -2,10 +2,12 @@
 Additional utility functions.
 """
 
+from __future__ import annotations
+
 import math
 import time
 from collections.abc import Callable
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import colour
 import numpy as np
@@ -19,14 +21,17 @@ from spectral_film_lut.color_processing import (
 from spectral_film_lut.color_space import COLOR_SPACE_KEYS, GAMMA_KEYS
 from spectral_film_lut.config import DEFAULT_DTYPE
 
+if TYPE_CHECKING:
+    from spectral_film_lut.film_spectral import FilmSpectral
+
 MODES = Literal["full", "print", "negative", "grain"]
 """Conversion modes, i.e., what steps of the pipeline to activate."""
 
 
 def film_conversion(
     image: np.ndarray,
-    negative_film,
-    print_film=None,
+    negative_film: FilmSpectral,
+    print_film: FilmSpectral | None = None,
     mode: MODES = "full",
     input_colorspace: LiteralRGBColourspace | None = None,
     exp_kelvin: int | float = 6500,
@@ -212,7 +217,7 @@ def multi_channel_interp(
     extrapolation on either end of the grid.
 
     Args:
-        x : Input array of shape ``(..., channels)``.
+        x: Input array of shape ``(..., channels)``.
         curves: Single xps and per channel fps stacked to shape (channesl + 1, N).
 
     Returns:

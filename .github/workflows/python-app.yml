@@ -138,7 +138,7 @@ jobs:
 
   build-artifacts:
     name: Build Artifacts
-    needs: create-tag
+    needs: checks
     runs-on: ${{ matrix.os }}
 
     strategy:
