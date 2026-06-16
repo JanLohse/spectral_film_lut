@@ -2,6 +2,8 @@
 Widget to select film stocks.
 """
 
+from typing import Any
+
 from PyQt6.QtCore import QEvent, QSize, Qt, QTimer
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import (
@@ -33,13 +35,21 @@ ICON_PATH = f"{BASE_DIR}/resources/search.svg"
 class FilmStockSelector(QWidget):
     """A combobox for selecting camera and print film stocks."""
 
-    def __init__(self, film_stocks, main_parent, parent, **kwargs):
+    def __init__(
+        self,
+        film_stocks: dict,
+        main_parent: QWidget,
+        parent: QWidget | None,
+        **kwargs: Any,
+    ):
         """
         Combobox style UI element that lets you select a film stock and can open a
         pop-up window for more detailed information on the various film stocks.
 
         Args:
-            film_stocks: lList of film stocks to choose from.
+            film_stocks: List of film stocks to choose from.
+            main_parent: The main window.
+            parent: The parent object.
             **kwargs: Arguments passed to FilmStockSelectorWindow.
         """
         super().__init__(parent)
@@ -96,18 +106,18 @@ class FilmStockSelectorWindow(QDialog):
 
     def __init__(
         self,
-        parent=None,
-        film_stocks=None,
-        sort_keys=None,
-        group_keys=None,
-        list_keys=None,
-        sidebar_keys=None,
-        default_sort=None,
-        default_group=None,
-        default_filter=None,
-        highlighted_stock=None,
-        image_key=None,
-        view_state=None,
+        parent: QWidget | None = None,
+        film_stocks: dict | None = None,
+        sort_keys: list[str] | None = None,
+        group_keys: list[str] | None = None,
+        list_keys: list[str] | None = None,
+        sidebar_keys: list[str] | None = None,
+        default_sort: str | None = None,
+        default_group: str | None = None,
+        default_filter: str | None = None,
+        highlighted_stock: str | None = None,
+        image_key: str | None = None,
+        view_state: bool | None = None,
     ):
         """
         Popup window which lets you choose a film stock with more detailed info.
@@ -272,10 +282,10 @@ class FilmStockSelectorWindow(QDialog):
                 QTimer.singleShot(0, self.populate_grid_view)
         return super().eventFilter(obj, event)
 
-    def sort_and_group_stocks(self):
+    def sort_and_group_stocks(self) -> dict:
         """
         Returns:
-            dict: Sorted, filtered, and grouped film stocks.
+            Sorted, filtered, and grouped film stocks.
         """
         sort_key = self.sort_combo.currentText()
         group_key = self.group_combo.currentText()

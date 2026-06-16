@@ -6,6 +6,7 @@ import math
 import os
 import sys
 from functools import cache
+from typing import Any
 
 import cv2 as cv
 import imageio
@@ -102,7 +103,7 @@ def two_component_params(
 
 
 def grain_kernel(
-    pixel_size_mm: float, grain_size_mm=0.006, grain_sigma=0.3
+    pixel_size_mm: float, grain_size_mm: float = 0.006, grain_sigma: float = 0.3
 ) -> np.ndarray:
     r"""
     Computes a convolution kernel for film grain.
@@ -149,13 +150,13 @@ def grain_kernel(
 
 
 def generate_grain(
-    shape,
+    shape: tuple[int, int],
     scale: float,
-    grain_size_mm=0.006,
-    bw_grain=False,
-    cached=False,
-    grain_sigma=0.3,
-    **kwargs,
+    grain_size_mm: float = 0.006,
+    bw_grain: bool = False,
+    cached: bool = False,
+    grain_sigma: float = 0.3,
+    **kwargs: Any,
 ) -> np.ndarray:
     """
     Computes random grain somewhat efficiently with the grain smoothing inspired by
@@ -169,7 +170,7 @@ def generate_grain(
         bw_grain: Is the grain monochromatic or per channel?
         cached: Should cached noise be used for grain generation?
         grain_sigma: The grain size distribution standard variance.
-        **kwargs:
+        **kwargs: Ignored.
 
     Returns:
         An ndarray that is essentially a grain overlay.
