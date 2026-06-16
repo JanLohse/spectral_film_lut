@@ -37,7 +37,7 @@ Download the `.AppImage` from the [releases](../../releases) page and make it ex
 
 ```bash
 chmod +x spectral_film_lut-{version}.AppImage
-./spectral_film_lut.AppImage
+./spectral_film_lut-{version}.AppImage
 ```
 
 Alternatively, install via Python (see [below](#python-package)).
