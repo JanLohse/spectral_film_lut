@@ -159,7 +159,7 @@ jobs:
           enable-cache: true
 
       - name: Install PyInstaller and local package
-        run: uv sync
+        run: uv sync --no-dev --group install
 
       - name: Build with PyInstaller
         run: uv run pyinstaller spectral_film_lut.spec

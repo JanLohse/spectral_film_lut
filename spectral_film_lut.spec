@@ -52,6 +52,7 @@ a = Analysis(
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
+    binaries_ignore=['libfontconfig.so.1'],
     cipher=block_cipher,
 )
 
