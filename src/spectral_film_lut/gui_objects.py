@@ -36,6 +36,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSlider,
@@ -902,3 +903,74 @@ def qcolor_to_rgba_string(c: QColor) -> str:
     b = c.blue()
     a = c.alpha() / 255.0
     return f"rgba({r}, {g}, {b}, {a:.3f})"
+
+
+class AboutDialog(QMessageBox):
+    def __init__(
+        self,
+        parent=None,
+        app_name="Application",
+        version="1.0.0",
+        author="Author",
+        year="2026",
+        license_type="MIT License",
+        links=None,
+    ):
+        """
+        A highly customizable and styled About Dialog for PyQt6 applications.
+
+        :param links: Dict of {'Link Text': 'URL'}
+        """
+        super().__init__(parent)
+        self.setWindowTitle(f"About {app_name}")
+        self.setIcon(QMessageBox.Icon.Information)
+
+        # Default to an empty dict if no links are provided
+        if links is None:
+            links = {}
+
+        # Build the HTML strings for links dynamically
+        links_html = ""
+        for label, url in links.items():
+            links_html += f"• <a href='{url}'>{label}</a><br>\n"
+
+        # Complete HTML with built-in styling
+        about_text = f"""
+        <style>
+            div {{
+                font-family: sans-serif;
+            }}
+            .title {{
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 8px;
+            }}
+            .meta {{
+                font-size: 12px;
+                margin-bottom: 12px;
+                line-height: 1.4;
+            }}
+            .links a {{
+                text-decoration: none;
+            }}
+            .links a:hover {{
+                text-decoration: underline;
+            }}
+        </style>
+
+        <div style="padding-right: 35px; padding-bottom: 5px;">
+            <div class="title">{app_name} {version}</div>
+
+            <div class="meta">
+                Created by {author}<br>
+                © {year} {author} | {license_type}
+            </div>
+
+            <div class="links">
+                {links_html}
+            </div>
+        </div>
+        """
+
+        self.setText(about_text)
+        self.setTextInteractionFlags(self.textInteractionFlags().LinksAccessibleByMouse)

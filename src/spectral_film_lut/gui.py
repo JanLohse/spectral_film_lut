@@ -9,7 +9,7 @@ import imageio.v3 as iio
 import numpy as np
 from colour.models import RGB_COLOURSPACES
 from PyQt6.QtCore import QSize, Qt, QThreadPool
-from PyQt6.QtGui import QIcon, QImage, QPixmap
+from PyQt6.QtGui import QAction, QIcon, QImage, QPixmap
 from PyQt6.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -30,6 +30,7 @@ from spectral_film_lut.css_theme import (
 from spectral_film_lut.filmstock_selector import FilmStockSelector
 from spectral_film_lut.grain_generation import ExportGrainDialog
 from spectral_film_lut.gui_objects import (
+    AboutDialog,
     AnimatedButton,
     FileSelector,
     Slider,
@@ -539,7 +540,6 @@ class MainWindow(QMainWindow):
             tool_tip="Lift or lower dark areas. For 1 or -1 it acts like an OOTF or\n"
             "inverse OOTF respectively.",
         )
-        # TODO: add film emulation based shadow comp, not EOTF based
 
         self.output_gamut = WideComboBox(self)
         """In what color space to encode the output."""
@@ -662,6 +662,12 @@ class MainWindow(QMainWindow):
 
         self.waiting = False
         self.running = False
+
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+
+        about_action = QAction("About This App", self)
+        about_action.triggered.connect(self.show_about)
+        self.addAction(about_action)
 
         self.threadpool = QThreadPool()
 
@@ -851,3 +857,21 @@ class MainWindow(QMainWindow):
     def export_noise(self):
         dialog = ExportGrainDialog(self)
         dialog.exec()
+
+    def show_about(self):
+        app_links = {
+            "GitHub Page": "https://github.com/JanLohse/spectral_film_lut",
+            "PyPI Page": "https://pypi.org/project/spectral_film_lut/",
+            "Documentation": "https://janlohse.github.io/spectral_film_lut",
+        }
+
+        about_box = AboutDialog(
+            parent=self,
+            app_name="Spectral Film LUT",
+            version=__version__,
+            author="Jan Lohse",
+            year="2026",
+            license_type="MIT License",
+            links=app_links,
+        )
+        about_box.exec()
