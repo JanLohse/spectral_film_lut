@@ -206,35 +206,133 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
     return out_flat.reshape(out_shape)
 
 
-# 1. PRE-COMPUTE ONCE OUTSIDE THE FUNCTION (Global Scope)
-_A_RAW = XYZ_CMFS.T
-_N_BINS = _A_RAW.shape[1]
-
-_D1_RAW = np.eye(_N_BINS, k=0) - np.eye(_N_BINS, k=1)
-_I_RAW = np.eye(_N_BINS)
-
-_NORM_A = np.linalg.norm(_A_RAW)
-_NORM_D1 = np.linalg.norm(_D1_RAW)
-_NORM_I = np.linalg.norm(_I_RAW)
-
-# Pre-scaled matrices that NEVER change
-A_STATIC_SCALED = _A_RAW / _NORM_A
-D1_STATIC_SCALED = _D1_RAW / _NORM_D1
-I_STATIC_SCALED = _I_RAW / _NORM_I
-
-# Extract wavelengths as a raw float array once for fast math
-_WAVELENGTHS_M = SPECTRAL_SHAPE.wavelengths * 1e-9  # Pre-convert nm to meters
+# Global setup configuration
+LUT_SIZE = 33
+SCALING = LUT_SIZE - 1
+TEMPERATURES = ["A", "D65"]
 
 
-def _fast_planck_values(T):
-    """Fast vectorized Planck's Law (returns raw numpy array)"""
-    # h, c, k constants packed together
-    c1 = 3.741771e-16
-    c2 = 1.438777e-2
-    return c1 / (_WAVELENGTHS_M**5 * (np.exp(c2 / (_WAVELENGTHS_M * T)) - 1))
+def setup_static_matrices():
+    """Compute base dimensions and normalized matrices for NNLS optimization."""
+    a_raw = XYZ_CMFS.T  # Shape: (3, N_BINS)
+    n_bins = a_raw.shape[1]
+    d1_raw = np.eye(n_bins, k=0) - np.eye(n_bins, k=1)
+    i_raw = np.eye(n_bins)
+
+    norm_a = np.linalg.norm(a_raw)
+    norm_d1 = np.linalg.norm(d1_raw)
+    norm_i = np.linalg.norm(i_raw)
+
+    return (
+        n_bins,
+        a_raw,
+        norm_a,
+        norm_i,
+        a_raw / norm_a,
+        d1_raw / norm_d1,
+        i_raw / norm_i,
+    )
 
 
-def xy_to_spectrum(xy, loss_factor: float = 1.0, max_dist_uv: float = 0.03):
+# Extract global variables from static setup
+(
+    _N_BINS,
+    _A_RAW,
+    _NORM_A,
+    _NORM_I,
+    A_STATIC_SCALED,
+    D1_STATIC_SCALED,
+    I_STATIC_SCALED,
+) = setup_static_matrices()
+
+
+def compute_prior_spectra():
+    """Generate and splat target illuminant datasets into a normalized prior grid."""
+    rawtoaces = colour.characterisation.read_training_data_rawtoaces_v1()
+    rawtoaces.align(SPECTRAL_SHAPE)
+    rawtoaces_values = rawtoaces.values.T
+
+    # Generate and stack the illuminant-reflected spectra
+    all_training_runs = []
+    for T in TEMPERATURES:
+        blackbody_T = colour.SDS_ILLUMINANTS[T].align(SPECTRAL_SHAPE).values
+        spectra_at_T = rawtoaces_values * blackbody_T
+        all_training_runs.append(spectra_at_T)
+
+    training_spectra = np.vstack(all_training_runs)
+
+    # Allocate grids for barycentric splatting
+    splat_spectra_grid = np.zeros((LUT_SIZE, LUT_SIZE, _N_BINS), dtype=np.float32)
+    splat_weight_grid = np.zeros((LUT_SIZE, LUT_SIZE, 1), dtype=np.float32)
+
+    # Populate the prior grid via barycentric splatting
+    for spectrum in training_spectra:
+        xyz = spectrum @ _A_RAW.T
+        S = np.sum(xyz)
+        if S < 1e-12:
+            continue
+
+        # Scale coordinates up to grid index space
+        r = (xyz[0] / S) * SCALING
+        g = (xyz[1] / S) * SCALING
+
+        r_ind = min(max(int(math.floor(r)), 0), LUT_SIZE - 2)
+        g_ind = min(max(int(math.floor(g)), 0), LUT_SIZE - 2)
+
+        r_factor = r % 1
+        g_factor = g % 1
+        factor_sum = r_factor + g_factor
+
+        if factor_sum <= 1.0:
+            s_factor = 1.0 - factor_sum
+            splat_spectra_grid[r_ind + 1, g_ind] += spectrum * r_factor
+            splat_weight_grid[r_ind + 1, g_ind, 0] += r_factor
+
+            splat_spectra_grid[r_ind, g_ind + 1] += spectrum * g_factor
+            splat_weight_grid[r_ind, g_ind + 1, 0] += g_factor
+
+            splat_spectra_grid[r_ind, g_ind] += spectrum * s_factor
+            splat_weight_grid[r_ind, g_ind, 0] += s_factor
+        else:
+            s_factor = factor_sum - 1.0
+            r_factor2 = 1.0 - g_factor
+            g_factor2 = 1.0 - r_factor
+
+            splat_spectra_grid[r_ind + 1, g_ind] += spectrum * r_factor2
+            splat_weight_grid[r_ind + 1, g_ind, 0] += r_factor2
+
+            splat_spectra_grid[r_ind, g_ind + 1] += spectrum * g_factor2
+            splat_weight_grid[r_ind, g_ind + 1, 0] += g_factor2
+
+            splat_spectra_grid[r_ind + 1, g_ind + 1] += spectrum * s_factor
+            splat_weight_grid[r_ind + 1, g_ind + 1, 0] += s_factor
+
+    # Average and normalize accumulated entries
+    mask = splat_weight_grid[:, :, 0] > 0
+    prior_spectra = np.zeros_like(splat_spectra_grid)
+    prior_spectra[mask] = splat_spectra_grid[mask] / splat_weight_grid[mask]
+
+    for i in range(LUT_SIZE):
+        for j in range(LUT_SIZE):
+            if mask[i, j]:
+                spec = prior_spectra[i, j]
+                Y_val = _A_RAW[1] @ spec
+                if Y_val > 0:
+                    prior_spectra[i, j] = (spec / Y_val) / _NORM_I
+
+    return prior_spectra, mask
+
+
+# Generate the shared prior dependencies
+PRIOR_SPECTRA, mask = compute_prior_spectra()
+
+
+def xy_grid_to_spectrum(
+    grid_indices,
+    xy,
+    smoothness_loss_factor: float = 0.1,
+    data_loss_factor: float = 5.0,
+):
     x, y = xy
     if x + y > 1 or y <= 0:
         return np.ones(_N_BINS)
@@ -244,87 +342,53 @@ def xy_to_spectrum(xy, loss_factor: float = 1.0, max_dist_uv: float = 0.03):
     Z = (1 - x - y) / y
     XYZ_scaled = np.array([X, 1, Z]) / _NORM_A
 
-    # CCT estimation using McCamy's Approximation
-    n = (x - 0.3320) / (y - 0.1858)
-    cct = -449 * n**3 + 3525 * n**2 - 6823.3 * n + 5524.4
+    # Look up pre-splat data using current grid coordinate
+    grid_r, grid_j = grid_indices
+    ref_scaled = PRIOR_SPECTRA[grid_r, grid_j]
+    has_prior = mask[grid_r, grid_j]
 
-    # Distance-to-locus approximation using CIE 1960 UCS
-    uv = colour.xy_to_UCS_uv(xy)
-    target_uv = colour.CCT_to_uv(cct, method="Krystek 1985")
-    d_uv = np.linalg.norm(uv - target_uv)
+    weight_smooth = np.sqrt(smoothness_loss_factor)
+    weight_dataset = np.sqrt(data_loss_factor) if has_prior else 0.0
 
-    if np.isnan(cct) or np.isnan(d_uv) or cct < 1000 or cct > 25000:
-        w = 0.0
-        bb_scaled = np.zeros(_N_BINS)
-    else:
-        w = 1.0 - np.clip(d_uv / max_dist_uv, 0.0, 1.0)
-
-        bb_values = _fast_planck_values(cct)
-        bb_Y = _A_RAW[1] @ bb_values
-
-        if bb_Y > 0:
-            bb_scaled = (bb_values / bb_Y) / _NORM_I
-        else:
-            w = 0.0
-            bb_scaled = np.zeros(_N_BINS)
-
-    # Weights
-    weight_smooth = np.sqrt(loss_factor)
-    weight_blackbody = np.sqrt(loss_factor * w)
-
-    # Stack system with pre-scaled constants
+    # Stack target system
     C = np.vstack(
         [
             A_STATIC_SCALED,
             weight_smooth * D1_STATIC_SCALED,
-            weight_blackbody * I_STATIC_SCALED,
+            weight_dataset * I_STATIC_SCALED,
         ]
     )
 
-    d = np.concatenate([XYZ_scaled, np.zeros(_N_BINS), weight_blackbody * bb_scaled])
+    d = np.concatenate([XYZ_scaled, np.zeros(_N_BINS), weight_dataset * ref_scaled])
 
-    # 5. Solve
     spectrum, _ = nnls(C, d)
     return spectrum
 
 
-def xyS_to_spectrum(
-    xyS, loss_factor: float = 1.0, max_dist_uv: float = 0.03
-) -> np.ndarray:
-    """
-    Get a non-negative spectrum that closely matches an xyS triplet, using least squares
-    regression.
-    """
-    x, y, s = xyS
-    spectrum = xy_to_spectrum((x, y), loss_factor, max_dist_uv)
-    s_spectrum = (spectrum @ XYZ_CMFS).sum()
-    spectrum *= s / s_spectrum
-    return spectrum
-
-
 def generate_spectral_sample_table(
-    n, loss_factor: float = 1.0, max_dist_uv: float = 0.03
+    n, smoothness_loss_factor: float = 0.1, data_loss_factor: float = 5.0
 ):
-    """
-    Generate a full spectral data table of shape (n, n, SPECTRAL_SHAPE).
-    """
     x = np.linspace(0, 1, n, dtype=np.float32)
-    xx, yy = np.meshgrid(x, x, indexing="ij")
-    lut_id = np.stack([xx, yy, np.ones_like(xx)], axis=-1)
+    out = np.empty((n, n, _N_BINS), dtype=np.float32)
 
-    flat = lut_id.reshape(-1, 3)
+    # Map grid coordinates to target spectral estimates
+    for i in range(n):
+        for j in range(n):
+            xy = (x[i], x[j])
+            spec = xy_grid_to_spectrum(
+                (i, j), xy, smoothness_loss_factor, data_loss_factor
+            )
 
-    out_flat = np.array(
-        [
-            xyS_to_spectrum(point, loss_factor, max_dist_uv).astype(np.float32)
-            for point in flat
-        ]
-    )
+            s_spectrum = (spec @ XYZ_CMFS).sum()
+            if s_spectrum > 0:
+                spec *= 1.0 / s_spectrum
 
-    out = out_flat.reshape(n, n, -1)
+            out[i, j, :] = spec.astype(np.float32)
 
     return out
 
 
-SPECTRUM_LUT = generate_spectral_sample_table(33, loss_factor=1, max_dist_uv=0.03)
+SPECTRUM_LUT = generate_spectral_sample_table(
+    33, smoothness_loss_factor=0.1, data_loss_factor=5.0
+)
 """A look-up table with spectral distributions across the CIE 1931 xy space."""
