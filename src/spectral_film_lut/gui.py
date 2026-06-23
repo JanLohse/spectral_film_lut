@@ -617,6 +617,72 @@ class MainWindow(QMainWindow):
             "is risk of clipping for some negative film stocks.",
         )
 
+        reference_info = {
+            x: y
+            for x, y in filmstock_info.items()
+            if y["Type"] == "Negative" and y["Chromaticity"] != "BW"
+        }
+        sort_keys_reference = [
+            "Name",
+            "Year",
+            "Resolution",
+            "Granularity",
+            "sensitivity",
+            "Gamma",
+            "D-max",
+        ]
+        group_keys_reference = ["Manufacturer", "Decade", "Medium"]
+        list_keys_reference = [
+            "Manufacturer",
+            "Type",
+            "Year",
+            "Sensitivity",
+            "Chromaticity",
+        ]
+        sidebar_keys_refernce = [
+            "Manufacturer",
+            "Type",
+            "Year",
+            "Sensitivity",
+            "resolution",
+            "Granularity",
+            "Medium",
+            "Chromaticity",
+            "Gamma",
+            "Alias",
+            "Comment",
+            "D-max",
+        ]
+        reference_info["None"] = {}
+        self.reference_selector = FilmStockSelector(
+            reference_info,
+            self,
+            self,
+            sort_keys=sort_keys_reference,
+            group_keys=group_keys_reference,
+            list_keys=list_keys_reference,
+            sidebar_keys=sidebar_keys_refernce,
+            default_group="Manufacturer",
+            image_key="image",
+        )
+        """
+        Select the camera negative stock that is used in the print step as the assumed
+        negative. A print LUT can be combined with any negative LUT generated with the
+        same reference negative. Selecting None will emulate printing from the correct
+        negative and result in the highest accuracy.
+        """
+        add_option(
+            self.reference_selector,
+            "Reference negative",
+            "Kodak Vision3 250D 5207",
+            self.reference_selector.setCurrentText,
+            tool_tip="Select the camera negative stock that is used in the print step "
+            "as the assumed\nnegative. A print LUT can be combined with any negative "
+            "LUT generated with the\nsame reference negative. Selecting None will "
+            "emulate printing from the correct\nnegative and result in the highest "
+            "accuracy.",
+        )
+
         self.save_lut_button = AnimatedButton("Save LUT")
         """Export the LUT."""
         self.save_lut_button.clicked.connect(self.save_lut)
@@ -631,6 +697,7 @@ class MainWindow(QMainWindow):
             self.parameter_changed
         )
         self.negative_selector.currentTextChanged.connect(self.negative_changed)
+        self.reference_selector.currentTextChanged.connect(self.parameter_changed)
         self.output_gamut.currentTextChanged.connect(self.parameter_changed)
         self.output_gamma.currentTextChanged.connect(self.parameter_changed)
         self.print_selector.currentTextChanged.connect(self.print_light_changed)
@@ -678,6 +745,7 @@ class MainWindow(QMainWindow):
     def generate_lut(self, name="temp", cube=True):
         negative_film = self.filmstocks[self.negative_selector.currentText()]
         print_film = self.filmstocks[self.print_selector.currentText()]
+        reference_film = self.filmstocks[self.reference_selector.currentText()]
         inversion = self.print_selector.currentText() == "Inversion"
         input_colorspace = self.input_colorspace_selector.currentText()
         projector_kelvin = self.projector_kelvin.getValue()
@@ -735,6 +803,7 @@ class MainWindow(QMainWindow):
             inversion=inversion,
             inversion_gamma=inversion_gamma,
             idealized_curve=idealized_curve,
+            reference_film=reference_film,
         )
         return lut
 

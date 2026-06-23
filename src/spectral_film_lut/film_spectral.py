@@ -3,7 +3,6 @@ The main class for handling all film data procesing and rendering.
 """
 
 import math
-from collections.abc import Callable
 from typing import Any
 
 import colour.plotting
@@ -973,11 +972,11 @@ class FilmSpectral:
         image: np.ndarray,
         colorspace: LiteralRGBColourspace | None = None,
         exp_comp: float = 0.0,
-        exp_kelvin: int = 6500,
+        exp_kelvin: int | float = 6500,
         tint: float = 0.0,
         color_masking: None | float = None,
         push_pull: float = 0.0,
-        halation_func: Callable[[np.ndarray], np.ndarray] | None = None,
+        reference_film: "FilmSpectral | None" = None,
     ) -> np.ndarray:
         """
         Transform from scene referred image data to the per layer activation in absolute
@@ -995,8 +994,10 @@ class FilmSpectral:
                 For films with orange mask can be close to 1, for other (e.g. slide
                 film) should be set quite low.
             push_pull: By how many stops to push/pull the negative to adjust contrast.
-            halation_func: Optional function to add halation in linear layer exposure
-                space.
+            reference_film: The printing process is performed as if this was the
+                negative that was printed from. This reduces accuracy, but enables one
+                to combine any pair of negative and print LUTs generated under the same
+                reference stock. For true accuracy, set it to None.
 
         Returns:
             The resulting layer activation as densities.
@@ -1008,13 +1009,16 @@ class FilmSpectral:
 
         image = apply_2d_lut(np.clip(image, 0, None), input_lut)
 
-        if halation_func is not None:
-            image = halation_func(image)
-
         log_clip(image)
 
-        # image = self.log_exposure_to_density(image, color_masking, push_pull)
         image = self.log_exposure_to_density(image, color_masking, push_pull)
+
+        if reference_film is not None:
+            d_ref = self.log_exposure_to_density(
+                self.log_H_ref, color_masking=color_masking
+            ).reshape(-1)
+            print(f"{d_ref=} {self.d_ref=} {reference_film.d_ref=}")
+            image += reference_film.d_ref - d_ref
 
         return image
 

@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import math
 import time
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal
 
 import colour
@@ -32,6 +31,7 @@ def film_conversion(
     image: np.ndarray,
     negative_film: FilmSpectral,
     print_film: FilmSpectral | None = None,
+    reference_film: FilmSpectral | None = None,
     mode: MODES = "full",
     input_colorspace: LiteralRGBColourspace | None = None,
     exp_kelvin: int | float = 6500,
@@ -54,7 +54,6 @@ def film_conversion(
     inversion: bool = False,
     inversion_gamma: float = 3.0,
     idealized_curve: bool = False,
-    halation_func: Callable[[np.ndarray], np.ndarray] | None = None,
 ) -> np.ndarray:
     """
     Emulates the full film pipeline including exposure, printing, and projection.
@@ -63,6 +62,10 @@ def film_conversion(
         image: The image (or LUT) containing the scene referred data.
         negative_film: The film stock to capture the scene.
         print_film: The optional print stock.
+        reference_film: The printing process is performed as if this was the negative
+            that was printed from. This reduces accuracy, but enables one to combine any
+            pair of negative and print LUTs generated under the same reference stock.
+            For true accuracy, set it to None.
         mode: Which part of the pipeline to emulate.
         input_colorspace: The colorspace if the image. If None CIE XYZ is used.
         exp_kelvin: The scene WB in kelvin.
@@ -97,7 +100,6 @@ def film_conversion(
         inversion_gamma: The gamma used for inversion.
         idealized_curve: Replace the characteristic curve of the print film with an
             idealized one using `inversion_gamma` as the gamma factor.
-        halation_func: Optional function to add halation in linear layer exposure space.
 
     Returns:
         An image (or LUT) representing the transformed scene data after (partial) film
@@ -114,24 +116,32 @@ def film_conversion(
             tint,
             color_masking,
             push_pull,
-            halation_func=halation_func,
+            reference_film=reference_film,
         )
 
     if adx_coding and mode == "negative":
-        image = negative_film.adx_encoding(image, adx_scaling, color_masking)
+        if reference_film is None:
+            image = negative_film.adx_encoding(image, adx_scaling, color_masking)
+        else:
+            image = reference_film.adx_encoding(image, adx_scaling, color_masking=1.0)
 
     if adx_coding and (mode == "print" or mode == "grain"):
-        image = negative_film.adx_decoding(image, adx_scaling, color_masking)
+        if reference_film is None:
+            image = negative_film.adx_decoding(image, adx_scaling, color_masking)
+        else:
+            image = reference_film.adx_decoding(image, adx_scaling, color_masking=1.0)
+
     elif mode == "print" and negative_film.density_measure == "bw":
         image = image[..., 0][..., np.newaxis]  # reduce dim
 
     if mode == "print" or mode == "full":
         if print_film is not None:
             output_film = print_film
-            image = negative_film.print_to(
+            print_from = reference_film if reference_film is not None else negative_film
+            image = print_from.print_to(
                 image,
                 print_film,
-                color_masking,
+                color_masking if reference_film is None else 1.0,
                 red_light,
                 green_light,
                 blue_light,
