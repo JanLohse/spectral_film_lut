@@ -616,6 +616,18 @@ class MainWindow(QMainWindow):
             "workflows. Density 8 matches ADX16. When using density 2 there\n"
             "is risk of clipping for some negative film stocks.",
         )
+        self.apd_intermediate = QCheckBox()
+        add_option(
+            self.apd_intermediate,
+            "APD intermediate",
+            False,
+            self.apd_intermediate.setChecked,
+            tool_tip="If unchecked it will fully simulate printing the negative to the "
+            "print film stock. If checked it will simulate scanning the film using "
+            "academy printing density (APD). This results in a loss of accuracy, as "
+            "the print stocks sensitivity is not accounted for, but it enables one to"
+            "combine negative and print LUTs arbitrarily.",
+        )
 
         self.save_lut_button = AnimatedButton("Save LUT")
         """Export the LUT."""
@@ -653,6 +665,7 @@ class MainWindow(QMainWindow):
         self.mode.currentTextChanged.connect(self.parameter_changed)
         self.sat_adjust.valueChanged.connect(self.parameter_changed)
         self.adx_scale.currentTextChanged.connect(self.parameter_changed)
+        self.apd_intermediate.stateChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -703,10 +716,10 @@ class MainWindow(QMainWindow):
         sat_adjust = self.sat_adjust.getValue()
         push_pull = self.push_pull.getValue()
         idealized_curve = self.idealized_curve.isChecked()
-
         adx_scaling = {"Density 2": 4.0, "Density 4": 2.0, "Density 8": 1.0}[
             self.adx_scale.currentText()
         ]
+        apd_intermediate = self.apd_intermediate.isChecked()
 
         lut = create_lut(
             negative_film,
@@ -735,6 +748,7 @@ class MainWindow(QMainWindow):
             inversion=inversion,
             inversion_gamma=inversion_gamma,
             idealized_curve=idealized_curve,
+            apd_intermediate=apd_intermediate,
         )
         return lut
 

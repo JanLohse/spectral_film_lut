@@ -3,7 +3,6 @@ The main class for handling all film data procesing and rendering.
 """
 
 import math
-from collections.abc import Callable
 from typing import Any
 
 import colour.plotting
@@ -560,6 +559,7 @@ class FilmSpectral:
         push_pull: float = 0.0,
         idealized_curve: bool = False,
         idealized_gamma: float = 3.0,
+        apd_intermediate: bool = False,
     ) -> np.ndarray:
         """
         Convert log_exposure to density values for current film stock.
@@ -571,6 +571,12 @@ class FilmSpectral:
             idealized_curve: Replace the characteristic curve with an ideal gamma curve.
             idealized_gamma: The gamma of the idealized curve when it is used.
         """
+
+        if apd_intermediate:
+            log_exposure = -(log_exposure - self.log_H_ref - 0.6)
+
+        print(log_exposure.min(), log_exposure.max(), apd_intermediate)
+
         if idealized_curve:
             if self.film_type == "positive":
                 idealized_gamma = -idealized_gamma
@@ -973,11 +979,14 @@ class FilmSpectral:
         image: np.ndarray,
         colorspace: LiteralRGBColourspace | None = None,
         exp_comp: float = 0.0,
-        exp_kelvin: int = 6500,
+        exp_kelvin: int | float = 6500,
         tint: float = 0.0,
         color_masking: None | float = None,
         push_pull: float = 0.0,
-        halation_func: Callable[[np.ndarray], np.ndarray] | None = None,
+        apd_intermediate: bool = False,
+        red_light: float = 0.0,
+        green_light: float = 0.0,
+        blue_light: float = 0.0,
     ) -> np.ndarray:
         """
         Transform from scene referred image data to the per layer activation in absolute
@@ -995,8 +1004,6 @@ class FilmSpectral:
                 For films with orange mask can be close to 1, for other (e.g. slide
                 film) should be set quite low.
             push_pull: By how many stops to push/pull the negative to adjust contrast.
-            halation_func: Optional function to add halation in linear layer exposure
-                space.
 
         Returns:
             The resulting layer activation as densities.
@@ -1008,12 +1015,8 @@ class FilmSpectral:
 
         image = apply_2d_lut(np.clip(image, 0, None), input_lut)
 
-        if halation_func is not None:
-            image = halation_func(image)
-
         log_clip(image)
 
-        # image = self.log_exposure_to_density(image, color_masking, push_pull)
         image = self.log_exposure_to_density(image, color_masking, push_pull)
 
         return image
@@ -1123,6 +1126,64 @@ class FilmSpectral:
             idealized_gamma=idealized_gamma,
         )
 
+        return image
+
+    def scan_with_apd(
+        self,
+        image: np.ndarray,
+        color_masking: None | float = None,
+        red_light: float = 0.0,
+        green_light: float = 0.0,
+        blue_light: float = 0.0,
+    ) -> np.ndarray:
+        """
+        Print from one film stock onto another.
+
+        Args:
+            image: The image (or LUT) containing layer activations in absolute
+                densities.
+            color_masking: How strong the color mask is on the negative film. 0 for no
+                mask. 1 for a perfectly optimized mask (no pollution of other layers).
+                >1 for increased saturation. Most film stocks don't provide exact data.
+                For films with orange mask can be close to 1, for other (e.g. slide
+                film) should be set quite low.
+            red_light: Offset of the red printer light from neutral.
+            green_light: Offset of the green printer light from neutral.
+            blue_light: Offset of the blue printer light from neutral.
+
+
+        Returns:
+            The resulting layer activations of the print stock.
+        """
+        if self.density_measure == "bw":
+            return image + 2**green_light
+        else:
+            compensation = np.log10(
+                2 ** np.array([red_light, green_light, blue_light], dtype=DEFAULT_DTYPE)
+            )
+            density_neg = self.get_spectral_density(color_masking)
+            printing_mat = (APD.T * 10**-self.d_min_sd).T
+            printing_mat = printing_mat.reshape(-1, 3, printing_mat.shape[-1]).sum(
+                axis=1
+            )
+            density_neg = density_neg.reshape(-1, 3, density_neg.shape[-1]).mean(axis=1)
+
+            reference = -np.log10(
+                np.clip(
+                    10 ** -(self.d_ref @ density_neg.T) @ printing_mat, 0.00001, None
+                )
+            )
+
+            image = (
+                -np.log10(
+                    np.clip(
+                        10 ** -(image @ density_neg.T) @ printing_mat, 0.00001, None
+                    )
+                )
+                - reference
+                + compensation
+                + 0.6
+            )
         return image
 
     def project(

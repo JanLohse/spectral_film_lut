@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import math
 import time
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal
 
 import colour
@@ -54,7 +53,7 @@ def film_conversion(
     inversion: bool = False,
     inversion_gamma: float = 3.0,
     idealized_curve: bool = False,
-    halation_func: Callable[[np.ndarray], np.ndarray] | None = None,
+    apd_intermediate: bool = False,
 ) -> np.ndarray:
     """
     Emulates the full film pipeline including exposure, printing, and projection.
@@ -97,7 +96,6 @@ def film_conversion(
         inversion_gamma: The gamma used for inversion.
         idealized_curve: Replace the characteristic curve of the print film with an
             idealized one using `inversion_gamma` as the gamma factor.
-        halation_func: Optional function to add halation in linear layer exposure space.
 
     Returns:
         An image (or LUT) representing the transformed scene data after (partial) film
@@ -114,8 +112,16 @@ def film_conversion(
             tint,
             color_masking,
             push_pull,
-            halation_func=halation_func,
         )
+
+        if apd_intermediate:
+            image = negative_film.scan_with_apd(
+                image,
+                color_masking=color_masking,
+                red_light=red_light,
+                green_light=green_light,
+                blue_light=blue_light,
+            )
 
     if adx_coding and mode == "negative":
         image = negative_film.adx_encoding(image, adx_scaling, color_masking)
@@ -128,16 +134,24 @@ def film_conversion(
     if mode == "print" or mode == "full":
         if print_film is not None:
             output_film = print_film
-            image = negative_film.print_to(
-                image,
-                print_film,
-                color_masking,
-                red_light,
-                green_light,
-                blue_light,
-                idealized_curve,
-                inversion_gamma,
-            )
+            if apd_intermediate:
+                image = print_film.log_exposure_to_density(
+                    image,
+                    idealized_curve=idealized_curve,
+                    idealized_gamma=inversion_gamma,
+                    apd_intermediate=True,
+                )
+            else:
+                image = negative_film.print_to(
+                    image,
+                    print_film,
+                    color_masking,
+                    red_light,
+                    green_light,
+                    blue_light,
+                    idealized_curve,
+                    inversion_gamma,
+                )
             color_masking = None
         else:
             output_film = negative_film
