@@ -36,7 +36,7 @@ from spectral_film_lut.utils import (
 )
 from spectral_film_lut.xy_lut import SPECTRUM_LUT, XYZ_CMFS, apply_2d_lut
 
-LAD_NEGATIVE = np.array([0.645, 0.69, 0.72], DEFAULT_DTYPE)
+LAD_NEGATIVE = np.array([0.76, 0.83, 0.78], DEFAULT_DTYPE)
 
 
 class FilmSpectral:
@@ -941,6 +941,7 @@ class FilmSpectral:
         image: np.ndarray,
         scaling: float = 1.0,
         color_masking: None | float = None,
+        apd_intermediate: bool = False,
     ) -> np.ndarray:
         """
         Encode layer activation in absolute densities as ADX16 data in the [0, 1] range.
@@ -954,7 +955,8 @@ class FilmSpectral:
         Returns:
             The image (or LUT) encoded in ADX.
         """
-        image @= self.layer_activation_to_apd_matrix(color_masking).T
+        if not apd_intermediate:
+            image @= self.layer_activation_to_apd_matrix(color_masking).T
 
         image = adx16_encode(image, scaling=scaling)
 
@@ -965,6 +967,7 @@ class FilmSpectral:
         image: np.ndarray,
         scaling: float = 1.0,
         color_masking: None | float = None,
+        apd_intermediate: bool = False,
     ) -> np.ndarray:
         """
         Decode layer activation from ADX16 data in the [0, 1] range to absolute
@@ -984,7 +987,8 @@ class FilmSpectral:
 
         image = adx16_decode(image, scaling=scaling)
 
-        image @= self.apd_to_layer_activation_matrix(color_masking).T
+        if not apd_intermediate:
+            image @= self.apd_to_layer_activation_matrix(color_masking).T
 
         return image
 
@@ -1182,10 +1186,10 @@ class FilmSpectral:
             )
             density_neg = density_neg.reshape(-1, 3, density_neg.shape[-1]).mean(axis=1)
 
+            d_ref = self.log_exposure_to_density(self.log_H_ref, color_masking)
+            print(d_ref)
             reference = -np.log10(
-                np.clip(
-                    10 ** -(self.d_ref @ density_neg.T) @ printing_mat, 0.00001, None
-                )
+                np.clip(10 ** -(d_ref @ density_neg.T) @ printing_mat, 0.00001, None)
             )
 
             image = (

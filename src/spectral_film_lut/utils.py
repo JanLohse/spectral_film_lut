@@ -124,10 +124,15 @@ def film_conversion(
             )
 
     if adx_coding and mode == "negative":
-        image = negative_film.adx_encoding(image, adx_scaling, color_masking)
+        image = negative_film.adx_encoding(
+            image, adx_scaling, color_masking, apd_intermediate
+        )
 
     if adx_coding and (mode == "print" or mode == "grain"):
-        image = negative_film.adx_decoding(image, adx_scaling, color_masking)
+        image = negative_film.adx_decoding(
+            image, adx_scaling, color_masking, apd_intermediate
+        )
+    # TODO: fix for slide/bw
     elif mode == "print" and negative_film.density_measure == "bw":
         image = image[..., 0][..., np.newaxis]  # reduce dim
 

@@ -848,17 +848,6 @@ class MainWindow(QMainWindow):
         lut = (lut * (2**8 - 1)).astype(np.uint8)
         image = apply_lut_tetrahedral_int(image, lut)
 
-        if self.mode.currentText() == "print":
-            d_ref = apply_lut_tetrahedral_int(
-                np.array([30208, 30464, 29440], np.uint16).reshape(1, 1, -1), lut
-            )
-            print(f"{d_ref=}")
-        else:
-            mid_gray = apply_lut_tetrahedral_int(
-                np.ones((1, 1, 3), np.uint16) * 18244, lut
-            )
-            print(f"{mid_gray=}")
-
         image = QImage(image, width, height, 3 * width, QImage.Format.Format_RGB888)
         pixmap = QPixmap.fromImage(image)
 
