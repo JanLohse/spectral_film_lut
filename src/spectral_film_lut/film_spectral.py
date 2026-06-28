@@ -36,6 +36,8 @@ from spectral_film_lut.utils import (
 )
 from spectral_film_lut.xy_lut import SPECTRUM_LUT, XYZ_CMFS, apply_2d_lut
 
+LAD_NEGATIVE = np.array([0.645, 0.69, 0.72], DEFAULT_DTYPE)
+
 
 class FilmSpectral:
     """
@@ -559,7 +561,6 @@ class FilmSpectral:
         push_pull: float = 0.0,
         idealized_curve: bool = False,
         idealized_gamma: float = 3.0,
-        apd_intermediate: bool = False,
     ) -> np.ndarray:
         """
         Convert log_exposure to density values for current film stock.
@@ -571,12 +572,6 @@ class FilmSpectral:
             idealized_curve: Replace the characteristic curve with an ideal gamma curve.
             idealized_gamma: The gamma of the idealized curve when it is used.
         """
-
-        if apd_intermediate:
-            log_exposure = -(log_exposure - self.log_H_ref - 0.6)
-
-        print(log_exposure.min(), log_exposure.max(), apd_intermediate)
-
         if idealized_curve:
             if self.film_type == "positive":
                 idealized_gamma = -idealized_gamma
@@ -590,6 +585,25 @@ class FilmSpectral:
         )
 
         return density
+
+    def print_from_apd(
+        self,
+        apd_image: np.ndarray,
+        idealized_curve: bool = False,
+        idealized_gamma: float = 3.0,
+    ) -> np.ndarray:
+        """
+        Converts independent APD intermediate densities into this print film's
+        native layer activations, properly calibrated for mid-gray exposure.
+        """
+        apd_image = -(apd_image - self.log_H_ref - LAD_NEGATIVE)
+
+        # 5. Pass to the characteristic curve
+        return self.log_exposure_to_density(
+            apd_image,
+            idealized_curve=idealized_curve,
+            idealized_gamma=idealized_gamma,
+        )
 
     def get_density_curve(
         self, color_masking: None | float = None, push_pull: float = 0.0
@@ -1182,7 +1196,7 @@ class FilmSpectral:
                 )
                 - reference
                 + compensation
-                + 0.6
+                + LAD_NEGATIVE
             )
         return image
 

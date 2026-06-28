@@ -135,11 +135,10 @@ def film_conversion(
         if print_film is not None:
             output_film = print_film
             if apd_intermediate:
-                image = print_film.log_exposure_to_density(
+                image = print_film.print_from_apd(
                     image,
                     idealized_curve=idealized_curve,
                     idealized_gamma=inversion_gamma,
-                    apd_intermediate=True,
                 )
             else:
                 image = negative_film.print_to(
