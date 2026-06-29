@@ -132,8 +132,12 @@ def film_conversion(
         image = negative_film.adx_decoding(
             image, adx_scaling, color_masking, apd_intermediate
         )
-    # TODO: fix for slide/bw
-    elif mode == "print" and negative_film.density_measure == "bw":
+        # TODO: fix apd for grain mode
+    elif (
+        mode == "print"
+        and negative_film.density_measure == "bw"
+        and not apd_intermediate
+    ):
         image = image[..., 0][..., np.newaxis]  # reduce dim
 
     if mode == "print" or mode == "full":

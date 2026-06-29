@@ -623,10 +623,10 @@ class MainWindow(QMainWindow):
             False,
             self.apd_intermediate.setChecked,
             tool_tip="If unchecked it will fully simulate printing the negative to the "
-            "print film stock. If checked it will simulate scanning the film using "
-            "academy printing density (APD). This results in a loss of accuracy, as "
-            "the print stocks sensitivity is not accounted for, but it enables one to"
-            "combine negative and print LUTs arbitrarily.",
+            "print\nfilm stock. If checked it will simulate scanning the film using "
+            "academy\nprinting density (APD). This results in a loss of accuracy, as "
+            "the print\nstocks sensitivity is not accounted for, but it enables one to "
+            "combine\nnegative and print LUTs arbitrarily.",
         )
 
         self.save_lut_button = AnimatedButton("Save LUT")

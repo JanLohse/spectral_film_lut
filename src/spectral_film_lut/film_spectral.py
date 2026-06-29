@@ -596,9 +596,12 @@ class FilmSpectral:
         Converts independent APD intermediate densities into this print film's
         native layer activations, properly calibrated for mid-gray exposure.
         """
+
         apd_image = -(apd_image - self.log_H_ref - LAD_NEGATIVE)
 
-        # 5. Pass to the characteristic curve
+        if self.density_measure == "bw":
+            apd_image = np.ascontiguousarray(apd_image[..., 1:2])
+
         return self.log_exposure_to_density(
             apd_image,
             idealized_curve=idealized_curve,
@@ -982,7 +985,7 @@ class FilmSpectral:
         Returns:
             The image (or LUT) represented as absolute layer activations.
         """
-        if self.density_measure == "bw":
+        if self.density_measure == "bw" and not apd_intermediate:
             image = image[..., 0][..., np.newaxis]  # reduce dim
 
         image = adx16_decode(image, scaling=scaling)
@@ -1174,11 +1177,15 @@ class FilmSpectral:
             The resulting layer activations of the print stock.
         """
         if self.density_measure == "bw":
-            return image + 2**green_light
+            compensation = 0.3 * green_light  # log10(2) = 0.3
+            reference = self.d_ref
+
+            image = image + (compensation + LAD_NEGATIVE - reference)
+            return image
         else:
-            compensation = np.log10(
-                2 ** np.array([red_light, green_light, blue_light], dtype=DEFAULT_DTYPE)
-            )
+            compensation = 0.3 * np.array(
+                [red_light, green_light, blue_light], dtype=DEFAULT_DTYPE
+            )  # log10(2) = 0.3
             density_neg = self.get_spectral_density(color_masking)
             printing_mat = (APD.T * 10**-self.d_min_sd).T
             printing_mat = printing_mat.reshape(-1, 3, printing_mat.shape[-1]).sum(
@@ -1187,21 +1194,13 @@ class FilmSpectral:
             density_neg = density_neg.reshape(-1, 3, density_neg.shape[-1]).mean(axis=1)
 
             d_ref = self.log_exposure_to_density(self.log_H_ref, color_masking)
-            print(d_ref)
             reference = -np.log10(
                 np.clip(10 ** -(d_ref @ density_neg.T) @ printing_mat, 0.00001, None)
             )
 
-            image = (
-                -np.log10(
-                    np.clip(
-                        10 ** -(image @ density_neg.T) @ printing_mat, 0.00001, None
-                    )
-                )
-                - reference
-                + compensation
-                + LAD_NEGATIVE
-            )
+            image = -np.log10(
+                np.clip(10 ** -(image @ density_neg.T) @ printing_mat, 0.00001, None)
+            ) + (compensation + LAD_NEGATIVE - reference)
         return image
 
     def project(
