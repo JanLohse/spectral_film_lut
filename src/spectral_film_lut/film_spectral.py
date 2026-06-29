@@ -1,5 +1,5 @@
 """
-The main class for handling all film data procesing and rendering.
+The main class for handling all film data processing and rendering.
 """
 
 import math
@@ -36,7 +36,7 @@ from spectral_film_lut.utils import (
 )
 from spectral_film_lut.xy_lut import SPECTRUM_LUT, XYZ_CMFS, apply_2d_lut
 
-LAD_NEGATIVE = np.array([0.76, 0.83, 0.78], DEFAULT_DTYPE)
+LAD_NEGATIVE = np.array([0.78, 0.84, 0.79], DEFAULT_DTYPE)
 
 
 class FilmSpectral:
