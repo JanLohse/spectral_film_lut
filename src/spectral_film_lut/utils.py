@@ -133,6 +133,7 @@ def film_conversion(
             image, adx_scaling, color_masking, apd_intermediate
         )
         # TODO: fix apd for grain mode
+        # TODO: add alignment matrix for APD mode
     elif (
         mode == "print"
         and negative_film.density_measure == "bw"
@@ -188,7 +189,11 @@ def film_conversion(
         )
 
     if mode == "grain":
-        image = negative_film.grain_transform(image, std_div=0.001, scale=adx_scaling)
+        print("before", image.shape)
+        image = negative_film.grain_transform(
+            image, std_div=0.001, scale=adx_scaling, apd_intermediate=apd_intermediate
+        )
+        print("after", image.shape)
 
     return image
 

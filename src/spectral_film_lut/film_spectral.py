@@ -37,6 +37,10 @@ from spectral_film_lut.utils import (
 from spectral_film_lut.xy_lut import SPECTRUM_LUT, XYZ_CMFS, apply_2d_lut
 
 LAD_NEGATIVE = np.array([0.78, 0.84, 0.79], DEFAULT_DTYPE)
+"""
+Reference density values to which to encode middle gray in the APD intermediate mode.
+Chosen to be compatible with the Davinci Resolve 2383 LUT.
+"""
 
 
 class FilmSpectral:
@@ -838,7 +842,14 @@ class FilmSpectral:
         plt.tight_layout()
         plt.show()
 
-    def get_grain_curve(self, scale=1.0, std_div=1.0, adx=True, bw_grain=False):
+    def get_grain_curve(
+        self,
+        scale: float = 1.0,
+        std_div: float = 1.0,
+        adx: bool = True,
+        bw_grain: bool = False,
+        apd_intermediate: bool = False,
+    ) -> np.ndarray:
         """Compute grain intensity 1D LUT."""
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm,
         # default for 3840 / 24mm
@@ -857,6 +868,13 @@ class FilmSpectral:
         elif self.density_measure != "bw":
             std_factor = std_factor.repeat(3)
         grain_curve = self.grain_curve.copy()
+        if apd_intermediate:
+            d_ref = self.log_exposure_to_density(self.log_H_ref)
+            print(len(d_ref))
+            if len(d_ref) == 3:
+                d_ref = d_ref[1]
+            offset = d_ref - LAD_NEGATIVE[1]
+            grain_curve[0] -= offset
         grain_curve[1:] *= std_factor.reshape(-1, 1)
 
         if bw_grain and self.density_measure != "bw":
@@ -864,14 +882,40 @@ class FilmSpectral:
 
         return grain_curve
 
-    def grain_transform(self, rgb, scale=1.0, std_div=1.0, adx=True, bw_grain=False):
-        """Encoding for the grain intensity LUT."""
+    def grain_transform(
+        self,
+        image: np.ndarray,
+        scale: float = 1.0,
+        std_div: float = 1.0,
+        adx: bool = True,
+        bw_grain: bool = False,
+        apd_intermediate: bool = False,
+    ) -> np.ndarray:
+        """
+        Compute a grain intensity map from an image containing density values.
+
+        Args:
+            image: The image containing density values.
+            scale: The scaling of the intensity of the grain. Can either be the max
+                density for an ADX encoded LUT or the size scalling in pixels per mm.
+            std_div: The std_div of the gaussian noise for which the intensity map is
+                to be used.
+            adx: Whether
+            bw_grain:
+
+        Returns:
+
+        """
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm,
         # default for 3840 / 24mm
         # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay
         # in [0, 1] range
-        grain_curve = self.get_grain_curve(scale, std_div, adx, bw_grain)
-        noise_factors = multi_channel_interp(rgb, grain_curve)
+        grain_curve = self.get_grain_curve(
+            scale, std_div, adx, bw_grain, apd_intermediate
+        )
+        if self.density_measure == "bw" and image.shape[-1] == 3:
+            image = np.ascontiguousarray(image[..., 1:2])
+        noise_factors = multi_channel_interp(image, grain_curve)
 
         return noise_factors
 
