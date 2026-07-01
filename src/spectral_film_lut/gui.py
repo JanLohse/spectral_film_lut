@@ -34,6 +34,7 @@ from spectral_film_lut.gui_objects import (
     AboutDialog,
     AnimatedButton,
     FileSelector,
+    ModeSelector,
     Slider,
     SliderLog,
     WideComboBox,
@@ -577,15 +578,9 @@ class MainWindow(QMainWindow):
             tool_tip="The size of the LUT table.",
         )
 
-        self.mode = WideComboBox(self)
-        """
-        What part of the pipeline to simulate. Using *negative* + *print* in conjunction
-        should give the same result as using *full*. *Grain* expects as input the output
-        of *negative* and is to be used as a multiplicative intensity scale for a grain
-        overlay.
-        """
-        self.mode.addItems(["full", "negative", "print", "grain"])
-        self.mode.setCurrentText("full")
+        # Mode selector as a segmented control (buttons with an animated pill)
+        self.mode = ModeSelector(self, items=["full", "negative", "print", "grain"])
+        # Tooltip copied from previous implementation
         self.mode.setToolTip(
             "What part of the pipeline to simulate. Using *negative* +\n"
             "*print* in conjunction should give the same result as using\n"
