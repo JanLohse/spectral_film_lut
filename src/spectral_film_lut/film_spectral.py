@@ -921,7 +921,6 @@ class FilmSpectral:
         grain_curve = self.grain_curve.copy()
         if apd_intermediate:
             d_ref = self.log_exposure_to_density(self.log_H_ref)
-            print(len(d_ref))
             if len(d_ref) == 3:
                 d_ref = d_ref[1]
             offset = d_ref - LAD_NEGATIVE[1]
