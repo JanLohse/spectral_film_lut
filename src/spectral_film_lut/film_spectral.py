@@ -1099,10 +1099,6 @@ class FilmSpectral:
         tint: float = 0.0,
         color_masking: None | float = None,
         push_pull: float = 0.0,
-        apd_intermediate: bool = False,
-        red_light: float = 0.0,
-        green_light: float = 0.0,
-        blue_light: float = 0.0,
     ) -> np.ndarray:
         """
         Transform from scene referred image data to the per layer activation in absolute

@@ -617,6 +617,15 @@ class MainWindow(QMainWindow):
             "is risk of clipping for some negative film stocks.",
         )
         self.apd_intermediate = QCheckBox()
+        """
+        If unchecked it will fully simulate printing the negative to the print film
+        stock. If checked it will simulate scanning the film using academy printing
+        density (APD). This results in a loss of accuracy, as the print stock's
+        sensitivity is not accounted for, but it enables one to combine negative and
+        print LUTs arbitrarily.
+
+        Will be ignored for slide film.
+        """
         add_option(
             self.apd_intermediate,
             "APD intermediate",
@@ -625,8 +634,9 @@ class MainWindow(QMainWindow):
             tool_tip="If unchecked it will fully simulate printing the negative to the "
             "print\nfilm stock. If checked it will simulate scanning the film using "
             "academy\nprinting density (APD). This results in a loss of accuracy, as "
-            "the print\nstocks sensitivity is not accounted for, but it enables one to "
-            "combine\nnegative and print LUTs arbitrarily.",
+            "the print\nstock's sensitivity is not accounted for, but it enables one to"
+            " combine\nnegative and print LUTs arbitrarily.\nWill be ignored for slide"
+            "film.",
         )
 
         self.save_lut_button = AnimatedButton("Save LUT")

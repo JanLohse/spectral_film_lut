@@ -104,6 +104,9 @@ def film_conversion(
     """
     image = np.ascontiguousarray(image)
 
+    if negative_film.density_measure == "status_a":
+        apd_intermediate = False
+
     if mode == "negative" or mode == "full":
         image = negative_film.input_transform(
             image,
@@ -133,7 +136,6 @@ def film_conversion(
         image = negative_film.adx_decoding(
             image, adx_scaling, color_masking, apd_intermediate
         )
-        # TODO: fix slide film
     elif (
         mode == "print"
         and negative_film.density_measure == "bw"
