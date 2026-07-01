@@ -749,6 +749,7 @@ class MainWindow(QMainWindow):
             inversion_gamma=inversion_gamma,
             idealized_curve=idealized_curve,
             apd_intermediate=apd_intermediate,
+            reference_negative=self.filmstocks["Kodak Vision3 250D 5207"],
         )
         return lut
 

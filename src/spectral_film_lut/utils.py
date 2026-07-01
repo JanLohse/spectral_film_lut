@@ -54,6 +54,7 @@ def film_conversion(
     inversion_gamma: float = 3.0,
     idealized_curve: bool = False,
     apd_intermediate: bool = False,
+    reference_negative: FilmSpectral | None = None,
 ) -> np.ndarray:
     """
     Emulates the full film pipeline including exposure, printing, and projection.
@@ -132,8 +133,7 @@ def film_conversion(
         image = negative_film.adx_decoding(
             image, adx_scaling, color_masking, apd_intermediate
         )
-        # TODO: fix apd for grain mode
-        # TODO: add alignment matrix for APD mode
+        # TODO: fix slide film
     elif (
         mode == "print"
         and negative_film.density_measure == "bw"
@@ -149,6 +149,7 @@ def film_conversion(
                     image,
                     idealized_curve=idealized_curve,
                     idealized_gamma=inversion_gamma,
+                    reference_negative=reference_negative,
                 )
             else:
                 image = negative_film.print_to(
@@ -189,11 +190,9 @@ def film_conversion(
         )
 
     if mode == "grain":
-        print("before", image.shape)
         image = negative_film.grain_transform(
             image, std_div=0.001, scale=adx_scaling, apd_intermediate=apd_intermediate
         )
-        print("after", image.shape)
 
     return image
 

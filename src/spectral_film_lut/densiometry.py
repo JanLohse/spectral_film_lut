@@ -399,7 +399,7 @@ def construct_spectral_density(
     return out
 
 
-def compute_printer_lights() -> np.ndarray:
+def compute_printer_lights() -> tuple[np.ndarray, np.ndarray]:
     """
     Converts the APD printer light to a three light matrix by splitting into separate
     red, green, and blue lights.
@@ -598,10 +598,10 @@ def compute_printer_lights() -> np.ndarray:
 
     printer_light.align(SPECTRAL_SHAPE, extrapolator_kwargs={"method": "linear"})
 
-    return construct_spectral_density(printer_light, sigma=5)
+    return printer_light.values, construct_spectral_density(printer_light, sigma=5)
 
 
-PRINTER_LIGHTS = compute_printer_lights()
+PRINTER_LIGHT_APD, PRINTER_LIGHTS = compute_printer_lights()
 """The RGB printer lights build from the APD documentation."""
 
 
