@@ -1,9 +1,9 @@
 """
-The main class for handling all film data procesing and rendering.
+The main class for handling all film data processing and rendering.
 """
 
 import math
-from collections.abc import Callable
+from functools import cache
 from typing import Any
 
 import colour.plotting
@@ -22,6 +22,7 @@ from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
 from spectral_film_lut.densiometry import (
     APD,
     DENSIOMETRY,
+    PRINTER_LIGHT_APD,
     PRINTER_LIGHTS,
     adx16_decode,
     adx16_encode,
@@ -35,7 +36,17 @@ from spectral_film_lut.utils import (
     multi_channel_interp,
     smooth_roll_off,
 )
-from spectral_film_lut.xy_lut import SPECTRUM_LUT, XYZ_CMFS, apply_2d_lut
+from spectral_film_lut.xy_lut import (
+    SPECTRUM_LUT,
+    XYZ_CMFS,
+    apply_2d_lut,
+)
+
+LAD_NEGATIVE = np.array([0.78, 0.84, 0.79], DEFAULT_DTYPE)
+"""
+Reference density values to which to encode middle gray in the APD intermediate mode.
+Chosen to be compatible with the Davinci Resolve 2383 LUT.
+"""
 
 
 class FilmSpectral:
@@ -585,6 +596,73 @@ class FilmSpectral:
 
         return density
 
+    @cache
+    def apd_alignment_matrix(
+        self, reference_negative: "FilmSpectral", max_delta: float = 0.05
+    ) -> np.ndarray:
+        """Compute matrix to make APD scan closer to proper print exposure."""
+        # Get reference sensitivity computed like APD.
+        scaled_sensitivity = self.sensitivity * PRINTER_LIGHT_APD.reshape(-1, 1)
+        scaled_sensitivity /= scaled_sensitivity.sum(axis=0)
+
+        # Get training transmittance spectra from reference negative.
+        spectral_density = reference_negative.get_spectral_density()
+        m = 8
+        values = np.linspace(0, 1, m, dtype=DEFAULT_DTYPE)
+        grid = np.stack(np.meshgrid(values, values, values, indexing="ij"), axis=-1)
+        points = grid.reshape(-1, 3) * 3
+        training_spectra = 10 ** -(points @ spectral_density.T)
+
+        # Measure with APD and stock based sensitivity.
+        apd_measurements = training_spectra @ APD
+        sensitivity_measurements = training_spectra @ scaled_sensitivity
+
+        # Compute matrix with least squares to match measurements.
+        M, residuals, rank, s = np.linalg.lstsq(
+            apd_measurements, sensitivity_measurements, rcond=None
+        )
+
+        # Scale to preserve log_H_ref
+        ref_linear = 10**self.log_H_ref
+        current_mapped_ref = ref_linear @ M
+        scale_factors = ref_linear / np.clip(current_mapped_ref, 1e-5, None)
+        M = M * scale_factors
+
+        # Bound to limit too extreme adjustments.
+        eye = np.eye(3, dtype=DEFAULT_DTYPE)
+        delta = (M - eye).max()
+        scaling = min(max_delta, delta) / delta
+        M = M * scaling + eye * (1 - scaling)
+
+        return M
+
+    def print_from_apd(
+        self,
+        apd_image: np.ndarray,
+        idealized_curve: bool = False,
+        idealized_gamma: float = 3.0,
+        reference_negative: "FilmSpectral | None" = None,
+    ) -> np.ndarray:
+        """
+        Converts independent APD intermediate densities into this print film's
+        native layer activations, properly calibrated for mid-gray exposure.
+        """
+
+        apd_image = -(apd_image - self.log_H_ref - LAD_NEGATIVE)
+
+        if self.density_measure == "bw":
+            apd_image = np.ascontiguousarray(apd_image[..., 1:2])
+
+        elif reference_negative is not None:
+            M = self.apd_alignment_matrix(reference_negative)
+            apd_image = np.log10(np.clip(10**apd_image @ M, 0.00001, None))
+
+        return self.log_exposure_to_density(
+            apd_image,
+            idealized_curve=idealized_curve,
+            idealized_gamma=idealized_gamma,
+        )
+
     def get_density_curve(
         self, color_masking: None | float = None, push_pull: float = 0.0
     ) -> np.ndarray:
@@ -815,7 +893,14 @@ class FilmSpectral:
         plt.tight_layout()
         plt.show()
 
-    def get_grain_curve(self, scale=1.0, std_div=1.0, adx=True, bw_grain=False):
+    def get_grain_curve(
+        self,
+        scale: float = 1.0,
+        std_div: float = 1.0,
+        adx: bool = True,
+        bw_grain: bool = False,
+        apd_intermediate: bool = False,
+    ) -> np.ndarray:
         """Compute grain intensity 1D LUT."""
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm,
         # default for 3840 / 24mm
@@ -834,6 +919,12 @@ class FilmSpectral:
         elif self.density_measure != "bw":
             std_factor = std_factor.repeat(3)
         grain_curve = self.grain_curve.copy()
+        if apd_intermediate:
+            d_ref = self.log_exposure_to_density(self.log_H_ref)
+            if len(d_ref) == 3:
+                d_ref = d_ref[1]
+            offset = d_ref - LAD_NEGATIVE[1]
+            grain_curve[0] -= offset
         grain_curve[1:] *= std_factor.reshape(-1, 1)
 
         if bw_grain and self.density_measure != "bw":
@@ -841,14 +932,40 @@ class FilmSpectral:
 
         return grain_curve
 
-    def grain_transform(self, rgb, scale=1.0, std_div=1.0, adx=True, bw_grain=False):
-        """Encoding for the grain intensity LUT."""
+    def grain_transform(
+        self,
+        image: np.ndarray,
+        scale: float = 1.0,
+        std_div: float = 1.0,
+        adx: bool = True,
+        bw_grain: bool = False,
+        apd_intermediate: bool = False,
+    ) -> np.ndarray:
+        """
+        Compute a grain intensity map from an image containing density values.
+
+        Args:
+            image: The image containing density values.
+            scale: The scaling of the intensity of the grain. Can either be the max
+                density for an ADX encoded LUT or the size scalling in pixels per mm.
+            std_div: The std_div of the gaussian noise for which the intensity map is
+                to be used.
+            adx: Whether
+            bw_grain:
+
+        Returns:
+
+        """
         # scale = max(image.shape) / max(frame_width, frame_height) in pixels per mm,
         # default for 3840 / 24mm
         # std_div is of the sampled gaussian noise to be applied, default is 0.1 to stay
         # in [0, 1] range
-        grain_curve = self.get_grain_curve(scale, std_div, adx, bw_grain)
-        noise_factors = multi_channel_interp(rgb, grain_curve)
+        grain_curve = self.get_grain_curve(
+            scale, std_div, adx, bw_grain, apd_intermediate
+        )
+        if self.density_measure == "bw" and image.shape[-1] == 3:
+            image = np.ascontiguousarray(image[..., 1:2])
+        noise_factors = multi_channel_interp(image, grain_curve)
 
         return noise_factors
 
@@ -921,6 +1038,7 @@ class FilmSpectral:
         image: np.ndarray,
         scaling: float = 1.0,
         color_masking: None | float = None,
+        apd_intermediate: bool = False,
     ) -> np.ndarray:
         """
         Encode layer activation in absolute densities as ADX16 data in the [0, 1] range.
@@ -934,7 +1052,8 @@ class FilmSpectral:
         Returns:
             The image (or LUT) encoded in ADX.
         """
-        image @= self.layer_activation_to_apd_matrix(color_masking).T
+        if not apd_intermediate:
+            image @= self.layer_activation_to_apd_matrix(color_masking).T
 
         image = adx16_encode(image, scaling=scaling)
 
@@ -945,6 +1064,7 @@ class FilmSpectral:
         image: np.ndarray,
         scaling: float = 1.0,
         color_masking: None | float = None,
+        apd_intermediate: bool = False,
     ) -> np.ndarray:
         """
         Decode layer activation from ADX16 data in the [0, 1] range to absolute
@@ -959,12 +1079,13 @@ class FilmSpectral:
         Returns:
             The image (or LUT) represented as absolute layer activations.
         """
-        if self.density_measure == "bw":
+        if self.density_measure == "bw" and not apd_intermediate:
             image = image[..., 0][..., np.newaxis]  # reduce dim
 
         image = adx16_decode(image, scaling=scaling)
 
-        image @= self.apd_to_layer_activation_matrix(color_masking).T
+        if not apd_intermediate:
+            image @= self.apd_to_layer_activation_matrix(color_masking).T
 
         return image
 
@@ -973,11 +1094,10 @@ class FilmSpectral:
         image: np.ndarray,
         colorspace: LiteralRGBColourspace | None = None,
         exp_comp: float = 0.0,
-        exp_kelvin: int = 6500,
+        exp_kelvin: int | float = 6500,
         tint: float = 0.0,
         color_masking: None | float = None,
         push_pull: float = 0.0,
-        halation_func: Callable[[np.ndarray], np.ndarray] | None = None,
     ) -> np.ndarray:
         """
         Transform from scene referred image data to the per layer activation in absolute
@@ -995,8 +1115,6 @@ class FilmSpectral:
                 For films with orange mask can be close to 1, for other (e.g. slide
                 film) should be set quite low.
             push_pull: By how many stops to push/pull the negative to adjust contrast.
-            halation_func: Optional function to add halation in linear layer exposure
-                space.
 
         Returns:
             The resulting layer activation as densities.
@@ -1008,12 +1126,8 @@ class FilmSpectral:
 
         image = apply_2d_lut(np.clip(image, 0, None), input_lut)
 
-        if halation_func is not None:
-            image = halation_func(image)
-
         log_clip(image)
 
-        # image = self.log_exposure_to_density(image, color_masking, push_pull)
         image = self.log_exposure_to_density(image, color_masking, push_pull)
 
         return image
@@ -1123,6 +1237,60 @@ class FilmSpectral:
             idealized_gamma=idealized_gamma,
         )
 
+        return image
+
+    def scan_with_apd(
+        self,
+        image: np.ndarray,
+        color_masking: None | float = None,
+        red_light: float = 0.0,
+        green_light: float = 0.0,
+        blue_light: float = 0.0,
+    ) -> np.ndarray:
+        """
+        Print from one film stock onto another.
+
+        Args:
+            image: The image (or LUT) containing layer activations in absolute
+                densities.
+            color_masking: How strong the color mask is on the negative film. 0 for no
+                mask. 1 for a perfectly optimized mask (no pollution of other layers).
+                >1 for increased saturation. Most film stocks don't provide exact data.
+                For films with orange mask can be close to 1, for other (e.g. slide
+                film) should be set quite low.
+            red_light: Offset of the red printer light from neutral.
+            green_light: Offset of the green printer light from neutral.
+            blue_light: Offset of the blue printer light from neutral.
+
+
+        Returns:
+            The resulting layer activations of the print stock.
+        """
+        if self.density_measure == "bw":
+            compensation = 0.3 * green_light  # log10(2) = 0.3
+            reference = self.d_ref
+
+            image = image + (compensation + LAD_NEGATIVE - reference)
+            return image
+        else:
+            compensation = 0.3 * np.array(
+                [red_light, green_light, blue_light], dtype=DEFAULT_DTYPE
+            )  # log10(2) = 0.3
+            density_neg = self.get_spectral_density(color_masking)
+            printing_mat = (APD.T * 10**-self.d_min_sd).T
+            printing_mat = printing_mat.reshape(-1, 3, printing_mat.shape[-1]).sum(
+                axis=1
+            )
+            density_neg = density_neg.reshape(-1, 3, density_neg.shape[-1]).mean(axis=1)
+
+            d_ref = self.log_exposure_to_density(self.log_H_ref, color_masking)
+            reference = -np.log10(
+                np.clip(10 ** -(d_ref @ density_neg.T) @ printing_mat, 0.00001, None)
+            )
+
+            image = -np.log10(
+                np.clip(10 ** -(image @ density_neg.T) @ printing_mat, 0.00001, None)
+            ) + (LAD_NEGATIVE - reference - compensation)
         return image
 
     def project(

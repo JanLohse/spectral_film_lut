@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import math
 import time
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal
 
 import colour
@@ -54,7 +53,8 @@ def film_conversion(
     inversion: bool = False,
     inversion_gamma: float = 3.0,
     idealized_curve: bool = False,
-    halation_func: Callable[[np.ndarray], np.ndarray] | None = None,
+    apd_intermediate: bool = False,
+    reference_negative: FilmSpectral | None = None,
 ) -> np.ndarray:
     """
     Emulates the full film pipeline including exposure, printing, and projection.
@@ -97,13 +97,15 @@ def film_conversion(
         inversion_gamma: The gamma used for inversion.
         idealized_curve: Replace the characteristic curve of the print film with an
             idealized one using `inversion_gamma` as the gamma factor.
-        halation_func: Optional function to add halation in linear layer exposure space.
 
     Returns:
         An image (or LUT) representing the transformed scene data after (partial) film
         emulation.
     """
     image = np.ascontiguousarray(image)
+
+    if negative_film.density_measure == "status_a":
+        apd_intermediate = False
 
     if mode == "negative" or mode == "full":
         image = negative_film.input_transform(
@@ -114,30 +116,54 @@ def film_conversion(
             tint,
             color_masking,
             push_pull,
-            halation_func=halation_func,
         )
 
+        if apd_intermediate:
+            image = negative_film.scan_with_apd(
+                image,
+                color_masking=color_masking,
+                red_light=red_light,
+                green_light=green_light,
+                blue_light=blue_light,
+            )
+
     if adx_coding and mode == "negative":
-        image = negative_film.adx_encoding(image, adx_scaling, color_masking)
+        image = negative_film.adx_encoding(
+            image, adx_scaling, color_masking, apd_intermediate
+        )
 
     if adx_coding and (mode == "print" or mode == "grain"):
-        image = negative_film.adx_decoding(image, adx_scaling, color_masking)
-    elif mode == "print" and negative_film.density_measure == "bw":
+        image = negative_film.adx_decoding(
+            image, adx_scaling, color_masking, apd_intermediate
+        )
+    elif (
+        mode == "print"
+        and negative_film.density_measure == "bw"
+        and not apd_intermediate
+    ):
         image = image[..., 0][..., np.newaxis]  # reduce dim
 
     if mode == "print" or mode == "full":
         if print_film is not None:
             output_film = print_film
-            image = negative_film.print_to(
-                image,
-                print_film,
-                color_masking,
-                red_light,
-                green_light,
-                blue_light,
-                idealized_curve,
-                inversion_gamma,
-            )
+            if apd_intermediate:
+                image = print_film.print_from_apd(
+                    image,
+                    idealized_curve=idealized_curve,
+                    idealized_gamma=inversion_gamma,
+                    reference_negative=reference_negative,
+                )
+            else:
+                image = negative_film.print_to(
+                    image,
+                    print_film,
+                    color_masking,
+                    red_light,
+                    green_light,
+                    blue_light,
+                    idealized_curve,
+                    inversion_gamma,
+                )
             color_masking = None
         else:
             output_film = negative_film
@@ -166,7 +192,9 @@ def film_conversion(
         )
 
     if mode == "grain":
-        image = negative_film.grain_transform(image, std_div=0.001, scale=adx_scaling)
+        image = negative_film.grain_transform(
+            image, std_div=0.001, scale=adx_scaling, apd_intermediate=apd_intermediate
+        )
 
     return image
 

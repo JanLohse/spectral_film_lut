@@ -320,11 +320,11 @@ def compute_prior_spectra():
                 if Y_val > 0:
                     prior_spectra[i, j] = (spec / Y_val) / _NORM_I
 
-    return prior_spectra, mask
+    return training_spectra, prior_spectra, mask
 
 
 # Generate the shared prior dependencies
-PRIOR_SPECTRA, mask = compute_prior_spectra()
+RAWTOACES_TRAINING_SPECTRA, PRIOR_SPECTRA, mask = compute_prior_spectra()
 
 
 def xy_grid_to_spectrum(

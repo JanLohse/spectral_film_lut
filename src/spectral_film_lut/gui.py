@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMainWindow,
     QSizePolicy,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -33,6 +34,7 @@ from spectral_film_lut.gui_objects import (
     AboutDialog,
     AnimatedButton,
     FileSelector,
+    ModeSelector,
     Slider,
     SliderLog,
     WideComboBox,
@@ -59,6 +61,7 @@ class MainWindow(QMainWindow):
         self.filmstocks = filmstocks
 
         pagelayout = QHBoxLayout()
+        left_layout = QVBoxLayout()
         widget = QWidget()
         widget.setSizePolicy(
             QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -79,7 +82,8 @@ class MainWindow(QMainWindow):
         )
         self.image.setMinimumSize(QSize(256, 256))
 
-        pagelayout.addWidget(self.image)
+        left_layout.addWidget(self.image)
+        pagelayout.addLayout(left_layout)
         pagelayout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignBottom)
 
         self.side_counter = -1
@@ -87,9 +91,9 @@ class MainWindow(QMainWindow):
         def add_option(widget, name=None, default=None, setter=None, tool_tip=None):
             self.side_counter += 1
             sidelayout.addWidget(widget, self.side_counter, 1)
-            label = QLabel(
-                name,
-                alignment=(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
+            label = QLabel(name)
+            label.setAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
             sidelayout.addWidget(label, self.side_counter, 0)
             if default is not None and setter is not None:
@@ -574,25 +578,17 @@ class MainWindow(QMainWindow):
             tool_tip="The size of the LUT table.",
         )
 
-        self.mode = WideComboBox(self)
-        """
-        What part of the pipeline to simulate. Using *negative* + *print* in conjunction
-        should give the same result as using *full*. *Grain* expects as input the output
-        of *negative* and is to be used as a multiplicative intensity scale for a grain
-        overlay.
-        """
-        self.mode.addItems(["full", "negative", "print", "grain"])
-        add_option(
-            self.mode,
-            "Mode",
-            "full",
-            self.mode.setCurrentText,
-            tool_tip="What part of the pipeline to simulate. Using *negative* +\n"
+        # Mode selector as a segmented control (buttons with an animated pill)
+        self.mode = ModeSelector(self, items=["full", "negative", "print", "grain"])
+        # Tooltip copied from previous implementation
+        self.mode.setToolTip(
+            "What part of the pipeline to simulate. Using *negative* +\n"
             "*print* in conjunction should give the same result as using\n"
             "*full*. *Grain* expects as input the output of *negative* and\n"
             "is to be used as a multiplicative intensity scale for a grain\n"
-            "overlay.",
+            "overlay."
         )
+        left_layout.insertWidget(0, self.mode)
 
         self.adx_scale = WideComboBox(self)
         """
@@ -615,6 +611,28 @@ class MainWindow(QMainWindow):
             "Density 2 matches ADX10 and should be used for Cineon like\n"
             "workflows. Density 8 matches ADX16. When using density 2 there\n"
             "is risk of clipping for some negative film stocks.",
+        )
+        self.apd_intermediate = QCheckBox()
+        """
+        If unchecked it will fully simulate printing the negative to the print film
+        stock. If checked it will simulate scanning the film using academy printing
+        density (APD). This results in a loss of accuracy, as the print stock's
+        sensitivity is not accounted for, but it enables one to combine negative and
+        print LUTs arbitrarily.
+
+        Will be ignored for slide film.
+        """
+        add_option(
+            self.apd_intermediate,
+            "APD intermediate",
+            True,
+            self.apd_intermediate.setChecked,
+            tool_tip="If unchecked it will fully simulate printing the negative to the "
+            "print\nfilm stock. If checked it will simulate scanning the film using "
+            "academy\nprinting density (APD). This results in a loss of accuracy, as "
+            "the print\nstock's sensitivity is not accounted for, but it enables one to"
+            " combine\nnegative and print LUTs arbitrarily.\nWill be ignored for slide"
+            "film.",
         )
 
         self.save_lut_button = AnimatedButton("Save LUT")
@@ -653,6 +671,7 @@ class MainWindow(QMainWindow):
         self.mode.currentTextChanged.connect(self.parameter_changed)
         self.sat_adjust.valueChanged.connect(self.parameter_changed)
         self.adx_scale.currentTextChanged.connect(self.parameter_changed)
+        self.apd_intermediate.stateChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -703,10 +722,10 @@ class MainWindow(QMainWindow):
         sat_adjust = self.sat_adjust.getValue()
         push_pull = self.push_pull.getValue()
         idealized_curve = self.idealized_curve.isChecked()
-
         adx_scaling = {"Density 2": 4.0, "Density 4": 2.0, "Density 8": 1.0}[
             self.adx_scale.currentText()
         ]
+        apd_intermediate = self.apd_intermediate.isChecked()
 
         lut = create_lut(
             negative_film,
@@ -735,6 +754,8 @@ class MainWindow(QMainWindow):
             inversion=inversion,
             inversion_gamma=inversion_gamma,
             idealized_curve=idealized_curve,
+            apd_intermediate=apd_intermediate,
+            reference_negative=self.filmstocks["Kodak Vision3 250D 5207"],
         )
         return lut
 

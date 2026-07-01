@@ -76,7 +76,7 @@ COLORCHECKER_2005 = COLORCHECKER_2005[1:]
 COLORCHECKER_2005 = np.asarray(COLORCHECKER_2005, DEFAULT_DTYPE)
 
 
-def gamut_compression(image: np.ndarray, strength: float = 0.95) -> np.ndarray:
+def gamut_compression(image: np.ndarray, strength: float = 0.99) -> np.ndarray:
     """
     A simple gamut compression that limits the maximal relative distance from the
     achromatic. Inspired by ACES Reference Gamut Compression. Has been simplified
