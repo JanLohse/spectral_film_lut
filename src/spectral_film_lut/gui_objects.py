@@ -890,79 +890,148 @@ class HoverLineEdit(QLineEdit):
 
 
 class StyledContainer(QWidget):
-    """Custom container that explicitly paints rounded capsule ends."""
-
-    def __init__(self, parent=None, bg_color=BASE_COLOR):
+    def __init__(self, parent=None, bg_color=BASE_COLOR, radius=16.0):
         super().__init__(parent)
         self.bg_color = QColor(bg_color)
+        self.radius = radius
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Draw a perfectly rounded capsule background
         path = QPainterPath()
-        path.addRoundedRect(self.rect().toRectF(), 15.0, 15.0)
-
+        path.addRoundedRect(self.rect().toRectF(), self.radius, self.radius)
         painter.fillPath(path, self.bg_color)
 
 
 class StyledPill(QWidget):
-    """Custom pill that explicitly paints its own rounded corners."""
-
-    def __init__(self, parent=None, color=TEXT_PRIMARY):
+    def __init__(self, parent=None, color=TEXT_PRIMARY, pad_x=2.0, pad_y=5.0):
         super().__init__(parent)
         self.color = QColor(color)
+        self._hover_progress = 0.0
+
+        # Internal sizing baselines
+        self.baseline_pad_x = pad_x
+        self.baseline_pad_y = pad_y
+
+    @pyqtProperty(float)
+    def hoverProgress(self):
+        return self._hover_progress
+
+    @hoverProgress.setter
+    def hoverProgress(self, val):
+        self._hover_progress = val
+        self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        base_rect = self.rect().toRectF()
+
+        # Scaling margins based on exposed config settings
+        current_pad_x = self.baseline_pad_x * (1.0 - self._hover_progress)
+        current_pad_y = self.baseline_pad_y * (1.0 - self._hover_progress)
+
+        pill_rect = QRectF(
+            base_rect.x() + current_pad_x,
+            base_rect.y() + current_pad_y,
+            base_rect.width() - (current_pad_x * 2.0),
+            base_rect.height() - (current_pad_y * 2.0),
+        )
+
         path = QPainterPath()
-        path.addRoundedRect(self.rect().toRectF(), 12.0, 12.0)
+        radius = pill_rect.height() / 2.0
+        path.addRoundedRect(pill_rect, radius, radius)
 
         painter.fillPath(path, self.color)
 
 
 class ModeSelector(QWidget):
-    """A segmented control showing multiple modes as adjacent buttons with an
-    animated pill that moves to the selected button.
-    """
-
     currentTextChanged = pyqtSignal(str)
 
-    def __init__(self, parent=None, items=None, pill_color=None):
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        items=None,
+        pill_thickness_pad: float = 2.0,
+        pill_inset_pad_x: float = 2.0,
+        hover_expand_duration: int = 150,
+        slide_duration=150,
+        bg_radius: float = 14.0,
+        bg_padding: int = 2,
+    ):
         super().__init__(parent)
         self._items = list(items or [])
         self._buttons = []
         self._current = ""
 
-        # Outer layout (centers the control)
+        self._start_rect = QRect()
+        self._target_rect = QRect()
+        self._anim_progress = 0.0
+
+        # Save custom properties
+        self.pill_thickness_pad = pill_thickness_pad
+        self.pill_inset_pad_x = pill_inset_pad_x
+        self.slide_duration = slide_duration
+
+        self.setMouseTracking(True)
+
         outer_layout = QHBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(0)
         outer_layout.addStretch()
 
-        self._container = StyledContainer(self)
+        # Build Background Container using passed geometry params
+        self._container = StyledContainer(self, bg_color=BASE_COLOR, radius=bg_radius)
+        self._container.setMouseTracking(True)
 
         self._layout = QHBoxLayout(self._container)
-        self._layout.setContentsMargins(4, 2, 4, 2)
+        self._layout.setContentsMargins(
+            bg_padding, bg_padding, bg_padding - 2, bg_padding
+        )
         self._layout.setSpacing(2)
 
         outer_layout.addWidget(self._container)
         outer_layout.addStretch()
 
-        self._pill = StyledPill(self._container)
+        # Build Pill using passed sizing parameters
+        self._pill = StyledPill(
+            self._container,
+            color=TEXT_PRIMARY,
+            pad_x=self.pill_inset_pad_x,
+            pad_y=self.pill_thickness_pad,
+        )
         self._pill.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self._pill.lower()
 
-        # Animation Setup
-        self._anim = QPropertyAnimation(self._pill, b"geometry")
-        self._anim.setDuration(220)
-        self._anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        # Configured Hover Animation
+        self._hover_anim = QPropertyAnimation(self._pill, b"hoverProgress")
+        self._hover_anim.setDuration(hover_expand_duration)
+        self._hover_anim.setEasingCurve(QEasingCurve.Type.OutQuad)
 
-        # Connect to the frame-by-frame progress step
-        self._anim.valueChanged.connect(self._on_animation_step)
+        # Configured Slide Animation
+        self._anim = QPropertyAnimation(self, b"animProgress")
+        self._anim.setDuration(self.slide_duration)
+        self._anim.setEasingCurve(QEasingCurve.Type.Linear)
+        offset = 3.0
+        acceleration = 3.0
+        anchor = 0.2
+        x_1 = anchor ** (1 + offset)
+        x_2 = (1 - anchor) ** (1 + offset)
+        y_1 = anchor**acceleration
+        y_2 = 1 - y_1
+        self._leader_curve = QEasingCurve(QEasingCurve.Type.BezierSpline)
+        self._leader_curve.addCubicBezierSegment(
+            QPointF(x_1, y_1),
+            QPointF(x_2, y_2),
+            QPointF(1.0, 1.0),
+        )
+        self._follower_curve = QEasingCurve(QEasingCurve.Type.BezierSpline)
+        self._follower_curve.addCubicBezierSegment(
+            QPointF(1 - x_2, y_1),
+            QPointF(1 - x_1, y_2),
+            QPointF(1.0, 1.0),
+        )
 
         if self._items:
             self.addItems(self._items)
@@ -970,69 +1039,50 @@ class ModeSelector(QWidget):
                 self._buttons[0].setChecked(True)
                 self._current = self._buttons[0].text()
 
-    def addItems(self, items):
-        for text in items:
-            btn = QPushButton(text, self._container)
-            btn.setCheckable(True)
-            btn.setAutoExclusive(True)
-            btn.setFlat(True)
-            btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-            btn.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+    @pyqtProperty(float)
+    def animProgress(self):
+        return self._anim_progress
 
-            checked_color = "rgba(20, 20, 20, 255)"
-
-            btn.setStyleSheet(
-                f"QPushButton {{ background: transparent; border: none; "
-                f"color: {TEXT_SECONDARY}; padding: 4px 8px; margin: 0; }} "
-                f"QPushButton:checked {{ color: {checked_color}; }}"
-            )
-            self._layout.addWidget(btn)
-            self._buttons.append(btn)
-
-        self._container.updateGeometry()
-        QTimer.singleShot(50, self._position_pill_on_current)
-
-    def setCurrentText(self, text):
-        if self._current == text:
+    @animProgress.setter
+    def animProgress(self, val):
+        self._anim_progress = val
+        if self._start_rect.isNull() or self._target_rect.isNull():
             return
 
-        # Keep track of the old selection text so we know who to unhighlight halfway
-        # through
-        self._old_text = self._current
-        self._current = text
+        is_moving_right = self._target_rect.x() > self._start_rect.x()
 
-        # Find target button to kick off animation
-        for btn in self._buttons:
-            if btn.text() == text:
-                self._animate_pill_to(btn)
-                self.currentTextChanged.emit(text)
-                return
+        # Utilize configured curves to handle dynamic lag stretch
+        curve_fast = QEasingCurve(self._leader_curve)
+        curve_slow = QEasingCurve(self._follower_curve)
 
-    def currentText(self):
-        return self._current
+        if is_moving_right:
+            p_right = curve_fast.valueForProgress(val)
+            p_left = curve_slow.valueForProgress(val)
+        else:
+            p_left = curve_fast.valueForProgress(val)
+            p_right = curve_slow.valueForProgress(val)
 
-    def _on_animation_step(self, geometry):
-        """
-        Monitors the pill's X coordinate and swaps the text color precisely halfway.
-        """
-        start_x = getattr(self, "_start_x", None)
-        target_x = getattr(self, "_target_x", None)
+        left = int(
+            self._start_rect.left()
+            + (self._target_rect.left() - self._start_rect.left()) * p_left
+        )
+        right = int(
+            self._start_rect.right()
+            + (self._target_rect.right() - self._start_rect.right()) * p_right
+        )
 
-        # If we don't have the animation points yet, default to standard checking
-        if start_x is None or target_x is None or start_x == target_x:
-            return
+        new_geometry = QRect(
+            left,
+            self._target_rect.y(),
+            max(1, right - left),
+            self._target_rect.height(),
+        )
+        self._pill.setGeometry(new_geometry)
 
-        current_x = geometry.x()
+        self._handle_color_swap(val)
 
-        # Calculate distance-based progress
-        total_distance = target_x - start_x
-        current_distance = current_x - start_x
-
-        progress = current_distance / total_distance if total_distance != 0 else 1.0
-
+    def _handle_color_swap(self, progress):
         target_text = self._current
-
-        # Swap colors once the pill crosses the 50% mark of its journey
         if progress >= 0.5:
             for btn in self._buttons:
                 if btn.text() == target_text:
@@ -1049,6 +1099,57 @@ class ModeSelector(QWidget):
                             btn.setChecked(True)
                     elif btn.isChecked():
                         btn.setChecked(False)
+
+    def enterEvent(self, event):
+        self._hover_anim.stop()
+        self._hover_anim.setStartValue(self._pill.hoverProgress)
+        self._hover_anim.setEndValue(1.0)
+        self._hover_anim.start()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hover_anim.stop()
+        self._hover_anim.setStartValue(self._pill.hoverProgress)
+        self._hover_anim.setEndValue(0.0)
+        self._hover_anim.start()
+        super().leaveEvent(event)
+
+    def addItems(self, items):
+        for text in items:
+            btn = QPushButton(text, self._container)
+            btn.setCheckable(True)
+            btn.setAutoExclusive(True)
+            btn.setFlat(True)
+            btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            btn.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
+            checked_color = "rgba(20, 20, 20, 255)"
+            btn.setStyleSheet(
+                f"QPushButton {{ background: transparent; border: none; "
+                f"color: {TEXT_SECONDARY}; padding: 4px 12px; margin: 0; }} "
+                f"QPushButton:checked {{ color: {checked_color}; }}"
+            )
+            self._layout.addWidget(btn)
+            self._buttons.append(btn)
+
+        self._container.updateGeometry()
+        QTimer.singleShot(50, self._position_pill_on_current)
+
+    def setCurrentText(self, text):
+        if self._current == text:
+            return
+
+        self._old_text = self._current
+        self._current = text
+
+        for btn in self._buttons:
+            if btn.text() == text:
+                self._animate_pill_to(btn)
+                self.currentTextChanged.emit(text)
+                return
+
+    def currentText(self):
+        return self._current
 
     def _select_button_at_pos(self, pos):
         container_pos = self._container.mapFrom(self, pos)
@@ -1086,9 +1187,9 @@ class ModeSelector(QWidget):
             current_idx = 0
 
         delta = event.angleDelta().y() or event.angleDelta().x()
-        if delta > 0:
+        if delta < 0:
             next_idx = max(0, current_idx - 1)
-        elif delta < 0:
+        elif delta > 0:
             next_idx = min(len(self._buttons) - 1, current_idx + 1)
         else:
             next_idx = current_idx
@@ -1099,23 +1200,25 @@ class ModeSelector(QWidget):
         else:
             super().wheelEvent(event)
 
-    def _animate_pill_to(self, btn: QPushButton):
-        if btn is None:
-            return
+    def _get_target_rect(self, btn: QPushButton) -> QRect:
         target = btn.geometry()
         fm = QFontMetrics(btn.font())
         text_width = fm.horizontalAdvance(btn.text())
-        horiz_pad = 8 * 2
+        horiz_pad = 12 * 2
         pill_w = text_width + horiz_pad
         x = target.x() + max(0, (target.width() - pill_w) // 2)
-        pad_y = 0
 
-        target_rect = QRect(
+        return QRect(
             max(0, x),
-            max(0, target.y() + pad_y),
+            max(0, target.y()),
             max(1, pill_w),
-            max(1, target.height() - pad_y * 2),
+            max(1, target.height()),
         )
+
+    def _animate_pill_to(self, btn: QPushButton):
+        if btn is None:
+            return
+        target_rect = self._get_target_rect(btn)
 
         if not self._pill.geometry().isValid() or self._pill.geometry().isEmpty():
             self._pill.setGeometry(target_rect)
@@ -1124,12 +1227,11 @@ class ModeSelector(QWidget):
 
         self._anim.stop()
 
-        # SAVE STARTING AND ENDING X COORDINATES
-        self._start_x = self._pill.geometry().x()
-        self._target_x = target_rect.x()
+        self._start_rect = self._pill.geometry()
+        self._target_rect = target_rect
 
-        self._anim.setStartValue(self._pill.geometry())
-        self._anim.setEndValue(target_rect)
+        self._anim.setStartValue(0.0)
+        self._anim.setEndValue(1.0)
         self._anim.start()
         self._pill.lower()
 
@@ -1142,19 +1244,7 @@ class ModeSelector(QWidget):
         for btn in self._buttons:
             if btn.text() == cur:
                 btn.setChecked(True)
-                target = btn.geometry()
-                fm = QFontMetrics(btn.font())
-                text_width = fm.horizontalAdvance(btn.text())
-                horiz_pad = 8 * 2
-                pill_w = text_width + horiz_pad
-                x = target.x() + max(0, (target.width() - pill_w) // 2)
-                pad_y = 0
-                target_rect = QRect(
-                    max(0, x),
-                    max(0, target.y() + pad_y),
-                    max(1, pill_w),
-                    max(1, target.height() - pad_y * 2),
-                )
+                target_rect = self._get_target_rect(btn)
                 self._pill.setGeometry(target_rect)
                 self._pill.lower()
                 break
