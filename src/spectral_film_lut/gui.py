@@ -345,7 +345,7 @@ class MainWindow(QMainWindow):
         luma_dark = 0.4
         chroma = 0.2
         hue_offset = 0.06111111
-        self.red_light = Slider()
+        self.red_light = Slider(animated=False)
         """Intensity of the red light during printing."""
         self.red_light.setMinMaxTicks(-0.5, 0.5, 1, 100)
         self.red_light.set_color_gradient(
@@ -359,7 +359,7 @@ class MainWindow(QMainWindow):
             self.red_light.setValue,
             tool_tip="Intensity of the red light during printing.",
         )
-        self.green_light = Slider()
+        self.green_light = Slider(animated=False)
         """Intensity of the green light during printing."""
         self.green_light.setMinMaxTicks(-0.5, 0.5, 1, 100)
         self.green_light.set_color_gradient(
@@ -373,7 +373,7 @@ class MainWindow(QMainWindow):
             self.green_light.setValue,
             tool_tip="Intensity of the green light during printing.",
         )
-        self.blue_light = Slider()
+        self.blue_light = Slider(animated=False)
         """Intensity of the blue light during printing."""
         self.blue_light.setMinMaxTicks(-0.5, 0.5, 1, 100)
         self.blue_light.set_color_gradient(
