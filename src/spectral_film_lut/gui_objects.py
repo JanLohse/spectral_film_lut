@@ -762,11 +762,8 @@ class AnimatedToolButton(QToolButton):
         self._text_color = QColor(self._base_text_color)
 
         # Animation
-        self._anim = QPropertyAnimation(self._pill, b"geometry")
-        self._anim.setDuration(220)
+        self._anim = QPropertyAnimation(self, b"color", self)
         self._anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
-        # Connect to valueChanged to update text colors mid-flight
-        self._anim.valueChanged.connect(self._update_text_colors_during_animation)
 
         self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
 
