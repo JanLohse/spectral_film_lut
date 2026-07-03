@@ -15,6 +15,7 @@ from PyQt6.QtCore import (
     QRect,
     QRectF,
     QRunnable,
+    QSize,
     Qt,
     QTimer,
     pyqtProperty,
@@ -509,33 +510,40 @@ class CoreGradientSlider(QSlider):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        groove_rect = QRect(
-            self.horizontal_padding,
-            self.height() // 2 - self.groove_thickness // 2,
-            self.width() - self.horizontal_padding * 2,
-            self.get_groove_thickness(),
+        horizontal_padding = float(self.horizontal_padding)
+        groove_thickness = float(self.get_groove_thickness())
+
+        groove_rect = QRectF(
+            horizontal_padding,
+            (float(self.height()) - groove_thickness) / 2.0,
+            float(self.width()) - (horizontal_padding * 2.0),
+            groove_thickness,
         )
 
         min_val, max_val = self.minimum(), self.maximum()
-        total_range = max_val - min_val
+        total_range = max_val - min_val if max_val > min_val else 1.0
 
         def value_to_x(val):
             return (
                 groove_rect.left() + (val - min_val) / total_range * groove_rect.width()
             )
 
-        handle_x = value_to_x(self._visualValue)
-        ref_x = value_to_x(self.reference_value)
+        # Clamp visual value safely into range before mapping coordinates
+        clamped_visual = max(min_val, min(max_val, self._visualValue))
+        handle_x = value_to_x(clamped_visual)
+        ref_x = value_to_x(max(min_val, min(max_val, self.reference_value)))
 
         painter.setPen(Qt.PenStyle.NoPen)
-        gradient = QLinearGradient(
-            QPointF(groove_rect.topLeft()), QPointF(groove_rect.topRight())
-        )
-        for pos, color in self.gradient:
-            gradient.setColorAt(pos, color)
 
-        painter.setBrush(QBrush(gradient))
-        painter.drawRoundedRect(groove_rect, 3, 3)
+        if hasattr(self, "gradient") and self.gradient:
+            gradient = QLinearGradient(groove_rect.topLeft(), groove_rect.topRight())
+            for pos, color in self.gradient:
+                gradient.setColorAt(pos, color)
+            painter.setBrush(QBrush(gradient))
+        else:
+            painter.setBrush(QColor(50, 50, 50))  # Sleek default fallback track color
+
+        painter.drawRoundedRect(groove_rect, 3.0, 3.0)
 
         # Active tracking line blend accent
         painter.setBrush(QColor(255, 255, 255, 85))
@@ -555,37 +563,41 @@ class CoreGradientSlider(QSlider):
             )
 
         if self.reference_value in (self.minimum(), self.maximum()):
-            painter.drawRoundedRect(active_rect, 3, 3)
+            painter.drawRoundedRect(active_rect, 3.0, 3.0)
         else:
             painter.drawRect(active_rect)
 
         # Drawing the handle layouts
         if self.modern_design:
-            # Scaled based on groove dimensions instead of hard values
-            handle_bg_width = (self.handle_width // 2 - 1) + self._hoverProgress
+            handle_bg_width = (
+                float(self.handle_width) / 2.0 - 1.0
+            ) + self._hoverProgress
             handle_bg_rect = QRectF(
                 handle_x - handle_bg_width,
-                groove_rect.center().y() - self.get_groove_thickness(),
-                handle_bg_width * 2,
-                self.get_groove_thickness() * 2,
+                groove_rect.center().y() - groove_thickness,
+                handle_bg_width * 2.0,
+                groove_thickness * 2.0,
             )
             painter.setBrush(self.base_color)
             painter.drawRect(handle_bg_rect)
 
             handle_width = 1.25 + self._hoverProgress
-            handle_length = self.get_groove_thickness() / 2 + 4
+
+            handle_length = max(4.0, (float(self.height()) / 2.0) - 0.5)
+
             handle_rect = QRectF(
                 handle_x - handle_width,
                 groove_rect.center().y() - handle_length,
-                handle_width * 2,
-                handle_length * 2,
+                handle_width * 2.0,
+                handle_length * 2.0,
             )
             painter.setBrush(self.handle_color)
             painter.drawRoundedRect(handle_rect, handle_width, handle_width)
         else:
             handle_center = QPointF(handle_x, groove_rect.center().y())
-            hover_radius = self.handle_width / 2
-            inner_radius = 2.0 + self._hoverProgress * 2.0
+
+            hover_radius = max(4.0, (float(self.height()) / 2.0) - 0.5)
+            inner_radius = 2.0 + self._hoverProgress * 1.5
 
             painter.setBrush(self.handle_color)
             painter.drawEllipse(handle_center, hover_radius, hover_radius)
@@ -593,6 +605,13 @@ class CoreGradientSlider(QSlider):
             painter.drawEllipse(handle_center, inner_radius, inner_radius)
 
         painter.end()
+
+    def sizeHint(self):
+        # Keeps the vertical profile tightly locked to a minimal 16 pixels
+        return QSize(150, 16)
+
+    def minimumSizeHint(self):
+        return self.sizeHint()
 
     def get_groove_thickness(self):
         return self.groove_thickness
@@ -740,16 +759,17 @@ class Slider(BaseSliderWidget):
         return self.slider.value() * self.enumerator / self.denominator + self.min
 
     def setValue(self, value, duration=None):
-        # Update the inner animation speed first if an explicit duration was passed
         if duration is not None:
             self.slider.scroll_anim.setDuration(duration)
         else:
             self.slider.scroll_anim.setDuration(self.slider.duration_glide_default)
 
-        # Call the standard, clean Qt native setValue function
-        self.slider.setValue(
-            round((value - self.min) * self.denominator / self.enumerator)
+        target_step = round((value - self.min) * self.denominator / self.enumerator)
+        clamped_step = max(
+            self.slider.minimum(), min(self.slider.maximum(), target_step)
         )
+
+        self.slider.setValue(clamped_step)
 
 
 class SliderLog(BaseSliderWidget):

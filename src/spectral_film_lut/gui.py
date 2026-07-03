@@ -760,39 +760,25 @@ class MainWindow(QMainWindow):
         return lut
 
     def lights_changed(self, value):
-        # Find out which specific slider the user is dragging or scrolling
-        active_sender = self.sender()
-
-        # Extract its current visual animation speed (could be 20ms, 40ms, 80ms, etc.)
-        current_duration = None
-        if active_sender and hasattr(active_sender, "slider"):
-            current_duration = active_sender.slider.scroll_anim.duration()
 
         if self.link_lights.isChecked():
-            # Check if they are already synchronized to prevent unnecessary updates
             if (
-                self.red_light.getPosition()
+                value
+                == self.red_light.getPosition()
                 == self.green_light.getPosition()
                 == self.blue_light.getPosition()
             ):
                 self.parameter_changed()
+
             else:
-                # Block signals globally across all three to prevent rapid cross-talk
-                # feedback loops
-                self.red_light.blockSignals(True)
-                self.green_light.blockSignals(True)
-                self.blue_light.blockSignals(True)
+                self.red_light.setValue(value)
 
-                # Update all sliders using the exact same visual duration
-                self.red_light.setValue(value, duration=current_duration)
-                self.green_light.setValue(value, duration=current_duration)
-                self.blue_light.setValue(value, duration=current_duration)
+                self.green_light.setValue(value)
 
-                self.red_light.blockSignals(False)
-                self.green_light.blockSignals(False)
-                self.blue_light.blockSignals(False)
+                self.blue_light.setValue(value)
 
                 self.parameter_changed()
+
         else:
             self.parameter_changed()
 
