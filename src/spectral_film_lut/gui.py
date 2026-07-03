@@ -345,7 +345,7 @@ class MainWindow(QMainWindow):
         luma_dark = 0.4
         chroma = 0.2
         hue_offset = 0.06111111
-        self.red_light = Slider(animated=False)
+        self.red_light = Slider(continuous=False)
         """Intensity of the red light during printing."""
         self.red_light.setMinMaxTicks(-0.5, 0.5, 1, 100)
         self.red_light.set_color_gradient(
@@ -359,7 +359,7 @@ class MainWindow(QMainWindow):
             self.red_light.setValue,
             tool_tip="Intensity of the red light during printing.",
         )
-        self.green_light = Slider(animated=False)
+        self.green_light = Slider(continuous=False)
         """Intensity of the green light during printing."""
         self.green_light.setMinMaxTicks(-0.5, 0.5, 1, 100)
         self.green_light.set_color_gradient(
@@ -373,7 +373,7 @@ class MainWindow(QMainWindow):
             self.green_light.setValue,
             tool_tip="Intensity of the green light during printing.",
         )
-        self.blue_light = Slider(animated=False)
+        self.blue_light = Slider(continuous=False)
         """Intensity of the blue light during printing."""
         self.blue_light.setMinMaxTicks(-0.5, 0.5, 1, 100)
         self.blue_light.set_color_gradient(
@@ -760,18 +760,38 @@ class MainWindow(QMainWindow):
         return lut
 
     def lights_changed(self, value):
+        # Find out which specific slider the user is dragging or scrolling
+        active_sender = self.sender()
+
+        # Extract its current visual animation speed (could be 20ms, 40ms, 80ms, etc.)
+        current_duration = None
+        if active_sender and hasattr(active_sender, "slider"):
+            current_duration = active_sender.slider.scroll_anim.duration()
+
         if self.link_lights.isChecked():
+            # Check if they are already synchronized to prevent unnecessary updates
             if (
-                value
-                == self.red_light.getPosition()
+                self.red_light.getPosition()
                 == self.green_light.getPosition()
                 == self.blue_light.getPosition()
             ):
                 self.parameter_changed()
             else:
-                self.red_light.setValue(value)
-                self.green_light.setValue(value)
-                self.blue_light.setValue(value)
+                # Block signals globally across all three to prevent rapid cross-talk
+                # feedback loops
+                self.red_light.blockSignals(True)
+                self.green_light.blockSignals(True)
+                self.blue_light.blockSignals(True)
+
+                # Update all sliders using the exact same visual duration
+                self.red_light.setValue(value, duration=current_duration)
+                self.green_light.setValue(value, duration=current_duration)
+                self.blue_light.setValue(value, duration=current_duration)
+
+                self.red_light.blockSignals(False)
+                self.green_light.blockSignals(False)
+                self.blue_light.blockSignals(False)
+
                 self.parameter_changed()
         else:
             self.parameter_changed()

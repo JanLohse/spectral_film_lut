@@ -10,7 +10,6 @@ import numpy as np
 from PyQt6.QtCore import (
     QEasingCurve,
     QObject,
-    QPoint,
     QPointF,
     QPropertyAnimation,
     QRect,
@@ -278,29 +277,103 @@ class FileSelector(QWidget):
         return self.filename_edit.text()
 
 
-class GradientSlider(QSlider):
-    """A styled slider with float value support and customizable color gradients."""
+class CoreGradientSlider(QSlider):
+    """Internal core slider handling Oklab gradients, hover micro-interactions,
+    and dual-mode handle visual smoothing with scalable parameters.
+    """
 
-    def __init__(self, *args, reference_value=0, modern_design=True, **kwargs):
+    def __init__(
+        self,
+        *args,
+        reference_value=0,
+        modern_design=True,
+        continuous=True,
+        base_color=BASE_COLOR,
+        handle_color=TEXT_PRIMARY,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.gradient = None
-        self.set_color_gradient((0.3, 0.0, 0.0), (0.7, 0.0, 0.0))
         self.modern_design = modern_design
+        self.continuous = continuous
+        self.reference_value = reference_value
+
+        # Theme Configuration Hooks
+        self.base_color = QColor(base_color)
+        self.handle_color = QColor(handle_color)
+
+        # Geometry Parameters
+        self.groove_thickness = 10 if self.modern_design else 4
+        self.handle_width = 14
+        self.horizontal_padding = self.handle_width // 2
+
+        # Timing Parameters (in milliseconds)
+        self.duration_hover = 150
+        self.duration_glide_default = 180
+        self.duration_glide_fast = 20
+        self.duration_glide_precise = 80
+
+        # Internal Animation States
+        self._is_animating = False
         self.setRange(-100, 100)
         self.setValue(0)
-        self.reference_value = reference_value
+
+        self._visualValue = float(self.value())
+        self._lastEmittedValue = self.value()
+
+        # Hover Micro-animation Setup
         self._hover = False
-        self._hoverProgress = 0.0  # property for animation
-        self.anim = QPropertyAnimation(self, b"hoverProgress", self)
-        self.anim.setDuration(150)
+        self._hoverProgress = 0.0
+        self.hover_anim = QPropertyAnimation(self, b"hoverProgress", self)
+        self.hover_anim.setDuration(self.duration_hover)
+
+        # Handle Glide Animation Setup
+        self.scroll_anim = QPropertyAnimation(self, b"visualValue", self)
+        self.scroll_anim.setDuration(self.duration_glide_default)
+        self.scroll_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
         self.setMouseTracking(True)
         self.setStyleSheet("QSlider { background: transparent; }")
 
-    def get_hover_progress(self):
+        # Fallback raw gradient values just in case `colour` isn't accessible right away
+        try:
+            self.set_color_gradient((0.3, 0.0, 0.0), (0.7, 0.0, 0.0))
+        except NameError:
+            # Fallback simple gradient if color library is missing during testing
+            self.gradient = [(0.0, QColor("#300000")), (1.0, QColor("#700000"))]
+
+    @pyqtProperty(float)
+    def hoverProgress(self):
         return self._hoverProgress
 
-    def set_hover_progress(self, value):
+    @hoverProgress.setter
+    def hoverProgress(self, value):
         self._hoverProgress = value
+        self.update()
+
+    @pyqtProperty(float)
+    def visualValue(self):
+        return self._visualValue
+
+    @pyqtProperty(float)
+    def _visualValue_prop(self):
+        return self._visualValue
+
+    @visualValue.setter
+    def visualValue(self, value):
+        self._visualValue = value
+
+        if self.continuous:
+            current_tick = round(self._visualValue)
+            if current_tick != self._lastEmittedValue:
+                self._lastEmittedValue = current_tick
+                self._is_animating = True
+                self.blockSignals(True)
+                self.setValue(current_tick)
+                self.blockSignals(False)
+                self._is_animating = False
+                self.valueChanged.emit(current_tick)
+
         self.update()
 
     def set_color_gradient(self, start_color, end_color, steps=10, blend_in_lab=True):
@@ -313,194 +386,15 @@ class GradientSlider(QSlider):
                 x,
                 QColor(
                     colour.convert(
-                        start_color * (1 - x) + end_color * x, source, "Hexadecimal"
+                        start_color * (1 - x) + end_color * x,
+                        source,
+                        "Hexadecimal",
                     )
                 ),
             )
             for x in np.linspace(0, 1, steps)
         ]
-
-    hoverProgress = pyqtProperty(
-        float, fget=get_hover_progress, fset=set_hover_progress
-    )
-
-    def enterEvent(self, event):
-        self._hover = True
-        self.anim.stop()
-        self.anim.setStartValue(self._hoverProgress)
-        self.anim.setEndValue(1.0)
-        self.anim.start()
-        super().enterEvent(event)
-
-    def leaveEvent(self, event):
-        self._hover = False
-        self.anim.stop()
-        self.anim.setStartValue(self._hoverProgress)
-        self.anim.setEndValue(0.0)
-        self.anim.start()
-        super().leaveEvent(event)
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        horizontal_padding = 7
-        groove_thickness = 10 if self.modern_design else 4
-        groove_rect = QRect(
-            horizontal_padding,
-            self.height() // 2 - groove_thickness // 2,
-            self.width() - horizontal_padding * 2,
-            groove_thickness,
-        )
-
-        min_val, max_val = self.minimum(), self.maximum()
-        total_range = max_val - min_val
-
-        def value_to_x(val):
-            return (
-                groove_rect.left() + (val - min_val) / total_range * groove_rect.width()
-            )
-
-        handle_x = int(value_to_x(self.value()))
-        ref_x = int(value_to_x(self.reference_value))
-
-        # background groove with gradient
-        painter.setPen(Qt.PenStyle.NoPen)
-
-        gradient = QLinearGradient(
-            QPointF(groove_rect.topLeft()), QPointF(groove_rect.topRight())
-        )
-        for pos, color in self.gradient:
-            gradient.setColorAt(pos, color)  # left color
-
-        painter.setBrush(QBrush(gradient))
-        painter.drawRoundedRect(groove_rect, 3, 3)
-
-        # active segment (ref -> handle)
-        painter.setBrush(QColor(255, 255, 255, 85))
-        if handle_x > ref_x:
-            active_rect = QRect(
-                ref_x, groove_rect.top(), handle_x - ref_x, groove_rect.height()
-            )
-        else:
-            active_rect = QRect(
-                handle_x, groove_rect.top(), ref_x - handle_x, groove_rect.height()
-            )
-        if self.reference_value in (self.minimum(), self.maximum()):
-            painter.drawRoundedRect(active_rect, 3, 3)
-        else:
-            painter.drawRect(active_rect)
-
-        # handle
-        if self.modern_design:
-            handle_bg_width = 6 + self._hoverProgress * 1
-            handle_bg_rect = QRectF(
-                handle_x - handle_bg_width,
-                groove_rect.center().y() - groove_thickness,
-                handle_bg_width * 2,
-                groove_thickness * 2,
-            )
-            painter.setBrush(QColor(BASE_COLOR))
-            painter.drawRect(handle_bg_rect)
-
-            handle_width = 1.25 + self._hoverProgress * 1
-            handle_length = groove_thickness / 2 + 4
-            handle_rect = QRectF(
-                handle_x - handle_width,
-                groove_rect.center().y() - handle_length,
-                handle_width * 2,
-                handle_length * 2,
-            )
-            painter.setBrush(QColor(TEXT_PRIMARY))
-            painter.drawRoundedRect(handle_rect, handle_width, handle_width)
-        else:
-            handle_center = QPoint(handle_x, groove_rect.center().y())
-            hover_radius = 7
-            inner_radius = round(2 + self._hoverProgress * 2)  # grow inner slightly too
-
-            painter.setBrush(QColor(TEXT_PRIMARY))
-            painter.drawEllipse(handle_center, hover_radius, hover_radius)
-
-            painter.setBrush(QColor(BASE_COLOR))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawEllipse(handle_center, inner_radius, inner_radius)
-
-        painter.end()
-
-    def set_reference_value(self, value: int):
-        """Update the reference (neutral) value dynamically."""
-        self.reference_value = value
         self.update()
-
-
-class AnimatedGradientSlider(QSlider):
-    """A styled slider with smooth visual movement across all input streams
-    (clicks, dragging, keyboard, and scroll wheel) while maintaining discrete
-    native tick emissions without feedback loops.
-    """
-
-    def __init__(self, *args, reference_value=0, modern_design=True, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.gradient = None
-        self.set_color_gradient((0.3, 0.0, 0.0), (0.7, 0.0, 0.0))
-        self.modern_design = modern_design
-
-        # Prevent feedback loops between animation and value changes
-        self._is_animating = False
-
-        self.setRange(-100, 100)
-        self.setValue(0)
-        self.reference_value = reference_value
-
-        self._visualValue = float(self.value())
-        self._lastEmittedValue = self.value()
-
-        # Hover Animation Setup
-        self._hover = False
-        self._hoverProgress = 0.0
-        self.anim = QPropertyAnimation(self, b"hoverProgress", self)
-        self.anim.setDuration(150)
-
-        # Smooth Movement Animation Setup
-        self.scroll_anim = QPropertyAnimation(self, b"visualValue", self)
-        self.scroll_anim.setDuration(180)
-        self.scroll_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-
-        self.setMouseTracking(True)
-        self.setStyleSheet("QSlider { background: transparent; }")
-
-    def get_hover_progress(self):
-        return self._hoverProgress
-
-    def set_hover_progress(self, value):
-        self._hoverProgress = value
-        self.update()
-
-    hoverProgress = pyqtProperty(
-        float, fget=get_hover_progress, fset=set_hover_progress
-    )
-
-    def get_visual_value(self):
-        return self._visualValue
-
-    def set_visual_value(self, value):
-        self._visualValue = value
-        current_tick = round(self._visualValue)
-
-        if current_tick != self._lastEmittedValue:
-            self._lastEmittedValue = current_tick
-
-            self._is_animating = True
-            self.blockSignals(True)
-            self.setValue(current_tick)
-            self.blockSignals(False)
-            self._is_animating = False
-
-            self.valueChanged.emit(current_tick)
-
-        self.update()
-
-    visualValue = pyqtProperty(float, fget=get_visual_value, fset=set_visual_value)
 
     def sliderChange(self, change):
         super().sliderChange(change)
@@ -509,22 +403,20 @@ class AnimatedGradientSlider(QSlider):
                 return
 
             target_value = float(self.value())
-            if self._visualValue != target_value:
-                self.scroll_anim.stop()
-                self.scroll_anim.setStartValue(self._visualValue)
-                self.scroll_anim.setEndValue(target_value)
-                self.scroll_anim.start()
+            self._kick_glide_animation(target_value)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             target_value = self._get_value_from_mouse(event)
-
-            self.scroll_anim.stop()
-            self.scroll_anim.setStartValue(self._visualValue)
-            self.scroll_anim.setEndValue(float(target_value))
-            self.scroll_anim.start()
-
             self.setSliderDown(True)
+
+            if not self.continuous:
+                self.blockSignals(True)
+                self.setValue(target_value)
+                self.blockSignals(False)
+                self.valueChanged.emit(target_value)
+
+            self._kick_glide_animation(float(target_value))
             event.accept()
         else:
             super().mousePressEvent(event)
@@ -532,75 +424,96 @@ class AnimatedGradientSlider(QSlider):
     def mouseMoveEvent(self, event):
         if self.isSliderDown():
             target_value = self._get_value_from_mouse(event)
-            if self._visualValue != target_value:
-                self.scroll_anim.stop()
-                self.scroll_anim.setStartValue(self._visualValue)
-                self.scroll_anim.setEndValue(float(target_value))
-                self.scroll_anim.start()
+
+            if not self.continuous:
+                self.blockSignals(True)
+                self.setValue(target_value)
+                self.blockSignals(False)
+                self.valueChanged.emit(target_value)
+
+            distance = abs(target_value - self._visualValue)
+            total_range = max(1, self.maximum() - self.minimum())
+            pct_distance = distance / total_range
+
+            # Velocity check thresholds scaled linearly
+            if pct_distance > 0.05:
+                self.scroll_anim.setDuration(self.duration_glide_fast)
+            else:
+                self.scroll_anim.setDuration(self.duration_glide_precise)
+
+            self._kick_glide_animation(float(target_value))
+
+            if self.continuous:
+                current_tick = round(self._visualValue)
+                if current_tick != self._lastEmittedValue:
+                    self._lastEmittedValue = current_tick
+                    self._is_animating = True
+                    self.blockSignals(True)
+                    self.setValue(current_tick)
+                    self.blockSignals(False)
+                    self._is_animating = False
+                    self.valueChanged.emit(current_tick)
+
             event.accept()
         else:
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton and self.isSliderDown():
+        if event.button() == Qt.MouseButton.LeftButton:
             self.setSliderDown(False)
+            self.scroll_anim.setDuration(self.duration_glide_default)
+            self.update()
             event.accept()
         else:
             super().mouseReleaseEvent(event)
 
+    def _kick_glide_animation(self, target_value):
+        if self._visualValue != target_value:
+            self.scroll_anim.stop()
+            self.scroll_anim.setStartValue(self._visualValue)
+            self.scroll_anim.setEndValue(target_value)
+            self.scroll_anim.start()
+
     def _get_value_from_mouse(self, event):
-        horizontal_padding = 7
-        track_width = self.width() - (horizontal_padding * 2)
-        click_x = event.position().x() - horizontal_padding
-        click_x = max(0, min(click_x, track_width))
+        half_handle = self.handle_width / 2
+        available_width = self.width() - self.handle_width
+        if available_width <= 0:
+            return self.minimum()
 
-        total_range = self.maximum() - self.minimum()
-        return int(self.minimum() + (click_x / track_width) * total_range)
+        mouse_x = event.position().x() if hasattr(event, "position") else event.x()
+        adjusted_x = mouse_x - half_handle
+        adjusted_x = max(0.0, min(float(available_width), float(adjusted_x)))
 
-    def set_color_gradient(self, start_color, end_color, steps=10, blend_in_lab=True):
-        if blend_in_lab:
-            start_color = colour.convert(start_color, "Oklch", "Oklab")
-            end_color = colour.convert(end_color, "Oklch", "Oklab")
-        source = "Oklab" if blend_in_lab else "Oklch"
-        self.gradient = [
-            (
-                x,
-                QColor(
-                    colour.convert(
-                        start_color * (1 - x) + end_color * x, source, "Hexadecimal"
-                    )
-                ),
-            )
-            for x in np.linspace(0, 1, steps)
-        ]
+        fraction = adjusted_x / available_width
+        range_len = self.maximum() - self.minimum()
+
+        return round(self.minimum() + (fraction * range_len))
 
     def enterEvent(self, event):
         self._hover = True
-        self.anim.stop()
-        self.anim.setStartValue(self._hoverProgress)
-        self.anim.setEndValue(1.0)
-        self.anim.start()
+        self.hover_anim.stop()
+        self.hover_anim.setStartValue(self._hoverProgress)
+        self.hover_anim.setEndValue(1.0)
+        self.hover_anim.start()
         super().enterEvent(event)
 
     def leaveEvent(self, event):
         self._hover = False
-        self.anim.stop()
-        self.anim.setStartValue(self._hoverProgress)
-        self.anim.setEndValue(0.0)
-        self.anim.start()
+        self.hover_anim.stop()
+        self.hover_anim.setStartValue(self._hoverProgress)
+        self.hover_anim.setEndValue(0.0)
+        self.hover_anim.start()
         super().leaveEvent(event)
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        horizontal_padding = 7
-        groove_thickness = 10 if self.modern_design else 4
         groove_rect = QRect(
-            horizontal_padding,
-            self.height() // 2 - groove_thickness // 2,
-            self.width() - horizontal_padding * 2,
-            groove_thickness,
+            self.horizontal_padding,
+            self.height() // 2 - self.groove_thickness // 2,
+            self.width() - self.horizontal_padding * 2,
+            self.get_groove_thickness(),
         )
 
         min_val, max_val = self.minimum(), self.maximum()
@@ -615,7 +528,6 @@ class AnimatedGradientSlider(QSlider):
         ref_x = value_to_x(self.reference_value)
 
         painter.setPen(Qt.PenStyle.NoPen)
-
         gradient = QLinearGradient(
             QPointF(groove_rect.topLeft()), QPointF(groove_rect.topRight())
         )
@@ -625,170 +537,142 @@ class AnimatedGradientSlider(QSlider):
         painter.setBrush(QBrush(gradient))
         painter.drawRoundedRect(groove_rect, 3, 3)
 
+        # Active tracking line blend accent
         painter.setBrush(QColor(255, 255, 255, 85))
         if handle_x > ref_x:
             active_rect = QRectF(
-                ref_x, groove_rect.top(), handle_x - ref_x, groove_rect.height()
+                ref_x,
+                groove_rect.top(),
+                handle_x - ref_x,
+                groove_rect.height(),
             )
         else:
             active_rect = QRectF(
-                handle_x, groove_rect.top(), ref_x - handle_x, groove_rect.height()
+                handle_x,
+                groove_rect.top(),
+                ref_x - handle_x,
+                groove_rect.height(),
             )
+
         if self.reference_value in (self.minimum(), self.maximum()):
             painter.drawRoundedRect(active_rect, 3, 3)
         else:
             painter.drawRect(active_rect)
 
+        # Drawing the handle layouts
         if self.modern_design:
-            handle_bg_width = 6 + self._hoverProgress * 1
+            # Scaled based on groove dimensions instead of hard values
+            handle_bg_width = (self.handle_width // 2 - 1) + self._hoverProgress
             handle_bg_rect = QRectF(
                 handle_x - handle_bg_width,
-                groove_rect.center().y() - groove_thickness,
+                groove_rect.center().y() - self.get_groove_thickness(),
                 handle_bg_width * 2,
-                groove_thickness * 2,
+                self.get_groove_thickness() * 2,
             )
-            painter.setBrush(QColor(BASE_COLOR))
+            painter.setBrush(self.base_color)
             painter.drawRect(handle_bg_rect)
 
-            handle_width = 1.25 + self._hoverProgress * 1
-            handle_length = groove_thickness / 2 + 4
+            handle_width = 1.25 + self._hoverProgress
+            handle_length = self.get_groove_thickness() / 2 + 4
             handle_rect = QRectF(
                 handle_x - handle_width,
                 groove_rect.center().y() - handle_length,
                 handle_width * 2,
                 handle_length * 2,
             )
-            painter.setBrush(QColor(TEXT_PRIMARY))
+            painter.setBrush(self.handle_color)
             painter.drawRoundedRect(handle_rect, handle_width, handle_width)
         else:
             handle_center = QPointF(handle_x, groove_rect.center().y())
-            hover_radius = 7
-            inner_radius = 2 + self._hoverProgress * 2
+            hover_radius = self.handle_width / 2
+            inner_radius = 2.0 + self._hoverProgress * 2.0
 
-            painter.setBrush(QColor(TEXT_PRIMARY))
+            painter.setBrush(self.handle_color)
             painter.drawEllipse(handle_center, hover_radius, hover_radius)
-
-            painter.setBrush(QColor(BASE_COLOR))
-            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(self.base_color)
             painter.drawEllipse(handle_center, inner_radius, inner_radius)
 
         painter.end()
+
+    def get_groove_thickness(self):
+        return self.groove_thickness
 
     def set_reference_value(self, value: int):
         self.reference_value = value
         self.update()
 
     def setValueSilently(self, raw_step: int):
-        """Instantly forces the inner slider to a raw step step without spinning up
-        animations or tripping sliderChange loops.
-        """
-        # Keep internal tracks aligned as raw int step values
         self._visualValue = float(raw_step)
         self._lastEmittedValue = raw_step
-
-        # Kill ongoing animation glides
         self.scroll_anim.stop()
 
-        # Sync memory safely
         self._is_animating = True
         self.blockSignals(True)
         self.setValue(raw_step)
         self.blockSignals(False)
         self._is_animating = False
-
         self.update()
 
 
-class Slider(QWidget):
-    """A slider with float value support."""
+class BaseSliderWidget(QWidget):
+    """Abstract base container to unify scroll, wheel tracking, and styling metrics."""
 
     valueChanged = pyqtSignal(float)
 
-    def __init__(self, animated=True, *args, **kwargs):
+    def __init__(self, continuous=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        layout = QHBoxLayout()
-        self.setLayout(layout)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self._last_wheel_time = 0.0
 
-        if animated:
-            self.slider = AnimatedGradientSlider()
-        else:
-            self.slider = GradientSlider()
+        # Wheel Animation Configurations
+        self.wheel_timeout_threshold = 0.08  # Seconds
+        self.duration_wheel_fast = 40  # Milliseconds
+        self.duration_wheel_default = 180  # Milliseconds
+
+        self.layout = QHBoxLayout()
+        self.setLayout(self.layout)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
+        self.slider = CoreGradientSlider(continuous=continuous)
         self.slider.setOrientation(Qt.Orientation.Horizontal)
-        self.setMinMaxTicks(0, 1, 1)
 
         self.text = QLabel()
         self.text.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
-        self.text.setFixedWidth(30)
+        self.text.setFixedWidth(40)  # Expanded slightly to protect 3-decimal values
 
-        layout.addWidget(self.slider)
-        layout.addWidget(self.text)
+        self.layout.addWidget(self.slider)
+        self.layout.addWidget(self.text)
 
-        self.slider.valueChanged.connect(self.sliderValueChanged)
-
-        self.slider.valueChanged.connect(self.value_changed)
-
+        self.slider.valueChanged.connect(self._handle_value_changed)
         self.slider.wheelEvent = self.customWheelEvent
-
         self.set_color_gradient = self.slider.set_color_gradient
 
         self.big_increment = 5
         self.small_increment = 2
 
-    def setMinMaxTicks(self, min, max, enumerator=1, denominator=1, default=0):
-        self.slider.setMinimum(0)
-        number_of_steps = int(((max - min) * denominator) / enumerator)
-        self.slider.setMaximum(number_of_steps)
-        self.min = min
-        self.enumerator = enumerator
-        self.denominator = denominator
-        self.big_increment = math.ceil(number_of_steps / 10)
-        self.small_increment = math.ceil(number_of_steps / 30)
-        self.setValue(default)
-        self.slider.set_reference_value(self.getPosition())
-
-    def sliderValueChanged(self):
-        value = self.getValue()
-        if value.is_integer():
-            self.text.setText(str(int(value)))
-        else:
-            self.text.setText(f"{value:.2f}")
-
-    def getValue(self):
-        return self.slider.value() * self.enumerator / self.denominator + self.min
-
-    def setValue(self, value):
-        self.slider.setValue(
-            round((value - self.min) * self.denominator / self.enumerator)
-        )
-
-    def setPosition(self, position):
-        self.slider.setValue(position)
-
-    def getPosition(self):
-        return self.slider.value()
-
-    def value_changed(self):
+    def _handle_value_changed(self):
+        self.update_text_display()
         self.valueChanged.emit(self.getValue())
 
-    def increase(self, value=1):
-        self.slider.setValue(self.slider.value() + value)
+    def update_text_display(self):
+        raise NotImplementedError
 
-    def decrease(self, value=1):
-        self.slider.setValue(self.slider.value() - value)
+    def getValue(self):
+        raise NotImplementedError
 
     def customWheelEvent(self, event: QWheelEvent):
-        # Get the current value
+        import time
+
+        now = time.time()
+        time_delta = now - self._last_wheel_time
+        self._last_wheel_time = now
+
         value = self.slider.value()
-
-        # Determine the direction (positive = scroll up, negative = down)
-        steps = event.angleDelta().y() // 120  # 120 per wheel step
-
-        # Check if Shift or Ctrl is held
+        steps = event.angleDelta().y() // 120
         modifiers = event.modifiers()
+
         if modifiers & Qt.KeyboardModifier.ShiftModifier:
             increment = self.big_increment
         elif modifiers & Qt.KeyboardModifier.ControlModifier:
@@ -796,59 +680,88 @@ class Slider(QWidget):
         else:
             increment = self.small_increment
 
-        # Set the new value with bounds checking
         new_value = value + steps * increment
         new_value = max(self.slider.minimum(), min(self.slider.maximum(), new_value))
-        self.slider.setValue(new_value)
 
-        # Accept the event so the default handler doesn't interfere
+        if not self.slider.continuous:
+            self.slider.blockSignals(True)
+            self.slider.setValue(new_value)
+            self.slider.blockSignals(False)
+            self.slider.valueChanged.emit(new_value)
+
+        # Dynamic scroll feel adjustments using configuration bounds
+        if time_delta < self.wheel_timeout_threshold:
+            self.slider.scroll_anim.setDuration(self.duration_wheel_fast)
+        else:
+            self.slider.scroll_anim.setDuration(self.duration_wheel_default)
+
+        self.slider._kick_glide_animation(float(new_value))
         event.accept()
 
+    def getPosition(self):
+        return self.slider.value()
 
-class SliderLog(QWidget):
+    def setPosition(self, position):
+        self.slider.setValue(position)
+
+    def increase(self, value=1):
+        self.slider.setValue(self.slider.value() + value)
+
+    def decrease(self, value=1):
+        self.slider.setValue(self.slider.value() - value)
+
+
+class Slider(BaseSliderWidget):
+    """A slider with float value support using parameterized layouts."""
+
+    def __init__(self, continuous=True, *args, **kwargs):
+        super().__init__(continuous=continuous, *args, **kwargs)
+        self.setMinMaxTicks(0, 1, 1)
+
+    def setMinMaxTicks(self, min_val, max_val, enumerator=1, denominator=1, default=0):
+        self.min = min_val
+        self.enumerator = enumerator
+        self.denominator = denominator
+
+        self.slider.setMinimum(0)
+        number_of_steps = int(((max_val - min_val) * denominator) / enumerator)
+        self.slider.setMaximum(number_of_steps)
+
+        self.big_increment = math.ceil(number_of_steps / 10)
+        self.small_increment = math.ceil(number_of_steps / 30)
+        self.setValue(default)
+        self.slider.set_reference_value(self.getPosition())
+
+    def update_text_display(self):
+        val = self.getValue()
+        self.text.setText(str(int(val)) if val.is_integer() else f"{val:.2f}")
+
+    def getValue(self):
+        return self.slider.value() * self.enumerator / self.denominator + self.min
+
+    def setValue(self, value, duration=None):
+        # Update the inner animation speed first if an explicit duration was passed
+        if duration is not None:
+            self.slider.scroll_anim.setDuration(duration)
+        else:
+            self.slider.scroll_anim.setDuration(self.slider.duration_glide_default)
+
+        # Call the standard, clean Qt native setValue function
+        self.slider.setValue(
+            round((value - self.min) * self.denominator / self.enumerator)
+        )
+
+
+class SliderLog(BaseSliderWidget):
     """A slider with float value support and a logarithmic value distribution."""
 
-    valueChanged = pyqtSignal(float)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.max = None
-        self.steps = None
-        self.min = None
-        self.precision = None
-
-        layout = QHBoxLayout()
-        self.setLayout(layout)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-
-        self.slider = AnimatedGradientSlider()
-        self.slider.setOrientation(Qt.Orientation.Horizontal)
+    def __init__(self, continuous=True, *args, **kwargs):
+        super().__init__(continuous=continuous, *args, **kwargs)
         self.setMinMaxSteps(1, 10, 100, 3)
 
-        self.text = QLabel()
-        self.text.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
-        self.text.setFixedWidth(30)
-
-        layout.addWidget(self.slider)
-        layout.addWidget(self.text)
-
-        self.slider.valueChanged.connect(self.sliderValueChanged)
-
-        self.slider.valueChanged.connect(self.value_changed)
-
-        self.slider.wheelEvent = self.customWheelEvent
-
-        self.set_color_gradient = self.slider.set_color_gradient
-
-        self.big_increment = 5
-        self.small_increment = 2
-
-    def setMinMaxSteps(self, min, max, steps=100, default=1, precision=None):
-        self.min = min
-        self.max = max
+    def setMinMaxSteps(self, min_val, max_val, steps=100, default=1, precision=None):
+        self.min = min_val
+        self.max = max_val
         self.steps = steps
         self.precision = precision
 
@@ -860,12 +773,9 @@ class SliderLog(QWidget):
         self.setValue(default)
         self.slider.set_reference_value(self.getPosition())
 
-    def sliderValueChanged(self):
-        value = self.getValue()
-        if value.is_integer():
-            self.text.setText(str(int(value)))
-        else:
-            self.text.setText(f"{value:.3f}")
+    def update_text_display(self):
+        val = self.getValue()
+        self.text.setText(str(int(val)) if val.is_integer() else f"{val:.3f}")
 
     def getValue(self):
         fraction = self.slider.value() / self.steps
@@ -877,45 +787,6 @@ class SliderLog(QWidget):
     def setValue(self, value):
         fraction = math.log(value / self.min) / math.log(self.max / self.min)
         self.slider.setValue(round(fraction * self.steps))
-
-    def setPosition(self, position):
-        self.slider.setValue(position)
-
-    def getPosition(self):
-        return self.slider.value()
-
-    def value_changed(self):
-        self.valueChanged.emit(self.getValue())
-
-    def increase(self, value=1):
-        self.slider.setValue(self.slider.value() + value)
-
-    def decrease(self, value=1):
-        self.slider.setValue(self.slider.value() - value)
-
-    def customWheelEvent(self, event: QWheelEvent):
-        # Get the current value
-        value = self.slider.value()
-
-        # Determine the direction (positive = scroll up, negative = down)
-        steps = event.angleDelta().y() // 120  # 120 per wheel step
-
-        # Check if Shift or Ctrl is held
-        modifiers = event.modifiers()
-        if modifiers & Qt.KeyboardModifier.ShiftModifier:
-            increment = self.big_increment
-        elif modifiers & Qt.KeyboardModifier.ControlModifier:
-            increment = 1
-        else:
-            increment = self.small_increment
-
-        # Set the new value with bounds checking
-        new_value = value + steps * increment
-        new_value = max(self.slider.minimum(), min(self.slider.maximum(), new_value))
-        self.slider.setValue(new_value)
-
-        # Accept the event so the default handler doesn't interfere
-        event.accept()
 
 
 class AnimatedButton(QPushButton):
