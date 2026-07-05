@@ -15,6 +15,7 @@ from matplotlib import pyplot as plt
 from scipy.interpolate import PchipInterpolator
 
 from spectral_film_lut.color_processing import (
+    CDD_TO_CID,
     COLORCHECKER_2005,
     CCT_to_XYZ,
 )
@@ -227,9 +228,16 @@ class FilmSpectral:
                 self.spectral_density * DENSIOMETRY[self.density_measure]
             ).sum(axis=0)
 
-            status_matrix = np.linalg.inv(
-                DENSIOMETRY[self.density_measure].T @ self.spectral_density
-            )
+            if self.density_measure == "status_m":
+                # Use channel dependent density to channel independent density to get
+                # appropriate interlayer interaction factors for color masking.
+                status_matrix = np.linalg.inv(
+                    DENSIOMETRY["apd"].T @ self.spectral_density @ CDD_TO_CID.T
+                )
+            else:
+                status_matrix = np.linalg.inv(
+                    DENSIOMETRY[self.density_measure].T @ self.spectral_density
+                )
             self.spectral_density_pure = self.spectral_density @ status_matrix
             density_curve = np.stack(self.density_curve).T
             density_curve @= status_matrix.T
@@ -239,6 +247,11 @@ class FilmSpectral:
                 density_curve[:, 1],
                 density_curve[:, 2],
             ]
+
+            if self.density_measure == "status_m":
+                status_matrix = np.linalg.inv(
+                    DENSIOMETRY[self.density_measure].T @ self.spectral_density
+                )
 
             self.d_min_sd = self.d_min_sd + self.spectral_density @ status_matrix @ (
                 self.d_min - DENSIOMETRY[self.density_measure].T @ self.d_min_sd
