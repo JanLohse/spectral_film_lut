@@ -263,6 +263,7 @@ class FileSelector(QWidget):
 
         self.textChanged = self.filename_edit.textChanged
         self.filetype = "Images (*.png *.jpg *)"
+        self.setText = self.filename_edit.setText
 
         self.show()
 

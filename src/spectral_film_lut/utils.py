@@ -13,10 +13,7 @@ import numpy as np
 from colour.hints import LiteralRGBColourspace
 from numba import njit, prange
 
-from spectral_film_lut.color_processing import (
-    output_transform,
-    photographic_inversion,
-)
+from spectral_film_lut.color_processing import adp_to_xyz, output_transform
 from spectral_film_lut.color_space import COLOR_SPACE_KEYS, GAMMA_KEYS
 from spectral_film_lut.config import DEFAULT_DTYPE
 
@@ -144,44 +141,50 @@ def film_conversion(
         image = image[..., 0][..., np.newaxis]  # reduce dim
 
     if mode == "print" or mode == "full":
-        if print_film is not None:
-            output_film = print_film
-            if apd_intermediate:
-                image = print_film.print_from_apd(
+        if inversion:
+            if not apd_intermediate:
+                image = negative_film.scan_with_apd(
                     image,
-                    idealized_curve=idealized_curve,
-                    idealized_gamma=inversion_gamma,
-                    reference_negative=reference_negative,
+                    color_masking=color_masking,
+                    red_light=red_light,
+                    green_light=green_light,
+                    blue_light=blue_light,
                 )
-            else:
-                image = negative_film.print_to(
-                    image,
-                    print_film,
-                    color_masking,
-                    red_light,
-                    green_light,
-                    blue_light,
-                    idealized_curve,
-                    inversion_gamma,
-                )
-            color_masking = None
+
+            image = adp_to_xyz(image, inversion_gamma, projector_kelvin)
+
         else:
-            output_film = negative_film
+            if print_film is not None:
+                output_film = print_film
+                if apd_intermediate:
+                    image = print_film.print_from_apd(
+                        image,
+                        idealized_curve=idealized_curve,
+                        idealized_gamma=inversion_gamma,
+                        reference_negative=reference_negative,
+                    )
+                else:
+                    image = negative_film.print_to(
+                        image,
+                        print_film,
+                        color_masking,
+                        red_light,
+                        green_light,
+                        blue_light,
+                        idealized_curve,
+                        inversion_gamma,
+                    )
+                color_masking = None
+            else:
+                output_film = negative_film
 
-        if inversion:
-            projector_kelvin = 6500
-            white_balance = False
-
-        image, out_gray = output_film.project(
-            image,
-            projector_kelvin,
-            color_masking,
-            white_clip,
-            white_balance and print_film is None,
-        )
-
-        if inversion:
-            image = photographic_inversion(image, out_gray, inversion_gamma)
+            image, out_gray = output_film.project(
+                image,
+                projector_kelvin,
+                color_masking,
+                white_clip,
+                white_balance and print_film is None,
+            )
 
         image = output_transform(
             image,
@@ -189,6 +192,7 @@ def film_conversion(
             sat_adjust=sat_adjust,
             shadow_comp=shadow_comp,
             gamma_func=gamma_func,
+            rolloff=inversion,
         )
 
     if mode == "grain":

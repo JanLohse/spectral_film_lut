@@ -18,6 +18,7 @@ from spectral_film_lut.color_processing import (
     COLORCHECKER_2005,
     CCT_to_XYZ,
 )
+from spectral_film_lut.color_space import LAD_NEGATIVE
 from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
 from spectral_film_lut.densiometry import (
     APD,
@@ -41,12 +42,6 @@ from spectral_film_lut.xy_lut import (
     XYZ_CMFS,
     apply_2d_lut,
 )
-
-LAD_NEGATIVE = np.array([0.78, 0.84, 0.79], DEFAULT_DTYPE)
-"""
-Reference density values to which to encode middle gray in the APD intermediate mode.
-Chosen to be compatible with the Davinci Resolve 2383 LUT.
-"""
 
 
 class FilmSpectral:
@@ -586,7 +581,7 @@ class FilmSpectral:
             if self.film_type == "positive":
                 idealized_gamma = -idealized_gamma
             return smooth_roll_off(
-                log_exposure, self.log_H_ref, self.d_ref, idealized_gamma * 1.2
+                log_exposure, self.log_H_ref, self.d_ref, idealized_gamma * 1.5
             )
 
         density = multi_channel_interp(

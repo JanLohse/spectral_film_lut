@@ -6,6 +6,8 @@ from typing import Literal
 
 import numpy as np
 
+from spectral_film_lut.config import DEFAULT_DTYPE
+
 
 @dataclass
 class ColorSpace:
@@ -134,3 +136,9 @@ GAMMA_KEYS = Literal[
     "PQ",
 ]
 """The available gamma functions."""
+
+LAD_NEGATIVE = np.array([0.78, 0.84, 0.79], DEFAULT_DTYPE)
+"""
+Reference density values to which to encode middle gray in the APD intermediate mode.
+Chosen to be compatible with the Davinci Resolve 2383 LUT.
+"""

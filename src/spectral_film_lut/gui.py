@@ -459,11 +459,11 @@ class MainWindow(QMainWindow):
 
         self.inversion_gamma = Slider()
         """The gamma applied using the inversion if 'Inversion' is selected."""
-        self.inversion_gamma.setMinMaxTicks(1, 7, 1, 10)
+        self.inversion_gamma.setMinMaxTicks(1, 5, 1, 10)
         add_option(
             self.inversion_gamma,
             "Inversion gamma",
-            4.0,
+            3.0,
             self.inversion_gamma.setValue,
             tool_tip="The gamma applied using the inversion if 'Inversion' is\n"
             "selected.",
@@ -697,7 +697,7 @@ class MainWindow(QMainWindow):
     def generate_lut(self, name="temp", cube=True):
         negative_film = self.filmstocks[self.negative_selector.currentText()]
         print_film = self.filmstocks[self.print_selector.currentText()]
-        inversion = self.print_selector.currentText() == "Inversion"
+        inversion = "Inversion" in self.print_selector.currentText()
         input_colorspace = self.input_colorspace_selector.currentText()
         projector_kelvin = self.projector_kelvin.getValue()
         inversion_gamma = self.inversion_gamma.getValue()

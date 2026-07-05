@@ -2,6 +2,8 @@
 Color processing transforms not directly related to film.
 """
 
+import math
+
 import colour
 import numpy as np
 
@@ -36,7 +38,7 @@ def CCT_to_xy(CCT):
         )
 
     y = -3.000 * x**2 + 2.870 * x - 0.275
-    return np.array([x, y])
+    return np.array([x, y], DEFAULT_DTYPE)
 
 
 COLORCHECKER_2005 = np.array(
@@ -111,6 +113,7 @@ def output_color_transform(
     output_gamut: COLOR_SPACE_KEYS = "Rec. 709",
     sat_adjust: float = 1.0,
     lut_size: int = 33,
+    rolloff: bool = False,
 ) -> np.ndarray:
     """
     Transform from XYZ to the target gamut and adjust the saturation.
@@ -161,6 +164,10 @@ def output_color_transform(
     # apply to image safely
     image = np.clip(image, 0, None)
     image = apply_2d_lut(image, lut_XYZ)
+
+    if rolloff:
+        image /= image + 1
+
     image = np.clip(image, 0, 1)
 
     return image
@@ -239,6 +246,7 @@ def output_transform(
     lut_size: int = 33,
     shadow_comp: float = 0.0,
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
+    rolloff: bool = False,
 ) -> np.ndarray:
     """
     Transform display referred linear CIE XYZ data to a display color space with some
@@ -256,7 +264,9 @@ def output_transform(
     Returns:
         The transformed image in the target gamma and gamut.
     """
-    image = output_color_transform(image, output_gamut, sat_adjust, lut_size)
+    image = output_color_transform(
+        image, output_gamut, sat_adjust, lut_size, rolloff=rolloff
+    )
     if shadow_comp:
         image = simple_shadow_compensation(image, shadow_comp)
 
@@ -276,55 +286,59 @@ def CCT_to_XYZ(CCT: float | int, Y: float = 1.0, tint: float = 0.0) -> np.ndarra
     return XYZ
 
 
-def photographic_inversion(
-    image: np.ndarray,
-    reference_gray: np.ndarray,
-    inversion_gamma: float = 3.0,
-    output_gray: float = 0.18,
-    output_wb: int | float = 6500,
-    colorspace: COLOR_SPACE_KEYS | None = None,
+CDD_TO_CID = np.array(
+    [
+        [0.75573, 0.05901, 0.16134],
+        [0.22197, 0.96928, 0.07406],
+        [0.02230, -0.02829, 0.76460],
+    ],
+    DEFAULT_DTYPE,
+)
+
+EXP_TO_ACES = np.array(
+    [
+        [0.72286, 0.11923, 0.01427],
+        [0.12630, 0.76418, 0.08213],
+        [0.15084, 0.11659, 0.90359],
+    ],
+    DEFAULT_DTYPE,
+)
+
+
+def adp_to_xyz(
+    apd: np.ndarray,
+    inversion_gamma: float = 2.0,
+    projector_kelvin: float | int = 6500,
 ) -> np.ndarray:
-    r"""
-    Invert a photographic scan of a film negative.
-    The mathematical transform transforms to a log space, adjusts gamma and white
-    balance, and then inverts it by doing $10^{-x}$. This way it is inspired by printing
-    and projecting the print. To add a smooth rolloff and keep the output in [0, 1] we
-    apply $\frac{x}{x + 1}$
-
-    Note:
-        This approach is highly dependent on the primaries of the color space the
-        inversion is performed in. To keep it simple and not make any opinionated
-        choices we keep the default in CIE XYZ.
-
-    Tip:
-        Due to the choice of color space being irrelevant, this mode works best with BW
-        film.
+    """
+    Adaptation of the [ADX to ACES transform](https://github.com/aces-aswf/aces-input-and-colorspaces/blob/main/ADX/CSC.Academy.ADX10_to_ACES.ctl)
+    to take APD input and map them ot ACES instead of the original ADX10 to ACES AP0.
 
     Args:
-        image: The linear film scan in CIE XYZ.
-        reference_gray: The CIE XYZ reference gray.
-        inversion_gamma: The gamma used for inversion. Adjusts contrast.
-        output_gray: The target luminance of the gray patch.
-        output_wb: The target WB in kelvin.
-        colorspace: The colorspace the transform is performed in.
+        apd: The input APD data.
+        inversion_gamma: The gamma to apply.
 
     Returns:
-        The inverted image in linear XYZ in the [0, 1] range.
+        The transformed image in CIE XYZ.
     """
-    if len(reference_gray) == 3:
-        output_gray = CCT_to_XYZ(output_wb, output_gray)
+    # Convert for APD to channel dependent density
+    cdd = apd * np.array([1.0, 0.92, 0.95], DEFAULT_DTYPE)
 
-        if colorspace is not None:
-            reference_gray @= COLOR_SPACES[colorspace].xyz_to_rgb.T
-            output_gray @= COLOR_SPACES[colorspace].xyz_to_rgb.T
-            image @= COLOR_SPACES[colorspace].xyz_to_rgb.T
-            image = np.clip(image, 1e-10, None)
+    # Convert to channel independent density
+    cid = cdd @ CDD_TO_CID
 
-    offset = np.log10(reference_gray) * inversion_gamma + np.log10(output_gray)
-    image = 10 ** (-np.log10(image) * inversion_gamma + offset)
-    image /= image + 1
+    # Compute the reference exposure point (adjusted to 0.78 from the original 0.7)
+    ref_pt = 0.78 * inversion_gamma - math.log10(0.18)
 
-    if colorspace is not None and len(reference_gray) == 3:
-        image @= COLOR_SPACES[colorspace].rgb_to_xyz.T
+    # Compute log exposure
+    logE = inversion_gamma * cid - ref_pt
 
-    return image
+    # Compute exposure
+    exp = 10**logE
+
+    # Convert to xyz
+    white_point = CCT_to_xy(projector_kelvin)
+    exp_to_xyz = colour.RGB_to_XYZ(EXP_TO_ACES, "ACES2065-1", illuminant=white_point)
+    xyz = exp @ exp_to_xyz
+
+    return xyz
