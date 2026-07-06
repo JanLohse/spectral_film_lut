@@ -329,7 +329,7 @@ class MainWindow(QMainWindow):
         add_option(
             self.color_masking,
             "Color masking",
-            1.0,
+            0.7,
             self.color_masking.setValue,
             tool_tip="How effective the orange color mask of the film is. Value of 1\n"
             "perfectly compensates for color layer cross contamination. An\n"

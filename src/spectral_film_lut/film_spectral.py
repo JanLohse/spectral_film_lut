@@ -142,9 +142,9 @@ class FilmSpectral:
 
         if self.color_masking is None:
             if self.density_measure == "status_m":
-                self.color_masking = 1
+                self.color_masking = 0.7
             else:
-                self.color_masking = 0
+                self.color_masking = 0.0
 
         # extrapolate log_sensitivity to linear sensitivity
         if self.log_sensitivity is not None:

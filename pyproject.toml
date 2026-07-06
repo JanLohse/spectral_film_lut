@@ -13,22 +13,22 @@ requires-python = ">=3.11"
 dependencies = [
     "colour-science>=0.4.7",
     "imageio>=2.37.3",
-    "matplotlib>=3.10.9",
+    "matplotlib>=3.11.0",
     "networkx>=3.6.1",
-    "numba>=0.65.1",
+    "numba>=0.66.0",
     "numpy>=2.4.6",
-    "opencv-python>=4.13.0.92",
+    "opencv-python>=5.0.0.93",
     "pyqt6>=6.11.0",
     "scipy>=1.17.1",
 ]
 
 [dependency-groups]
 dev = [
-    "mkdocstrings-python>=2.0.4",
+    "mkdocstrings-python>=2.0.5",
     "pre-commit>=4.6.0",
     "pyinstaller>=6.21.0",
-    "ruff>=0.15.17",
-    "zensical>=0.0.45",
+    "ruff>=0.15.20",
+    "zensical>=0.0.47",
 ]
 install = [
     "pyinstaller>=6.21.0",
