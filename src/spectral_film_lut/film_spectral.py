@@ -579,6 +579,7 @@ class FilmSpectral:
         push_pull: float = 0.0,
         idealized_curve: bool = False,
         idealized_gamma: float = 3.0,
+        d_min: float = 0.0,
     ) -> np.ndarray:
         """
         Convert log_exposure to density values for current film stock.
@@ -594,7 +595,11 @@ class FilmSpectral:
             if self.film_type == "positive":
                 idealized_gamma = -idealized_gamma
             return smooth_roll_off(
-                log_exposure, self.log_H_ref, self.d_ref, idealized_gamma * 1.5
+                log_exposure,
+                self.log_H_ref,
+                self.d_ref,
+                idealized_gamma,
+                d_min,
             )
 
         density = multi_channel_interp(
@@ -650,6 +655,7 @@ class FilmSpectral:
         idealized_curve: bool = False,
         idealized_gamma: float = 3.0,
         reference_negative: "FilmSpectral | None" = None,
+        d_min: float = 0.0,
     ) -> np.ndarray:
         """
         Converts independent APD intermediate densities into this print film's
@@ -669,6 +675,7 @@ class FilmSpectral:
             apd_image,
             idealized_curve=idealized_curve,
             idealized_gamma=idealized_gamma,
+            d_min=d_min,
         )
 
     def get_density_curve(
@@ -1150,6 +1157,7 @@ class FilmSpectral:
         blue_light: float = 0.0,
         idealized_curve: bool = False,
         idealized_gamma: float = 3.0,
+        d_min: float = 0.0,
     ) -> np.ndarray:
         """
         Print to another film stock.
@@ -1183,6 +1191,7 @@ class FilmSpectral:
             blue_light,
             idealized_curve,
             idealized_gamma,
+            d_min,
         )
 
     @staticmethod
@@ -1196,6 +1205,7 @@ class FilmSpectral:
         blue_light: float = 0.0,
         idealized_curve: bool = False,
         idealized_gamma: float = 3.0,
+        d_min: float = 1.0,
     ) -> np.ndarray:
         """
         Print from one film stock onto another.
@@ -1243,6 +1253,7 @@ class FilmSpectral:
             image,
             idealized_curve=idealized_curve,
             idealized_gamma=idealized_gamma,
+            d_min=d_min,
         )
 
         return image

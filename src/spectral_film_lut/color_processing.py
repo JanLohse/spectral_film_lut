@@ -10,6 +10,7 @@ import numpy as np
 from spectral_film_lut.color_space import (
     COLOR_SPACE_KEYS,
     COLOR_SPACES,
+    GAMMA_FUNCTION_PEAK,
     GAMMA_FUNCTIONS,
     GAMMA_KEYS,
 )
@@ -114,6 +115,7 @@ def output_color_transform(
     sat_adjust: float = 1.0,
     lut_size: int = 33,
     rolloff: bool = False,
+    gamma_func: GAMMA_KEYS = "Gamma 2.4",
 ) -> np.ndarray:
     """
     Transform from XYZ to the target gamut and adjust the saturation.
@@ -165,10 +167,11 @@ def output_color_transform(
     image = np.clip(image, 0, None)
     image = apply_2d_lut(image, lut_XYZ)
 
+    peak = GAMMA_FUNCTION_PEAK.get(gamma_func, 1.0)
     if rolloff:
-        image /= image + 1
+        image *= peak / (image + peak)
 
-    image = np.clip(image, 0, 1)
+    image = np.clip(image, 0.0, peak)
 
     return image
 
@@ -265,10 +268,18 @@ def output_transform(
         The transformed image in the target gamma and gamut.
     """
     image = output_color_transform(
-        image, output_gamut, sat_adjust, lut_size, rolloff=rolloff
+        image,
+        output_gamut,
+        sat_adjust,
+        lut_size,
+        rolloff=rolloff,
+        gamma_func=gamma_func,
     )
+
     if shadow_comp:
         image = simple_shadow_compensation(image, shadow_comp)
+
+    print("RGB", image.min(), image.max())
 
     image = GAMMA_FUNCTIONS[gamma_func](image)
 

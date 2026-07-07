@@ -557,14 +557,26 @@ class MainWindow(QMainWindow):
         )
 
         self.output_gamma = WideComboBox(self)
-        """Gamma function to apply for encoding."""
+        """
+        Gamma function to apply for encoding.
+
+        Selecting a HDR gamma (PQ or HLG) with nits specified means that the peak white
+        of the output gamma function will be selected accordingly. This applies if
+        Pure curve or Inversion is selected. For full film emulation pipelines this
+        has no effect and the output will simply be mapped to 203 nits paper white.
+        """
         self.output_gamma.addItems(GAMMA_FUNCTIONS.keys())
         add_option(
             self.output_gamma,
             "Output gamma",
             "Gamma 2.4",
             self.output_gamma.setCurrentText,
-            tool_tip="Gamma function to apply for encoding.",
+            tool_tip="Gamma function to apply for encoding.\n"
+            "Selecting a HDR gamma (PQ or HLG) with nits specified means that the peak "
+            "white of the output gamma function will be selected accordingly. This "
+            "applies if Pure curve or Inversion is selected. For full film emulation "
+            "pipelines this has no effect and the output will simply be mapped to 203 "
+            "nits paper white.",
         )
 
         self.lut_size = Slider()

@@ -86,25 +86,25 @@ def srgb_encoding(x):
     return np.where(x <= 0.0031308, 12.92 * x, 1.055 * x ** (1 / 2.4) - 0.055)
 
 
-def hlg_encoding(x, peak=203):
+def hlg_encoding(x, paper_white=203):
     """
     HLG (Hybrid Log-Gamma) OETF as per ARIB STD-B67
     """
     a = 0.17883277
     b = 0.28466892
     c = 0.55991073
-    x *= peak / 1000
+    x *= paper_white / 1000
     return np.where(x <= 1 / 12, np.sqrt(3 * x), a * np.log(12 * x - b) + c)
 
 
-def pq_encoding(x, peak=203):
+def pq_encoding(x, paper_white=203):
     """PQ (SMPTE ST 2084) OETF"""
     m1 = 2610 / 16384
     m2 = 2523 / 32
     c1 = 107 / 128
     c2 = 2413 / 128
     c3 = 2392 / 128
-    x *= peak / 10000
+    x *= paper_white / 10000
     x = np.clip(x, 0, 1)
     return ((c1 + c2 * x**m1) / (1 + c3 * x**m1)) ** m2
 
@@ -119,7 +119,13 @@ GAMMA_FUNCTIONS = {
     "Rec. 709": rec_709_encoding,
     "sRGB": srgb_encoding,
     "HLG": hlg_encoding,
+    "HLG - 400 nits": hlg_encoding,
+    "HLG - 1000 nits": hlg_encoding,
+    "HLG - 10000 nits": hlg_encoding,
     "PQ": pq_encoding,
+    "PQ - 400 nits": pq_encoding,
+    "PQ - 1000 nits": pq_encoding,
+    "PQ - 10000 nits": pq_encoding,
 }
 """Different gamma functions for output encoding."""
 
@@ -133,9 +139,23 @@ GAMMA_KEYS = Literal[
     "Rec. 709",
     "sRGB",
     "HLG",
+    "HLG - 400 nits",
+    "HLG - 1000 nits",
     "PQ",
+    "PQ - 400 nits",
+    "PQ - 1000 nits",
+    "PQ - 10000 nits",
 ]
 """The available gamma functions."""
+
+GAMMA_FUNCTION_PEAK = {
+    "PQ - 400 nits": 400.0 / 203.0,
+    "PQ - 1000 nits": 1000.0 / 203.0,
+    "PQ - 10000 nits": 10000.0 / 203.0,
+    "HLG - 400 nits": 400.0 / 203.0,
+    "HLG - 1000 nits": 1000.0 / 203.0,
+}
+"""Map gamma func to intended max input value. Default should be 1.0."""
 
 LAD_NEGATIVE = np.array([0.78, 0.84, 0.79], DEFAULT_DTYPE)
 """

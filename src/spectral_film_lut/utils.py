@@ -14,7 +14,11 @@ from colour.hints import LiteralRGBColourspace
 from numba import njit, prange
 
 from spectral_film_lut.color_processing import adp_to_xyz, output_transform
-from spectral_film_lut.color_space import COLOR_SPACE_KEYS, GAMMA_KEYS
+from spectral_film_lut.color_space import (
+    COLOR_SPACE_KEYS,
+    GAMMA_FUNCTION_PEAK,
+    GAMMA_KEYS,
+)
 from spectral_film_lut.config import DEFAULT_DTYPE
 
 if TYPE_CHECKING:
@@ -57,6 +61,8 @@ def film_conversion(
     Emulates the full film pipeline including exposure, printing, and projection.
 
     Args:
+        reference_negative:
+        apd_intermediate:
         image: The image (or LUT) containing the scene referred data.
         negative_film: The film stock to capture the scene.
         print_film: The optional print stock.
@@ -155,6 +161,7 @@ def film_conversion(
 
         else:
             if print_film is not None:
+                d_min = -math.log10(GAMMA_FUNCTION_PEAK.get(gamma_func, 1.0))
                 output_film = print_film
                 if apd_intermediate:
                     image = print_film.print_from_apd(
@@ -162,6 +169,7 @@ def film_conversion(
                         idealized_curve=idealized_curve,
                         idealized_gamma=inversion_gamma,
                         reference_negative=reference_negative,
+                        d_min=d_min,
                     )
                 else:
                     image = negative_film.print_to(
@@ -173,6 +181,7 @@ def film_conversion(
                         blue_light,
                         idealized_curve,
                         inversion_gamma,
+                        d_min=d_min,
                     )
                 color_masking = None
             else:
@@ -405,6 +414,7 @@ def smooth_roll_off(
     x0: float | np.ndarray,
     y0: float | np.ndarray,
     gamma: float,
+    d_min: float = 0.0,
 ):
     """
     Function that rolls-off smoothly towards 0.
@@ -415,8 +425,26 @@ def smooth_roll_off(
         y0: Which value to hit at x0.
         gamma: The slope of the curve.
     """
-    offset = np.log(np.expm1(y0)) - gamma * x0
-    return np.log1p(np.exp(gamma * x + offset))
+    offset = np.log10(10 ** (y0 - d_min) - 1) - gamma * x0
+    return np.log10(1 + 10 ** (gamma * x + offset)) + d_min
+
+
+def linear_roll_off(
+    x: np.ndarray,
+    x0: float | np.ndarray,
+    y0: float | np.ndarray,
+    gamma: float,
+):
+    """
+    Function that rolls-off smoothly towards 0.
+
+    Args:
+        x: Values that are to be mapped.
+        x0: At which position to hit y0.
+        y0: Which value to hit at x0.
+        gamma: The slope of the curve.
+    """
+    return gamma * x + (y0 - x0 * gamma)
 
 
 @njit(parallel=True)
