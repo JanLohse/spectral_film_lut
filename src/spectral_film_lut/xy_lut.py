@@ -44,6 +44,7 @@ import colour
 import numpy as np
 from numba import njit, prange
 from scipy.optimize import nnls
+from scipy.spatial import Delaunay
 
 from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
 
@@ -56,7 +57,6 @@ XYZ_CMFS = np.asarray(
 """The CIE XYZ 1931 color matching functions."""
 
 
-@njit(parallel=True)
 def xyS_to_XYZ(xyS):
     """Convert from $xyS$ to $XYZ$."""
     h, w, c = xyS.shape
@@ -206,189 +206,175 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
     return out_flat.reshape(out_shape)
 
 
-# Global setup configuration
-LUT_SIZE = 33
-SCALING = LUT_SIZE - 1
-TEMPERATURES = ["A", "D65"]
+RAWTOACES = colour.characterisation.read_training_data_rawtoaces_v1()
+RAWTOACES.align(SPECTRAL_SHAPE)
+TRANSMITTANCE_TRAINING = np.asarray(RAWTOACES.values.T, dtype=DEFAULT_DTYPE)
 
+TEMPERATURES = ["A", "A", "D50", "D55", "D60", "D65", "D75"]
 
-def setup_static_matrices():
-    """Compute base dimensions and normalized matrices for NNLS optimization."""
-    a_raw = XYZ_CMFS.T  # Shape: (3, N_BINS)
-    n_bins = a_raw.shape[1]
-    d1_raw = np.eye(n_bins, k=0) - np.eye(n_bins, k=1)
-    i_raw = np.eye(n_bins)
+# Build multi-illuminant training sets and Delaunay trees
+ILLUMINANT_SPECTRA = []
+ILLUMINANT_TRIANGULATIONS = []
 
-    norm_a = np.linalg.norm(a_raw)
-    norm_d1 = np.linalg.norm(d1_raw)
-    norm_i = np.linalg.norm(i_raw)
-
-    return (
-        n_bins,
-        a_raw,
-        norm_a,
-        norm_i,
-        a_raw / norm_a,
-        d1_raw / norm_d1,
-        i_raw / norm_i,
+for T in TEMPERATURES:
+    # Load and align illuminant SPD
+    blackbody_T = np.asarray(
+        colour.SDS_ILLUMINANTS[T].align(SPECTRAL_SHAPE).values,
+        dtype=DEFAULT_DTYPE,
     )
 
+    # Modulate transmittance by the source illuminant spectrum
+    spectra_at_T = TRANSMITTANCE_TRAINING * blackbody_T
+    ILLUMINANT_SPECTRA.append(spectra_at_T)
 
-# Extract global variables from static setup
-(
-    _N_BINS,
-    _A_RAW,
-    _NORM_A,
-    _NORM_I,
-    A_STATIC_SCALED,
-    D1_STATIC_SCALED,
-    I_STATIC_SCALED,
-) = setup_static_matrices()
+    # Project to 2D xy space to build the Delaunay structure for this illuminant
+    xyz_samples = spectra_at_T @ XYZ_CMFS
+    s_samples = np.sum(xyz_samples, axis=-1, keepdims=True)
+    s_samples = np.where(s_samples < 1e-12, 1e-12, s_samples)
+    xy_samples = xyz_samples[:, :2] / s_samples
 
-
-def compute_prior_spectra():
-    """Generate and splat target illuminant datasets into a normalized prior grid."""
-    rawtoaces = colour.characterisation.read_training_data_rawtoaces_v1()
-    rawtoaces.align(SPECTRAL_SHAPE)
-    rawtoaces_values = rawtoaces.values.T
-
-    # Generate and stack the illuminant-reflected spectra
-    all_training_runs = []
-    for T in TEMPERATURES:
-        blackbody_T = colour.SDS_ILLUMINANTS[T].align(SPECTRAL_SHAPE).values
-        spectra_at_T = rawtoaces_values * blackbody_T
-        all_training_runs.append(spectra_at_T)
-
-    training_spectra = np.vstack(all_training_runs)
-
-    # Allocate grids for barycentric splatting
-    splat_spectra_grid = np.zeros((LUT_SIZE, LUT_SIZE, _N_BINS), dtype=np.float32)
-    splat_weight_grid = np.zeros((LUT_SIZE, LUT_SIZE, 1), dtype=np.float32)
-
-    # Populate the prior grid via barycentric splatting
-    for spectrum in training_spectra:
-        xyz = spectrum @ _A_RAW.T
-        S = np.sum(xyz)
-        if S < 1e-12:
-            continue
-
-        # Scale coordinates up to grid index space
-        r = (xyz[0] / S) * SCALING
-        g = (xyz[1] / S) * SCALING
-
-        r_ind = min(max(int(math.floor(r)), 0), LUT_SIZE - 2)
-        g_ind = min(max(int(math.floor(g)), 0), LUT_SIZE - 2)
-
-        r_factor = r % 1
-        g_factor = g % 1
-        factor_sum = r_factor + g_factor
-
-        if factor_sum <= 1.0:
-            s_factor = 1.0 - factor_sum
-            splat_spectra_grid[r_ind + 1, g_ind] += spectrum * r_factor
-            splat_weight_grid[r_ind + 1, g_ind, 0] += r_factor
-
-            splat_spectra_grid[r_ind, g_ind + 1] += spectrum * g_factor
-            splat_weight_grid[r_ind, g_ind + 1, 0] += g_factor
-
-            splat_spectra_grid[r_ind, g_ind] += spectrum * s_factor
-            splat_weight_grid[r_ind, g_ind, 0] += s_factor
-        else:
-            s_factor = factor_sum - 1.0
-            r_factor2 = 1.0 - g_factor
-            g_factor2 = 1.0 - r_factor
-
-            splat_spectra_grid[r_ind + 1, g_ind] += spectrum * r_factor2
-            splat_weight_grid[r_ind + 1, g_ind, 0] += r_factor2
-
-            splat_spectra_grid[r_ind, g_ind + 1] += spectrum * g_factor2
-            splat_weight_grid[r_ind, g_ind + 1, 0] += g_factor2
-
-            splat_spectra_grid[r_ind + 1, g_ind + 1] += spectrum * s_factor
-            splat_weight_grid[r_ind + 1, g_ind + 1, 0] += s_factor
-
-    # Average and normalize accumulated entries
-    mask = splat_weight_grid[:, :, 0] > 0
-    prior_spectra = np.zeros_like(splat_spectra_grid)
-    prior_spectra[mask] = splat_spectra_grid[mask] / splat_weight_grid[mask]
-
-    for i in range(LUT_SIZE):
-        for j in range(LUT_SIZE):
-            if mask[i, j]:
-                spec = prior_spectra[i, j]
-                Y_val = _A_RAW[1] @ spec
-                if Y_val > 0:
-                    prior_spectra[i, j] = (spec / Y_val) / _NORM_I
-
-    return training_spectra, prior_spectra, mask
+    ILLUMINANT_TRIANGULATIONS.append(Delaunay(xy_samples))
 
 
-# Generate the shared prior dependencies
-RAWTOACES_TRAINING_SPECTRA, PRIOR_SPECTRA, mask = compute_prior_spectra()
-
-
-def xy_grid_to_spectrum(
-    grid_indices,
-    xy,
-    smoothness_loss_factor: float = 0.1,
-    data_loss_factor: float = 5.0,
+def get_single_illuminant_prior(
+    xy: tuple[float, float],
+    triangulation,
+    training_spectra: np.ndarray,
+    cmfs: np.ndarray,
 ):
+    """Computes the zero-drift XYZ matrix-solved prior for a single illuminant run."""
+    simplex_idx = triangulation.find_simplex(xy)
+    if simplex_idx < 0:
+        return None, False
+
+    vertex_indices = triangulation.simplices[simplex_idx]
+    x, y = xy
+    target_XYZ = np.array([x, y, 1.0 - x - y], dtype=np.float32)
+
+    corner_spectra = training_spectra[vertex_indices]
+    corner_XYZs = corner_spectra @ cmfs
+    corner_S = np.sum(corner_XYZs, axis=-1, keepdims=True)
+    corner_S = np.where(corner_S < 1e-12, 1e-12, corner_S)
+
+    normalized_corner_XYZs = corner_XYZs / corner_S
+    M = normalized_corner_XYZs.T
+
+    try:
+        weights = np.linalg.solve(M, target_XYZ)
+    except np.linalg.LinAlgError:
+        transform = triangulation.transform[simplex_idx]
+        delta = xy - transform[2]
+        c1_c2 = transform[:2].dot(delta)
+        c3 = 1.0 - np.sum(c1_c2)
+        weights = np.append(c1_c2, c3)
+
+    weights = np.clip(weights, 0.0, 1.0)
+    weights /= np.sum(weights)
+
+    normalized_corner_spectra = corner_spectra / corner_S
+    prior_spectrum = weights @ normalized_corner_spectra
+    return prior_spectrum, True
+
+
+def get_mixed_illuminant_prior(xy: tuple[float, float], cmfs: np.ndarray):
+    """
+    Evaluates the target coordinate against each illuminant dataset independently,
+    then combines the zero-drift prior distributions.
+    """
+    valid_priors = []
+
+    for triangulation, training_spectra in zip(
+        ILLUMINANT_TRIANGULATIONS, ILLUMINANT_SPECTRA
+    ):
+        prior, inside_gamut = get_single_illuminant_prior(
+            xy, triangulation, training_spectra, cmfs
+        )
+        if inside_gamut:
+            # Normalize to S=1 space before mixing to keep scaling consistent
+            prior_s = np.sum(prior @ cmfs)
+            if prior_s > 1e-12:
+                valid_priors.append(prior / prior_s)
+
+    if not valid_priors:
+        return None, False
+
+    # Mix the valid priors together evenly
+    mixed_prior = np.mean(valid_priors, axis=0)
+
+    # Scale back to Y=1 standard normalization for the NNLS target matrix
+    prior_y = mixed_prior @ cmfs[:, 1]
+    if prior_y > 1e-12:
+        mixed_prior /= prior_y
+
+    return mixed_prior, True
+
+
+def xy_to_spectrum_nnls(
+    xy: tuple[float, float],
+    smoothness_loss_factor: float,
+    data_loss_factor: float,
+    cmfs: np.ndarray,
+):
+    """Finds a non-negative spectrum guided by the mixed multi-illuminant prior."""
     x, y = xy
     if x + y > 1 or y <= 0:
-        return np.ones(_N_BINS)
+        return np.ones(cmfs.shape[0], dtype=np.float32)
 
-    # Map to XYZ target
     X = x / y
     Z = (1 - x - y) / y
-    XYZ_scaled = np.array([X, 1, Z]) / _NORM_A
+    XYZ_target = np.array([X, 1.0, Z], dtype=np.float32)
 
-    # Look up pre-splat data using current grid coordinate
-    grid_r, grid_j = grid_indices
-    ref_scaled = PRIOR_SPECTRA[grid_r, grid_j]
-    has_prior = mask[grid_r, grid_j]
+    A = cmfs.T
+    n_bins = A.shape[1]
+    D1 = np.eye(n_bins, k=0) - np.eye(n_bins, k=1)
 
-    weight_smooth = np.sqrt(smoothness_loss_factor)
-    weight_dataset = np.sqrt(data_loss_factor) if has_prior else 0.0
+    # Resolve mixed dynamic multi-illuminant prior
+    prior_spectrum, has_prior = get_mixed_illuminant_prior(xy, cmfs)
 
-    # Stack target system
-    C = np.vstack(
-        [
-            A_STATIC_SCALED,
-            weight_smooth * D1_STATIC_SCALED,
-            weight_dataset * I_STATIC_SCALED,
-        ]
-    )
+    w_smooth = np.sqrt(smoothness_loss_factor)
+    w_data = np.sqrt(data_loss_factor) if has_prior else 0.0
 
-    d = np.concatenate([XYZ_scaled, np.zeros(_N_BINS), weight_dataset * ref_scaled])
+    C = np.vstack([A, w_smooth * D1, w_data * np.eye(n_bins)])
+
+    if has_prior:
+        d = np.concatenate([XYZ_target, np.zeros(n_bins), w_data * prior_spectrum])
+    else:
+        d = np.concatenate([XYZ_target, np.zeros(n_bins), np.zeros(n_bins)])
 
     spectrum, _ = nnls(C, d)
     return spectrum
 
 
 def generate_spectral_sample_table(
-    n, smoothness_loss_factor: float = 0.1, data_loss_factor: float = 5.0
+    n, smoothness_loss_factor: float = 1.0, data_loss_factor: float = 1.0
 ):
-    x = np.linspace(0, 1, n, dtype=np.float32)
-    out = np.empty((n, n, _N_BINS), dtype=np.float32)
+    """Generate the full spectral lookup table across the unit simplex grid."""
+    grid_coords = np.linspace(0, 1, n, dtype=np.float32)
+    n_bins = XYZ_CMFS.shape[0]
+    out = np.empty((n, n, n_bins), dtype=np.float32)
 
-    # Map grid coordinates to target spectral estimates
     for i in range(n):
         for j in range(n):
-            xy = (x[i], x[j])
-            spec = xy_grid_to_spectrum(
-                (i, j), xy, smoothness_loss_factor, data_loss_factor
+            xy = (grid_coords[i], grid_coords[j])
+
+            spec = xy_to_spectrum_nnls(
+                xy, smoothness_loss_factor, data_loss_factor, XYZ_CMFS
             )
 
+            # Final normalization to unity scale sum (s = X + Y + Z = 1)
             s_spectrum = (spec @ XYZ_CMFS).sum()
-            if s_spectrum > 0:
-                spec *= 1.0 / s_spectrum
+            if s_spectrum > 1e-12:
+                spec /= s_spectrum
+            else:
+                spec = np.zeros(n_bins, dtype=np.float32)
 
-            out[i, j, :] = spec.astype(np.float32)
+            out[i, j, :] = spec
 
     return out
 
 
+# Generate the data table using exact barycentric priors
 SPECTRUM_LUT = generate_spectral_sample_table(
-    33, smoothness_loss_factor=0.1, data_loss_factor=5.0
+    33, smoothness_loss_factor=1.0, data_loss_factor=1.0
 )
 """A look-up table with spectral distributions across the CIE 1931 xy space."""

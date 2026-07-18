@@ -142,7 +142,7 @@ class FilmSpectral:
 
         if self.color_masking is None:
             if self.density_measure == "status_m":
-                self.color_masking = 0.7
+                self.color_masking = 1.0
             else:
                 self.color_masking = 0.0
 

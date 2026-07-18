@@ -279,8 +279,6 @@ def output_transform(
     if shadow_comp:
         image = simple_shadow_compensation(image, shadow_comp)
 
-    print("RGB", image.min(), image.max())
-
     image = GAMMA_FUNCTIONS[gamma_func](image)
 
     return image
