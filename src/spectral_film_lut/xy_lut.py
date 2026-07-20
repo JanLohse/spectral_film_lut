@@ -346,7 +346,7 @@ def xy_to_spectrum_nnls(
 
 
 def generate_spectral_sample_table(
-    n, smoothness_loss_factor: float = 1.0, data_loss_factor: float = 1.0
+    n, smoothness_loss_factor: float = 2.5, data_loss_factor: float = 2.5
 ):
     """Generate the full spectral lookup table across the unit simplex grid."""
     grid_coords = np.linspace(0, 1, n, dtype=np.float32)
@@ -374,7 +374,5 @@ def generate_spectral_sample_table(
 
 
 # Generate the data table using exact barycentric priors
-SPECTRUM_LUT = generate_spectral_sample_table(
-    33, smoothness_loss_factor=1.0, data_loss_factor=1.0
-)
+SPECTRUM_LUT = generate_spectral_sample_table(33)
 """A look-up table with spectral distributions across the CIE 1931 xy space."""
