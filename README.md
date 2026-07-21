@@ -23,7 +23,7 @@ pipeline simulates its reaction to light to the final appearance of the print ma
 - There is especially little data available about the interlayer interaction, e.g., how
   aggressive the color masking couplers in a negative film are.
 
-<img width="100%" alt="Spectral Film LUT main UI" src="https://github.com/user-attachments/assets/da6ba460-2edf-4b79-818d-f9ca977fc8b9" />
+<img width="100%" alt="Spectral Film LUT main UI" src="https://github.com/user-attachments/assets/bade9fc1-022d-43a2-84a0-f8ae107ded21" />
 
 ## Installation
 
