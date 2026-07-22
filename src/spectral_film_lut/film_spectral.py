@@ -1241,10 +1241,7 @@ class FilmSpectral:
             printing_mat = (
                 print_film.sensitivity.T * printer_light * 10**-negative_film.d_min_sd
             ).T
-            printing_mat = printing_mat.reshape(-1, 3, printing_mat.shape[-1]).sum(
-                axis=1
-            )
-            density_neg = density_neg.reshape(-1, 3, density_neg.shape[-1]).mean(axis=1)
+
             image = np.log10(
                 np.clip(10 ** -(image @ density_neg.T) @ printing_mat, 0.00001, None)
             )
@@ -1297,10 +1294,6 @@ class FilmSpectral:
             )  # log10(2) = 0.3
             density_neg = self.get_spectral_density(color_masking)
             printing_mat = (APD.T * 10**-self.d_min_sd).T
-            printing_mat = printing_mat.reshape(-1, 3, printing_mat.shape[-1]).sum(
-                axis=1
-            )
-            density_neg = density_neg.reshape(-1, 3, density_neg.shape[-1]).mean(axis=1)
 
             d_ref = self.log_exposure_to_density(self.log_H_ref, color_masking)
             reference = -np.log10(
@@ -1362,9 +1355,6 @@ class FilmSpectral:
                 mid_gray_sd = apply_2d_lut(mid_gray / mid_gray[1], SPECTRUM_LUT)
 
                 output_mat = output_mat * (projection_light / mid_gray_sd)[:, None]
-
-            output_mat = output_mat.reshape(-1, 3, 3).sum(axis=1)
-            density_mat = density_mat.reshape(-1, 3, 3).mean(axis=1)
 
             if white_comp:
                 peak_rgb = colour.XYZ_to_RGB(output_mat.sum(axis=0), "sRGB")

@@ -368,7 +368,7 @@ def xy_to_spectrum_nnls(
 
 
 def generate_spectral_sample_table(
-    n: int, smoothness_loss_factor: float = 2.5, data_loss_factor: float = 2.5
+    n: int, smoothness_loss_factor: float = 1.0, data_loss_factor: float = 2.5
 ) -> np.ndarray:
     """Generate the full spectral lookup table across the unit simplex grid."""
     triangulation, reduced_spectra = build_binned_triangulation(grid_res=n)
