@@ -386,6 +386,6 @@ FUJI_PRO_400H = FilmData(
             4.8732: 2.9929,
         },
     ],
-    rms=4,
+    rms=3.5,  # data says 4.0, but seems to grainy due to high d-min value
 )
 """Fuji Pro 400H"""

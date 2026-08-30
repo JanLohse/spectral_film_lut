@@ -1365,6 +1365,6 @@ class FilmSpectral:
                 10 ** -(self.get_d_ref(color_masking) @ density_mat.T) @ output_mat
             )
 
-            image = 10 ** -(image @ density_mat.T) @ output_mat
+            image = 10 ** -np.clip(image @ density_mat.T, 0, None) @ output_mat
 
         return image, out_gray
