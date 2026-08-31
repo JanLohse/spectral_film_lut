@@ -124,21 +124,16 @@ def film_conversion(
         if apd_intermediate:
             image = negative_film.scan_with_apd(
                 image,
-                color_masking=color_masking,
                 red_light=red_light,
                 green_light=green_light,
                 blue_light=blue_light,
             )
 
     if adx_coding and mode == "negative":
-        image = negative_film.adx_encoding(
-            image, adx_scaling, color_masking, apd_intermediate
-        )
+        image = negative_film.adx_encoding(image, adx_scaling, apd_intermediate)
 
     if adx_coding and (mode == "print" or mode == "grain"):
-        image = negative_film.adx_decoding(
-            image, adx_scaling, color_masking, apd_intermediate
-        )
+        image = negative_film.adx_decoding(image, adx_scaling, apd_intermediate)
     elif (
         mode == "print"
         and negative_film.density_measure == "bw"
@@ -151,7 +146,6 @@ def film_conversion(
             if not apd_intermediate:
                 image = negative_film.scan_with_apd(
                     image,
-                    color_masking=color_masking,
                     red_light=red_light,
                     green_light=green_light,
                     blue_light=blue_light,
@@ -175,7 +169,6 @@ def film_conversion(
                     image = negative_film.print_to(
                         image,
                         print_film,
-                        color_masking,
                         red_light,
                         green_light,
                         blue_light,
@@ -183,14 +176,12 @@ def film_conversion(
                         inversion_gamma,
                         d_min=d_min,
                     )
-                color_masking = None
             else:
                 output_film = negative_film
 
             image, out_gray = output_film.project(
                 image,
                 projector_kelvin,
-                color_masking,
                 white_clip,
                 white_balance and print_film is None,
             )
