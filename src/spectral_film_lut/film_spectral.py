@@ -79,9 +79,6 @@ class FilmSpectral:
 
         # Initialize computable variables.
         self.XYZ_to_exp = None
-        self.spectral_density_pure = None
-        self.density_curve_pure = None
-        self.sensiometric_curve_pure = None
         self.d_min = None
         self.d_ref = None
         self.d_max = None
@@ -116,9 +113,6 @@ class FilmSpectral:
                 np.array(list(curve.values()), dtype=DEFAULT_DTYPE)
                 for curve in film_data.sensiometric_curve
             ]
-        else:
-            self.log_exposure = None
-            self.density_curve = None
 
         # target exposure of middle gray in log lux-seconds
         # normally use iso value, if not provided use target density of 1.0 on the green
@@ -238,10 +232,8 @@ class FilmSpectral:
                 status_matrix = np.linalg.inv(
                     DENSIOMETRY[self.density_measure].T @ self.spectral_density
                 )
-            self.spectral_density_pure = self.spectral_density @ status_matrix
             density_curve = np.stack(self.density_curve).T
             density_curve @= status_matrix.T
-            self.density_curve_pure = self.density_curve
             self.density_curve = [
                 density_curve[:, 0],
                 density_curve[:, 1],
@@ -275,9 +267,7 @@ class FilmSpectral:
             self.sensiometric_curve = np.stack(
                 (self.log_exposure, *self.density_curve), dtype=DEFAULT_DTYPE
             )
-            self.d_ref = self.log_exposure_to_density(
-                self.log_H_ref, color_masking=0
-            ).reshape(-1)
+            self.d_ref = self.log_exposure_to_density(self.log_H_ref).reshape(-1)
             self.d_ref_sd = self.spectral_density @ self.d_ref + self.d_min_sd
 
         self.d_max = np.array([np.max(x) for x in self.density_curve])
@@ -358,12 +348,6 @@ class FilmSpectral:
         self.sensiometric_curve = np.stack(
             (self.log_exposure, *self.density_curve), dtype=DEFAULT_DTYPE
         )
-        if self.density_curve_pure is not None:
-            self.sensiometric_curve_pure = np.stack(
-                (self.log_exposure, *self.density_curve_pure), dtype=DEFAULT_DTYPE
-            )
-        else:
-            self.sensiometric_curve_pure = None
 
         # compute gamma
         index = 2 if len(self.log_exposure) == 3 else 1
@@ -437,22 +421,15 @@ class FilmSpectral:
             self.log_exposure[i] = np.concatenate([log_exposure, logistic_func_x[1:]])
             self.density_curve[i] = np.concatenate([density_curve, logistic_func_y[1:]])
 
-    def get_d_ref(self, color_masking: float | None = None) -> np.ndarray:
+    def get_d_ref(self) -> np.ndarray:
         """
         Get the d_ref of the current film stock under specified color masking intensity.
-
-        Args:
-            color_masking: Color masking factor. If None use default value for current
-                film. Safe values are in the range [0, 1], but higher values can be used
-                to get a highly saturated look.
 
         Returns:
             d_ref value for each channel.
         """
-        if color_masking is None:
-            color_masking = self.color_masking
 
-        return self.log_exposure_to_density(self.log_H_ref, color_masking).reshape(-1)
+        return self.log_exposure_to_density(self.log_H_ref).reshape(-1)
 
     def estimate_d_min_sd(self):
         """
@@ -575,7 +552,6 @@ class FilmSpectral:
     def log_exposure_to_density(
         self,
         log_exposure: np.ndarray,
-        color_masking: None | float = None,
         push_pull: float = 0.0,
         idealized_curve: bool = False,
         idealized_gamma: float = 3.0,
@@ -586,7 +562,6 @@ class FilmSpectral:
 
         Args:
             log_exposure: Log exposure data to convert as array.
-            color_masking: Color Masking factor in range [0, 1].
             push_pull: By how many stops to push/pull the negative to adjust contrast.
             idealized_curve: Replace the characteristic curve with an ideal gamma curve.
             idealized_gamma: The gamma of the idealized curve when it is used.
@@ -604,7 +579,7 @@ class FilmSpectral:
 
         density = multi_channel_interp(
             log_exposure,
-            self.get_density_curve(color_masking, push_pull),
+            self.get_density_curve(push_pull),
         )
 
         return density
@@ -619,7 +594,7 @@ class FilmSpectral:
         scaled_sensitivity /= scaled_sensitivity.sum(axis=0)
 
         # Get training transmittance spectra from reference negative.
-        spectral_density = reference_negative.get_spectral_density()
+        spectral_density = reference_negative.spectral_density
         m = 8
         values = np.linspace(0, 1, m, dtype=DEFAULT_DTYPE)
         grid = np.stack(np.meshgrid(values, values, values, indexing="ij"), axis=-1)
@@ -678,29 +653,17 @@ class FilmSpectral:
             d_min=d_min,
         )
 
-    def get_density_curve(
-        self, color_masking: None | float = None, push_pull: float = 0.0
-    ) -> np.ndarray:
+    def get_density_curve(self, push_pull: float = 0.0) -> np.ndarray:
         """
         Get characteristic density curve for current film stock.
 
         Args:
-            color_masking: Color Masking factor in range [0, 1]. If None use default for
-                current film stock.
             push_pull: By how many stops to push/pull the negative to adjust contrast.
 
         Returns:
             The density curve.
         """
-        if color_masking is None:
-            color_masking = self.color_masking
-        if self.sensiometric_curve_pure is None:
-            sensiometric_curve = self.sensiometric_curve.copy()
-        else:
-            sensiometric_curve = (
-                self.sensiometric_curve * (1 - color_masking)
-                + self.sensiometric_curve_pure * color_masking
-            )
+        sensiometric_curve = self.sensiometric_curve.copy()
 
         if push_pull != 0:
             push_pull *= math.log10(2)
@@ -714,25 +677,6 @@ class FilmSpectral:
                 sensiometric_curve[i + 1] = curve
 
         return sensiometric_curve
-
-    def get_spectral_density(self, color_masking: float | None = None) -> np.ndarray:
-        """
-        Get spectral density for current film stock.
-
-        Args:
-            color_masking: Color Masking factor in range [0, 1]. If None use default for
-                current film stock.
-
-        Returns:
-            Spectral density.
-        """
-        if color_masking is None:
-            color_masking = self.color_masking
-        if self.spectral_density_pure is None:
-            return self.spectral_density
-        return self.spectral_density_pure * color_masking + self.spectral_density * (
-            1 - color_masking
-        )
 
     def compute_print_matrix(
         self, print_film: "FilmSpectral", **kwargs: Any
@@ -801,7 +745,7 @@ class FilmSpectral:
             printer_light = np.sum(PRINTER_LIGHTS * light_factors, axis=1)
         return printer_light
 
-    def plot_data(self, film_b=None, color_masking=None):
+    def plot_data(self, film_b=None):
         """Plots the spectral density, sensitivity, and sensiometric curve."""
         wavelengths = SPECTRAL_SHAPE.wavelengths
         default_colors = ["r", "g", "b"]
@@ -813,7 +757,7 @@ class FilmSpectral:
             3, cols, figsize=(12 if cols == 2 else 8, 12), squeeze=False
         )
 
-        def plot_film_data(film, ax_col, color_masking=None):
+        def plot_film_data(film, ax_col):
             # Spectral Sensitivity
             num_curves = film.sensitivity.shape[1]
             colors = ["black"] if num_curves == 1 else default_colors
@@ -831,9 +775,7 @@ class FilmSpectral:
             colors = ["black"] if num_curves == 1 else default_colors
             gamma_values = []
 
-            for i, (log_exp, density) in enumerate(
-                zip(*film.get_density_curve(color_masking))
-            ):
+            for i, (log_exp, density) in enumerate(zip(*film.get_density_curve())):
                 color = colors[i] if i < len(colors) else None
                 axes[1, ax_col].plot(log_exp, density, color=color)
 
@@ -889,7 +831,7 @@ class FilmSpectral:
             # Spectral Density
             num_curves = film.spectral_density.shape[1]
             colors = ["black"] if num_curves == 1 else default_colors
-            for i, x in enumerate(film.get_spectral_density(color_masking).T):
+            for i, x in enumerate(film.spectral_density.T):
                 color = colors[i] if i < len(colors) else None
                 axes[2, ax_col].plot(wavelengths, x, color=color)
             axes[2, ax_col].plot(wavelengths, film.d_min_sd, "--", color="black")
@@ -899,7 +841,7 @@ class FilmSpectral:
             axes[2, ax_col].set_ylabel("Density")
 
         # Plot film_a in the first column
-        plot_film_data(self, 0, color_masking)
+        plot_film_data(self, 0)
 
         # Plot film_b in the second column if provided
         if is_comparison:
@@ -1023,36 +965,34 @@ class FilmSpectral:
         """Find the Lab Aim Density for a neutral gray."""
         projection_light = apply_2d_lut(CCT_to_XYZ(6504), SPECTRUM_LUT)
         d_min_sd = self.d_min_sd
-        density_mat = self.get_spectral_density()
         output_mat = (XYZ_CMFS.T * projection_light * 10**-d_min_sd).T
-        lad = output_to_density(CCT_to_XYZ(6504, luminance), density_mat, output_mat)
+        lad = output_to_density(
+            CCT_to_XYZ(6504, luminance), self.spectral_density, output_mat
+        )
         return lad
 
-    def layer_activation_to_apd_matrix(self, color_masking: None | float = None):
+    def layer_activation_to_apd_matrix(self):
         """
         Get the matrix that converts from layer activation to ACES Printing Density for
         ADX encoding.
         """
         if self.density_measure == "bw":
             return np.ones((1, 1), dtype=DEFAULT_DTYPE)
-        return APD.T @ self.get_spectral_density(color_masking)
+        return APD.T @ self.spectral_density
 
-    def apd_to_layer_activation_matrix(
-        self, color_masking: None | float = None
-    ) -> np.ndarray:
+    def apd_to_layer_activation_matrix(self) -> np.ndarray:
         """
         Get the matrix that converts from ACES Printing Density to layer activation for
         ADX decoding.
         """
         if self.density_measure == "bw":
             return np.ones((1, 1), dtype=DEFAULT_DTYPE)
-        return np.linalg.inv(self.layer_activation_to_apd_matrix(color_masking))
+        return np.linalg.inv(self.layer_activation_to_apd_matrix())
 
     def adx_encoding(
         self,
         image: np.ndarray,
         scaling: float = 1.0,
-        color_masking: None | float = None,
         apd_intermediate: bool = False,
     ) -> np.ndarray:
         """
@@ -1062,13 +1002,12 @@ class FilmSpectral:
             image: The image (or LUT) containing layer activations.
             scaling: Linear scaling applied to the values.
                 For 1.0 it is ADX16-like and for 4.0 it is ADX10-like.
-            color_masking: The color masking assumed for the layer activations.
 
         Returns:
             The image (or LUT) encoded in ADX.
         """
         if not apd_intermediate:
-            image @= self.layer_activation_to_apd_matrix(color_masking).T
+            image @= self.layer_activation_to_apd_matrix().T
 
         image = adx16_encode(image, scaling=scaling)
 
@@ -1078,7 +1017,6 @@ class FilmSpectral:
         self,
         image: np.ndarray,
         scaling: float = 1.0,
-        color_masking: None | float = None,
         apd_intermediate: bool = False,
     ) -> np.ndarray:
         """
@@ -1089,7 +1027,6 @@ class FilmSpectral:
             image: The image (or LUT) encoded in ADX.
             scaling: Linear scaling applied to the endoced values.
                 For 1.0 it is ADX16-like and for 4.0 it is ADX10-like.
-            color_masking: The color masking assumed for the layer activations.
 
         Returns:
             The image (or LUT) represented as absolute layer activations.
@@ -1100,7 +1037,7 @@ class FilmSpectral:
         image = adx16_decode(image, scaling=scaling)
 
         if not apd_intermediate:
-            image @= self.apd_to_layer_activation_matrix(color_masking).T
+            image @= self.apd_to_layer_activation_matrix().T
 
         return image
 
@@ -1143,15 +1080,94 @@ class FilmSpectral:
 
         log_clip(image)
 
-        image = self.log_exposure_to_density(image, color_masking, push_pull)
+        if color_masking is not None and color_masking != 0:
+            image = image @ self.get_color_masking_matrix(color_masking).T
+
+        image = self.log_exposure_to_density(image, push_pull)
 
         return image
+
+    import numpy as np
+
+    def get_color_masking_matrix(
+        self, color_masking: float, force_simple: bool = False
+    ) -> np.ndarray:
+        """Computes the 3x3 Log-E exposure inhibition matrix for film color masking.
+
+        Models interlayer development interactions and optical masking effects in the
+        relative log-exposure (Log-H) domain. For negative stocks measured in Status M,
+        it derives an empirical unmixing matrix by bridging the stock's spectral dye
+        densities with ACES APD densitometry. For slide stocks (or when forced), it
+        falls back to a row-normalized isotropic inhibition matrix scaled by relative
+        layer sensitivities.
+
+        Args:
+            color_masking: The strength of the color masking / interlayer effect.
+                0.0 corresponds to no masking (identity operation). 1.0 represents
+                full APD-based or baseline chemical unmixing. Values greater than
+                1.0 extrapolate the effect to increase saturation.
+            force_simple: If True, bypasses the APD-based spectral unmixing branch
+                and uses the simple isotropic interimage model regardless of the
+                stock's density measurement standard.
+
+        Returns:
+            A 3x3 float numpy array representing the transformation matrix to be
+            applied via right-matrix multiplication (`image @ M_log.T`) in Log-E space.
+        """
+        weights = self.log_H_ref / np.mean(self.log_H_ref)
+
+        if self.density_measure == "status_m" and not force_simple:
+            # Invert the forward physical coupling chain:
+            # Dye Spectra -> APD Filter -> ADX Crosstalk
+            coupled_apd_matrix = (
+                DENSIOMETRY["apd"].T @ self.spectral_density @ CDD_TO_CID.T
+            )
+            M_unmix_density = np.linalg.inv(coupled_apd_matrix)
+
+            # Scale density unmixing to relative Log-H exposure domain
+            W_ratio = weights[None, :] / weights[:, None]
+            K_exp_full = M_unmix_density * W_ratio
+
+            # Linearly interpolate between Identity (s=0.0) and full unmixing (s=1.0)
+            M_blended = (1.0 - color_masking) * np.eye(
+                3, dtype=DEFAULT_DTYPE
+            ) + color_masking * K_exp_full
+
+            # Normalize rows to guarantee zero exposure shift on neutral tones
+            row_sums = M_blended.sum(axis=1, keepdims=True)
+            M_log = M_blended / row_sums
+
+        else:
+            k = color_masking / 5.0
+
+            # Construct row-normalized, sensitivity-weighted Log-E inhibition matrix
+            M_log = np.array(
+                [
+                    [
+                        1.0 + (weights[1] / weights[0] + weights[2] / weights[0]) * k,
+                        -k * (weights[1] / weights[0]),
+                        -k * (weights[2] / weights[0]),
+                    ],
+                    [
+                        -k * (weights[0] / weights[1]),
+                        1.0 + (weights[0] / weights[1] + weights[2] / weights[1]) * k,
+                        -k * (weights[2] / weights[1]),
+                    ],
+                    [
+                        -k * (weights[0] / weights[2]),
+                        -k * (weights[1] / weights[2]),
+                        1.0 + (weights[0] / weights[2] + weights[1] / weights[2]) * k,
+                    ],
+                ],
+                dtype=DEFAULT_DTYPE,
+            )
+
+        return M_log
 
     def print_to(
         self,
         image: np.ndarray,
         print_film: "FilmSpectral",
-        color_masking: None | float = None,
         red_light: float = 0.0,
         green_light: float = 0.0,
         blue_light: float = 0.0,
@@ -1166,11 +1182,6 @@ class FilmSpectral:
             image: The image (or LUT) containing layer activations in absolute
                 densities.
             print_film: The film stock to print onto.
-            color_masking: How strong the color mask is on the negative film. 0 for no
-                mask. 1 for a perfectly optimized mask (no pollution of other layers).
-                >1 for increased saturation. Most film stocks don't provide exact data.
-                For films with orange mask can be close to 1, for other (e.g. slide
-                film) should be set quite low.
             red_light: Offset of the red printer light from neutral.
             green_light: Offset of the green printer light from neutral.
             blue_light: Offset of the blue printer light from neutral.
@@ -1185,7 +1196,6 @@ class FilmSpectral:
             image,
             self,
             print_film,
-            color_masking,
             red_light,
             green_light,
             blue_light,
@@ -1199,7 +1209,6 @@ class FilmSpectral:
         image: np.ndarray,
         negative_film: "FilmSpectral",
         print_film: "FilmSpectral",
-        color_masking: None | float = None,
         red_light: float = 0.0,
         green_light: float = 0.0,
         blue_light: float = 0.0,
@@ -1215,11 +1224,6 @@ class FilmSpectral:
                 densities.
             negative_film: The film stock from which to print.
             print_film: The film stock to print onto.
-            color_masking: How strong the color mask is on the negative film. 0 for no
-                mask. 1 for a perfectly optimized mask (no pollution of other layers).
-                >1 for increased saturation. Most film stocks don't provide exact data.
-                For films with orange mask can be close to 1, for other (e.g. slide
-                film) should be set quite low.
             red_light: Offset of the red printer light from neutral.
             green_light: Offset of the green printer light from neutral.
             blue_light: Offset of the blue printer light from neutral.
@@ -1234,7 +1238,6 @@ class FilmSpectral:
         if negative_film.density_measure == print_film.density_measure == "bw":
             image = -image + print_film.log_H_ref + negative_film.d_ref + green_light
         else:
-            density_neg = negative_film.get_spectral_density(color_masking)
             printer_light = negative_film.compute_printer_light(
                 print_film, red_light, green_light, blue_light
             )
@@ -1243,7 +1246,11 @@ class FilmSpectral:
             ).T
 
             image = np.log10(
-                np.clip(10 ** -(image @ density_neg.T) @ printing_mat, 0.00001, None)
+                np.clip(
+                    10 ** -(image @ negative_film.spectral_density.T) @ printing_mat,
+                    0.00001,
+                    None,
+                )
             )
 
         image = print_film.log_exposure_to_density(
@@ -1258,7 +1265,6 @@ class FilmSpectral:
     def scan_with_apd(
         self,
         image: np.ndarray,
-        color_masking: None | float = None,
         red_light: float = 0.0,
         green_light: float = 0.0,
         blue_light: float = 0.0,
@@ -1269,11 +1275,6 @@ class FilmSpectral:
         Args:
             image: The image (or LUT) containing layer activations in absolute
                 densities.
-            color_masking: How strong the color mask is on the negative film. 0 for no
-                mask. 1 for a perfectly optimized mask (no pollution of other layers).
-                >1 for increased saturation. Most film stocks don't provide exact data.
-                For films with orange mask can be close to 1, for other (e.g. slide
-                film) should be set quite low.
             red_light: Offset of the red printer light from neutral.
             green_light: Offset of the green printer light from neutral.
             blue_light: Offset of the blue printer light from neutral.
@@ -1292,10 +1293,10 @@ class FilmSpectral:
             compensation = 0.3 * np.array(
                 [red_light, green_light, blue_light], dtype=DEFAULT_DTYPE
             )  # log10(2) = 0.3
-            density_neg = self.get_spectral_density(color_masking)
+            density_neg = self.spectral_density
             printing_mat = (APD.T * 10**-self.d_min_sd).T
 
-            d_ref = self.log_exposure_to_density(self.log_H_ref, color_masking)
+            d_ref = self.log_exposure_to_density(self.log_H_ref)
             reference = -np.log10(
                 np.clip(10 ** -(d_ref @ density_neg.T) @ printing_mat, 0.00001, None)
             )
@@ -1309,7 +1310,6 @@ class FilmSpectral:
         self,
         image: np.ndarray,
         projector_kelvin: int | float = 6500,
-        color_masking: None | float = None,
         white_comp: bool = False,
         white_balance: bool = False,
     ) -> tuple[np.ndarray, np.ndarray | None]:
@@ -1320,11 +1320,6 @@ class FilmSpectral:
             image: The image (or LUT) containing layer activations in absolute
                 densities.
             projector_kelvin: The white balance in kelvin of the projection lamp.
-            color_masking: How strong the color mask is on the negative film. 0 for no
-                mask. 1 for a perfectly optimized mask (no pollution of other layers).
-                >1 for increased saturation. Most film stocks don't provide exact data.
-                For films with orange mask can be close to 1, for other (e.g. slide
-                film) should be set quite low.
             white_comp: Whether to adjust the output brightness that it clips at exactly
                 1.
             white_balance: Whether to adjust
@@ -1343,13 +1338,11 @@ class FilmSpectral:
         else:
             projection_light = apply_2d_lut(CCT_to_XYZ(projector_kelvin), SPECTRUM_LUT)
 
-            density_mat = self.get_spectral_density(color_masking)
+            density_mat = self.spectral_density
 
             output_mat = (XYZ_CMFS.T * projection_light * 10**-self.d_min_sd).T
 
-            mid_gray = (
-                10 ** -(self.get_d_ref(color_masking) @ density_mat.T) @ output_mat
-            )
+            mid_gray = 10 ** -(self.get_d_ref() @ density_mat.T) @ output_mat
 
             if white_balance:
                 mid_gray_sd = apply_2d_lut(mid_gray / mid_gray[1], SPECTRUM_LUT)
@@ -1361,9 +1354,7 @@ class FilmSpectral:
                 peak = peak_rgb.max()
                 output_mat *= 1 / peak
 
-            out_gray = (
-                10 ** -(self.get_d_ref(color_masking) @ density_mat.T) @ output_mat
-            )
+            out_gray = 10 ** -(self.get_d_ref() @ density_mat.T) @ output_mat
 
             image = 10 ** -np.clip(image @ density_mat.T, 0, None) @ output_mat
 
