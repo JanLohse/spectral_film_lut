@@ -1080,7 +1080,11 @@ class FilmSpectral:
 
         log_clip(image)
 
-        if color_masking is not None and color_masking != 0:
+        if (
+            color_masking is not None
+            and color_masking != 0
+            and self.density_measure != "bw"
+        ):
             image = image @ self.get_color_masking_matrix(color_masking).T
 
         image = self.log_exposure_to_density(image, push_pull)
