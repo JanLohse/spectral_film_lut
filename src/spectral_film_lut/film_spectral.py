@@ -1090,7 +1090,7 @@ class FilmSpectral:
     import numpy as np
 
     def get_color_masking_matrix(
-        self, color_masking: float, force_simple: bool = False
+        self, color_masking: float | None = None, force_simple: bool = False
     ) -> np.ndarray:
         """Computes the 3x3 Log-E exposure inhibition matrix for film color masking.
 
@@ -1114,6 +1114,9 @@ class FilmSpectral:
             A 3x3 float numpy array representing the transformation matrix to be
             applied via right-matrix multiplication (`image @ M_log.T`) in Log-E space.
         """
+        if color_masking is None:
+            color_masking = self.color_masking
+
         weights = self.log_H_ref / np.mean(self.log_H_ref)
 
         if self.density_measure == "status_m" and not force_simple:
