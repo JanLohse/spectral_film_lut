@@ -193,6 +193,7 @@ def film_conversion(
             shadow_comp=shadow_comp,
             gamma_func=gamma_func,
             rolloff=inversion,
+            gamut_compression=0.97 if inversion else None,
         )
 
     if mode == "grain":
