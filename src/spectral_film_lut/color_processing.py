@@ -3,7 +3,6 @@ Color processing transforms not directly related to film.
 """
 
 import math
-import time
 
 import colour
 import numpy as np
@@ -161,9 +160,7 @@ def output_color_transform(
         lut_XYZ @= COLOR_SPACES[output_gamut].xyz_to_rgb.T
 
     # compress gamut
-    start = time.time()
     lut_XYZ = compress_gamut(lut_XYZ, gamut_compression=gamut_compression)
-    print(f"{time.time() - start:.5f}s")
 
     # restore correct luminance after gamut compression
     if output_gamut != "CIE XYZ":
