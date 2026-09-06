@@ -208,6 +208,7 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
 RAWTOACES = colour.characterisation.read_training_data_rawtoaces_v1()
 RAWTOACES.align(SPECTRAL_SHAPE)
 RAWTOACES = RAWTOACES.values.T
+RAWTOACES_XYZ = RAWTOACES @ XYZ_CMFS
 
 ILLUMINANT_KEYS = [
     "A",

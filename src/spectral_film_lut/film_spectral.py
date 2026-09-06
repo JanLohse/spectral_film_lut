@@ -33,12 +33,14 @@ from spectral_film_lut.densiometry import (
 )
 from spectral_film_lut.film_data import FilmData
 from spectral_film_lut.utils import (
+    apd_to_xyz,
     film_conversion,
     log_clip,
     multi_channel_interp,
     smooth_roll_off,
 )
 from spectral_film_lut.xy_lut import (
+    RAWTOACES_XYZ,
     SPECTRUM_LUT,
     XYZ_CMFS,
     apply_2d_lut,
@@ -88,6 +90,8 @@ class FilmSpectral:
         self.gamma = None
         self.log_H_ref = None
         self.H_ref = None
+
+        self._cid_to_xyz = None
 
         # Basic conversion from film_data.
         if film_data.d_ref_sd is not None:
@@ -1364,3 +1368,31 @@ class FilmSpectral:
             image = 10 ** -np.clip(image @ density_mat.T, 0, None) @ output_mat
 
         return image, out_gray
+
+    @property
+    def cid_to_xyz(self):
+        """A per negative film stock optimized inversion matrix for use with apd_to_xyz.
+        The matrix assumes row vectors and therefore does not need to be transposed.
+        """
+        if self._cid_to_xyz is None:
+            self._cid_to_xyz = self._solve_cid_to_xyz()
+
+        return self._cid_to_xyz
+
+    def _solve_cid_to_xyz(self, inversion_gamma: float = 3.5):
+        training_samples = (
+            RAWTOACES_XYZ / RAWTOACES_XYZ.sum(axis=1, keepdims=True) * 0.18
+        )
+        activation = self.input_transform(training_samples)
+        apd = self.scan_with_apd(activation)
+        exp_to_xyz = np.eye(3, dtype=DEFAULT_DTYPE)
+        uncalibrated_xyz = apd_to_xyz(
+            apd, inversion_gamma=inversion_gamma, exp_to_xyz=exp_to_xyz
+        )
+
+        cid_to_xyz, _, _, _ = np.linalg.lstsq(
+            uncalibrated_xyz, training_samples, rcond=None
+        )
+        cid_to_xyz /= cid_to_xyz.sum(axis=0)
+
+        return cid_to_xyz

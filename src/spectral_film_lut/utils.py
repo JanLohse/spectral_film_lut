@@ -15,7 +15,7 @@ from numba import njit, prange
 from scipy.ndimage import median_filter
 
 from spectral_film_lut.color_processing import (
-    adp_to_xyz,
+    apd_to_xyz,
     bw_inversion,
     output_transform,
 )
@@ -57,6 +57,7 @@ def film_conversion(
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
     push_pull: float = 0.0,
     inversion: bool = False,
+    custom_inversion: bool = False,
     inversion_gamma: float = 3.0,
     idealized_curve: bool = False,
     apd_intermediate: bool = False,
@@ -159,8 +160,15 @@ def film_conversion(
             if negative_film.density_measure == "bw":
                 image = bw_inversion(image, inversion_gamma, projector_kelvin)
 
+            elif custom_inversion:
+                exp_to_xyz = negative_film.cid_to_xyz
+
+                image = apd_to_xyz(
+                    image, inversion_gamma, projector_kelvin, exp_to_xyz=exp_to_xyz
+                )
+
             else:
-                image = adp_to_xyz(image, inversion_gamma, projector_kelvin)
+                image = apd_to_xyz(image, inversion_gamma, projector_kelvin)
 
         else:
             if print_film is not None:
