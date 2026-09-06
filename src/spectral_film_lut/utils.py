@@ -14,7 +14,11 @@ from colour.hints import LiteralRGBColourspace
 from numba import njit, prange
 from scipy.ndimage import median_filter
 
-from spectral_film_lut.color_processing import adp_to_xyz, output_transform
+from spectral_film_lut.color_processing import (
+    adp_to_xyz,
+    bw_inversion,
+    output_transform,
+)
 from spectral_film_lut.color_space import (
     COLOR_SPACE_KEYS,
     GAMMA_FUNCTION_PEAK,
@@ -152,7 +156,11 @@ def film_conversion(
                     blue_light=blue_light,
                 )
 
-            image = adp_to_xyz(image, inversion_gamma, projector_kelvin)
+            if negative_film.density_measure == "bw":
+                image = bw_inversion(image, inversion_gamma, projector_kelvin)
+
+            else:
+                image = adp_to_xyz(image, inversion_gamma, projector_kelvin)
 
         else:
             if print_film is not None:

@@ -359,3 +359,31 @@ def adp_to_xyz(
     xyz = exp @ exp_to_xyz
 
     return xyz
+
+
+def bw_inversion(
+    apd: np.ndarray,
+    inversion_gamma: float = 2.0,
+    projector_kelvin: float | int = 6500,
+) -> np.ndarray:
+    """
+    Invert BW APD density values similar to `apd_to_xyz`.
+
+    Args:
+        apd: The input APD data.
+        inversion_gamma: The gamma to apply.
+
+    Returns:
+        The transformed image in CIE XYZ.
+    """
+    density = apd.mean(axis=-1, keepdims=True)
+
+    ref_pt = 0.78 * inversion_gamma - math.log10(0.18)
+
+    # Compute log exposure
+    logE = inversion_gamma * density - ref_pt
+
+    # Compute exposure
+    exp = 10**logE
+    white = CCT_to_XYZ(projector_kelvin, Y=1.0)[None, None, :]
+    return exp * white
