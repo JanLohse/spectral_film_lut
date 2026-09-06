@@ -261,7 +261,8 @@ class MainWindow(QMainWindow):
             "D-max",
         ]
         self.filmstocks["None"] = None
-        self.filmstocks["Inversion"] = None
+        self.filmstocks["Inversion (ACES like)"] = None
+        self.filmstocks["Inversion (Optimized)"] = None
         self.negative_selector = FilmStockSelector(
             negative_info,
             self,
@@ -399,7 +400,8 @@ class MainWindow(QMainWindow):
 
         print_info = {x: y for x, y in filmstock_info.items() if y["stage"] == "print"}
         print_info["None"] = {}
-        print_info["Inversion"] = {}
+        print_info["Inversion (ACES like)"] = {}
+        print_info["Inversion (Optimized)"] = {}
         sort_keys_print = ["Name", "Year", "Gamma", "D-max"]
         group_keys_print = ["Manufacturer", "Type", "Decade", "Medium"]
         list_keys_print = ["Manufacturer", "Type", "Year", "Chromaticity"]
@@ -731,6 +733,7 @@ class MainWindow(QMainWindow):
         negative_film = self.filmstocks[self.negative_selector.currentText()]
         print_film = self.filmstocks[self.print_selector.currentText()]
         inversion = "Inversion" in self.print_selector.currentText()
+        custom_inversion = "ACES" not in self.print_selector.currentText()
         input_colorspace = self.input_colorspace_selector.currentText()
         projector_kelvin = self.projector_kelvin.getValue()
         inversion_gamma = self.inversion_gamma.getValue()
@@ -794,6 +797,7 @@ class MainWindow(QMainWindow):
             idealized_curve=idealized_curve,
             apd_intermediate=apd_intermediate,
             filter_mode=filter_mode,
+            custom_inversion=custom_inversion,
             reference_negative=self.filmstocks["Kodak Vision3 250D 5207"],
         )
         return lut
@@ -824,7 +828,7 @@ class MainWindow(QMainWindow):
     def print_light_changed(self):
         if (
             self.print_selector.currentText() == "None"
-            or self.print_selector.currentText() == "Inversion"
+            or "Inversion" in self.print_selector.currentText()
         ):
             self.red_light.setDisabled(True)
             self.green_light.setDisabled(True)
