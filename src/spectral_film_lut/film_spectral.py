@@ -1091,8 +1091,6 @@ class FilmSpectral:
 
         return image
 
-    import numpy as np
-
     def get_color_masking_matrix(
         self, color_masking: float | None = None, force_simple: bool = False
     ) -> np.ndarray:

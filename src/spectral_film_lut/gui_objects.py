@@ -36,7 +36,6 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
@@ -656,11 +655,12 @@ class BaseSliderWidget(QWidget):
         self.slider = CoreGradientSlider(continuous=continuous)
         self.slider.setOrientation(Qt.Orientation.Horizontal)
 
-        self.text = QLabel()
+        self.text = HoverLineEdit()
         self.text.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
         self.text.setFixedWidth(40)  # Expanded slightly to protect 3-decimal values
+        self.text.editingFinished.connect(self._apply_text_value)
 
         self.layout.addWidget(self.slider)
         self.layout.addWidget(self.text)
@@ -729,6 +729,33 @@ class BaseSliderWidget(QWidget):
 
     def decrease(self, value=1):
         self.slider.setValue(self.slider.value() - value)
+
+    def _apply_text_value(self):
+        text = self.text.text().strip()
+        if text == "":
+            self.update_text_display()
+            return
+
+        try:
+            value = float(text)
+        except ValueError:
+            self.update_text_display()
+            return
+
+        try:
+            self.setValue(value)
+        except Exception:
+            try:
+                minv = getattr(self, "min", None)
+                maxv = getattr(self, "max", None)
+                if minv is not None and maxv is not None:
+                    val = max(minv, min(maxv, value))
+                    self.setValue(val)
+            except Exception:
+                self.update_text_display()
+                return
+
+        self.update_text_display()
 
 
 class Slider(BaseSliderWidget):

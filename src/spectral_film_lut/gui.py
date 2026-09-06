@@ -646,6 +646,26 @@ class MainWindow(QMainWindow):
             " combine\nnegative and print LUTs arbitrarily.\nWill be ignored for slide"
             "film.",
         )
+        self.filter_mode = WideComboBox(self)
+        self.filter_mode.addItems(
+            [
+                "No filtering",
+                "Oversampling",
+                "Shift",
+            ]
+        )
+        add_option(
+            self.filter_mode,
+            "LUT filter",
+            "No filtering",
+            self.filter_mode.setCurrentText,
+            tool_tip="Select filter mode for LUT generation.\n"
+            "No oversampling evaluates LUT at target size.\n"
+            "Downsampling creates a LUT at twice the resolution and applies a median "
+            "filter, increasing computation cost.\n"
+            "Shift computes an offset cube an applies median filtering, giving each"
+            "point 8 samples to work with.",
+        )
 
         self.save_lut_button = AnimatedButton("Save LUT")
         """Export the LUT."""
@@ -684,6 +704,7 @@ class MainWindow(QMainWindow):
         self.sat_adjust.valueChanged.connect(self.parameter_changed)
         self.adx_scale.currentTextChanged.connect(self.parameter_changed)
         self.apd_intermediate.stateChanged.connect(self.parameter_changed)
+        self.filter_mode.currentTextChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -738,6 +759,11 @@ class MainWindow(QMainWindow):
             self.adx_scale.currentText()
         ]
         apd_intermediate = self.apd_intermediate.isChecked()
+        oversampling_mode = self.filter_mode.currentText()
+        filter_mode = {
+            "Oversampling": "oversampling",
+            "Shift": "shift",
+        }.get(oversampling_mode, None)
 
         lut = create_lut(
             negative_film,
@@ -767,6 +793,7 @@ class MainWindow(QMainWindow):
             inversion_gamma=inversion_gamma,
             idealized_curve=idealized_curve,
             apd_intermediate=apd_intermediate,
+            filter_mode=filter_mode,
             reference_negative=self.filmstocks["Kodak Vision3 250D 5207"],
         )
         return lut

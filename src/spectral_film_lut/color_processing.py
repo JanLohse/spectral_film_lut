@@ -79,7 +79,9 @@ COLORCHECKER_2005 = COLORCHECKER_2005[1:]
 COLORCHECKER_2005 = np.asarray(COLORCHECKER_2005, DEFAULT_DTYPE)
 
 
-def gamut_compression(image: np.ndarray, strength: float = 0.99) -> np.ndarray:
+def compress_gamut(
+    image: np.ndarray, gamut_compression: float | None = None
+) -> np.ndarray:
     """
     A simple gamut compression that limits the maximal relative distance from the
     achromatic. Inspired by ACES Reference Gamut Compression. Has been simplified
@@ -90,18 +92,21 @@ def gamut_compression(image: np.ndarray, strength: float = 0.99) -> np.ndarray:
 
     Args:
         image: The image to transform.
-        strength: How strong to compress. strength=1 is uncompressed and strength=0
-            is fully desaturated.
+        gamut_compression: How strong to compress. strength=1 is uncompressed and
+            strength=0 is fully desaturated.
 
     Returns:
         The compressed image.
     """
+    if gamut_compression is None:
+        gamut_compression = 0.99
+
     # Get achromatic value
     a = image.max(axis=-1, keepdims=True)
 
     # Compute and limit distance from achromatic value.
     d = np.where(a > 0, (a - image) / np.abs(a), 0)
-    d = np.clip(d, 0, strength)
+    d = np.clip(d, 0, gamut_compression)
 
     # Reconstruct image with limited distance, resulting in limited saturation.
     image = a - d * np.abs(a)
@@ -116,6 +121,7 @@ def output_color_transform(
     lut_size: int = 33,
     rolloff: bool = False,
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
+    gamut_compression: None | float = None,
 ) -> np.ndarray:
     """
     Transform from XYZ to the target gamut and adjust the saturation.
@@ -154,7 +160,7 @@ def output_color_transform(
         lut_XYZ @= COLOR_SPACES[output_gamut].xyz_to_rgb.T
 
     # compress gamut
-    lut_XYZ = gamut_compression(lut_XYZ)
+    lut_XYZ = compress_gamut(lut_XYZ, gamut_compression=gamut_compression)
 
     # restore correct luminance after gamut compression
     if output_gamut != "CIE XYZ":
@@ -250,6 +256,7 @@ def output_transform(
     shadow_comp: float = 0.0,
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
     rolloff: bool = False,
+    gamut_compression: None | float = None,
 ) -> np.ndarray:
     """
     Transform display referred linear CIE XYZ data to a display color space with some
@@ -274,6 +281,7 @@ def output_transform(
         lut_size,
         rolloff=rolloff,
         gamma_func=gamma_func,
+        gamut_compression=gamut_compression,
     )
 
     if shadow_comp:
