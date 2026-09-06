@@ -12,6 +12,7 @@ import colour
 import numpy as np
 from colour.hints import LiteralRGBColourspace
 from numba import njit, prange
+from scipy.ndimage import median_filter
 
 from spectral_film_lut.color_processing import adp_to_xyz, output_transform
 from spectral_film_lut.color_space import (
@@ -211,27 +212,71 @@ def create_lut(
     cube: bool = True,
     verbose: bool = False,
     linear_scaling: float = 1.0,
+    filter_mode: Literal["oversampling", "shift"] | None = None,
     **kwargs,
 ) -> np.ndarray | str:
     """
-    Creates a cube LUT from using `.film_spectral.FilmSpectral.generate_conversion`.
+    Creates a 3D LUT using film spectral conversions with selectable
+    oversampling and cell-shift filtering modes.
+
+    Modes:
+      - 'oversampling' : (2N-1)^3 grid, 3x3x3 3D median filter + direct decimation.
+      - 'shift'        : (N+1)^3 dual grid, 8-corner cell voxel median.
+      - None           : Standard N^3 evaluation without oversampling.
     """
-    lut = colour.LUT3D(size=lut_size, name="test")
     start = time.time()
+
+    # Construct evaluation grid
+    if filter_mode is None:
+        eval_grid = colour.LUT3D(size=lut_size).table
+    elif filter_mode == "oversampling":
+        eval_grid = colour.LUT3D(size=lut_size * 2 - 1).table
+    elif filter_mode == "shift":
+        g_k = np.clip((np.arange(lut_size + 1) - 0.5) / (lut_size - 1), 0.0, 1.0)
+        r, g, b = np.meshgrid(g_k, g_k, g_k, indexing="ij")
+        eval_grid = np.stack([r, g, b], axis=-1)
+    else:
+        raise ValueError(f"Unsupported filter_mode: {filter_mode}")
+
+    # Apply film look
     table = film_conversion(
-        lut.table * linear_scaling, negative_film, print_film, **kwargs
+        eval_grid * linear_scaling, negative_film, print_film, **kwargs
     )
     if table.shape[-1] == 1:
-        table = table.repeat(3, -1)
-    if cube:
-        lut.table = table
-    else:
+        table = np.repeat(table, 3, axis=-1)
+
+    # 3. Apply selected filtering mode
+    if filter_mode == "oversampling":
+        filtered_hi = np.zeros_like(table)
+        for c in range(3):
+            filtered_hi[..., c] = median_filter(table[..., c], size=3, mode="nearest")
+        table = filtered_hi[::2, ::2, ::2]
+
+    elif filter_mode == "shift":
+        c000 = table[:-1, :-1, :-1]
+        c100 = table[1:, :-1, :-1]
+        c010 = table[:-1, 1:, :-1]
+        c110 = table[1:, 1:, :-1]
+        c001 = table[:-1, :-1, 1:]
+        c101 = table[1:, :-1, 1:]
+        c011 = table[:-1, 1:, 1:]
+        c111 = table[1:, 1:, 1:]
+
+        corners = np.stack([c000, c100, c010, c110, c001, c101, c011, c111], axis=0)
+        table = np.median(corners, axis=0)
+
+    if not cube:
+        if verbose:
+            print(f"Created LUT in {time.time() - start:.4f} seconds")
         return table
-    end = time.time()
+
+    lut = colour.LUT3D(table=table, name=name)
     path = f"{name}.cube"
     colour.io.write_LUT(lut, path)
+
     if verbose:
-        print(f"created {path} in {end - start:.2f} seconds")
+        print(f"Created {path} in {time.time() - start:.4f} seconds")
+
     return path
 
 
