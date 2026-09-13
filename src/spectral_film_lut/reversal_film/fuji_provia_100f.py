@@ -260,7 +260,7 @@ FUJI_PROVIA_100F = FilmData(
             61.0497: 0.2580,
         }
     ],
-    color_masking=0.25,
+    color_masking=0.3,
     rms_curve=[
         {  # copied from Ektachrome 100D
             -2.9756: 0.0307,

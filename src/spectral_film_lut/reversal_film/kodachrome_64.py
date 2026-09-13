@@ -358,7 +358,7 @@ KODACHROME_64 = FilmData(
             2.4873: 1.0984,
         }
     ],
-    color_masking=0.25,
+    color_masking=0.3,
     rms_curve=[
         {  # copied from Ektachrome 100D
             -2.9756: 0.0307,

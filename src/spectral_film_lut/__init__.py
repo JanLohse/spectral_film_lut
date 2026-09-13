@@ -98,7 +98,10 @@ from spectral_film_lut.reversal_film.fuji_provia_100f import FUJI_PROVIA_100F
 from spectral_film_lut.reversal_film.fuji_velvia_50 import FUJI_VELVIA_50
 from spectral_film_lut.reversal_film.kodachrome_64 import KODACHROME_64
 from spectral_film_lut.reversal_film.kodak_aerochrome_iii import KODAK_AEROCHROME_III
-from spectral_film_lut.reversal_film.kodak_ektachrome_100d import KODAK_EKTACHROME_100D
+from spectral_film_lut.reversal_film.kodak_ektachrome_100d import (
+    KODAK_EKTACHROME_100D,
+    KODAK_EKTACHROME_100D_ALT,
+)
 from spectral_film_lut.reversal_print.ilfochrome_micrographic_m import (
     ILFOCHROME_MICROGRAPHIC_M,
 )
@@ -224,6 +227,7 @@ REVERSAL_FILM = [
     KODACHROME_64,
     KODAK_AEROCHROME_III,
     KODAK_EKTACHROME_100D,
+    KODAK_EKTACHROME_100D_ALT,
 ]
 """All available reversal (slide) film stocks."""
 

@@ -1320,7 +1320,7 @@ class FilmSpectral:
         image: np.ndarray,
         projector_kelvin: int | float = 6500,
         white_comp: bool = False,
-        white_balance: bool = False,
+        white_balance: int = 0,
     ) -> tuple[np.ndarray, np.ndarray | None]:
         """
         Get the scene referred output from projection or viewing under an illuminant.
@@ -1331,7 +1331,8 @@ class FilmSpectral:
             projector_kelvin: The white balance in kelvin of the projection lamp.
             white_comp: Whether to adjust the output brightness that it clips at exactly
                 1.
-            white_balance: Whether to adjust
+            white_balance: White balance mode for slide projection:
+                0 disabled, 1 based on mid gray, 2 based on peak white.
 
         Returns:
             The projected image in linear CIE XYZ color space.
@@ -1354,7 +1355,13 @@ class FilmSpectral:
             mid_gray = 10 ** -(self.get_d_ref() @ density_mat.T) @ output_mat
 
             if white_balance:
-                mid_gray_sd = apply_2d_lut(mid_gray / mid_gray[1], SPECTRUM_LUT)
+                balance_source = mid_gray
+                if white_balance == 2:
+                    balance_source = output_mat.sum(axis=0)
+
+                mid_gray_sd = apply_2d_lut(
+                    balance_source / balance_source[1], SPECTRUM_LUT
+                )
 
                 output_mat = output_mat * (projection_light / mid_gray_sd)[:, None]
 

@@ -265,7 +265,7 @@ FUJI_VELVIA_50 = FilmData(
             61.4669: 0.3324,
         }
     ],
-    color_masking=0.75,
+    color_masking=0.5,
     rms_curve=[
         {  # copied from Ektachrome 100D
             -2.9756: 0.0307,

@@ -498,7 +498,14 @@ class MainWindow(QMainWindow):
 
         self.white_balance = QCheckBox("WB")
         """Whether to white balance slide film."""
-        self.white_balance.setToolTip("Whether to white balance slide film.")
+        self.white_balance.setTristate(True)
+        self.white_balance.setCheckState(Qt.CheckState.Unchecked)
+        self.white_balance.setToolTip(
+            "Slide film white balance mode:\n"
+            "Unchecked = off\n"
+            "Partially checked = balance by peak white\n"
+            "Checked = balance by mid gray"
+        )
 
         checker_widget = QWidget()
         checker_widget_layout = QHBoxLayout(checker_widget)
@@ -749,7 +756,11 @@ class MainWindow(QMainWindow):
             output_gamut = None
         size = int(self.lut_size.getValue())
         white_clip = self.white_clip.isChecked()
-        white_balance = self.white_balance.isChecked()
+        white_balance = {
+            Qt.CheckState.Unchecked: 0,
+            Qt.CheckState.Checked: 1,
+            Qt.CheckState.PartiallyChecked: 2,
+        }[self.white_balance.checkState()]
         shadow_comp = self.shadow_comp.getValue()
         color_masking = self.color_masking.getValue()
         mode = self.mode.currentText()
