@@ -1356,7 +1356,7 @@ class FilmSpectral:
 
             if white_balance:
                 balance_source = mid_gray
-                if white_balance == 2:
+                if white_balance == 1:
                     balance_source = output_mat.sum(axis=0)
 
                 mid_gray_sd = apply_2d_lut(
