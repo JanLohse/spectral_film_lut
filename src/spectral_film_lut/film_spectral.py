@@ -41,9 +41,10 @@ from spectral_film_lut.utils import (
 )
 from spectral_film_lut.xy_lut import (
     RAWTOACES_XYZ,
-    SPECTRUM_LUT,
     XYZ_CMFS,
+    UpsampleMethod,
     apply_2d_lut,
+    get_spectrum_lut,
 )
 
 
@@ -935,6 +936,7 @@ class FilmSpectral:
         exposure_kelvin: int | float = 6500,
         tint: float = 0.0,
         exp_comp: float = 0.0,
+        upsampling_method: UpsampleMethod | str = "SFL upsampling",
     ) -> np.ndarray:
         """
         Compute a 2D LUT for use with [`apply_2d_lut`][] that converts from scene linear
@@ -944,6 +946,8 @@ class FilmSpectral:
             exposure_kelvin: The scene WB in kelvin.
             tint: The tint adjustment on the green -- red/purple axis.
             exp_comp: Exposure compensation in stops.
+            upsampling_method: Method for reconstructing a spectral distribution from
+                CIE XYZ values.
 
         Returns:
             The 2D LUT of shape (n, n, 3).
@@ -951,12 +955,13 @@ class FilmSpectral:
         exp_comp = 2**exp_comp
         gray_XYZ = CCT_to_XYZ(exposure_kelvin, 0.18, tint)
         reference_XYZ = CCT_to_XYZ(6504, 0.18)
-        gray_spectral = apply_2d_lut(gray_XYZ, SPECTRUM_LUT)
-        reference_spectral = apply_2d_lut(reference_XYZ, SPECTRUM_LUT)
+        spectrum_lut = get_spectrum_lut(upsampling_method)
+        gray_spectral = apply_2d_lut(gray_XYZ, get_spectrum_lut())
+        reference_spectral = apply_2d_lut(reference_XYZ, get_spectrum_lut())
         corrected_sensitivity = (
             self.sensitivity * (reference_spectral / gray_spectral)[:, None]
         )
-        spectral_input_lut = SPECTRUM_LUT @ corrected_sensitivity
+        spectral_input_lut = spectrum_lut @ corrected_sensitivity
         if self.density_measure == "bw":
             ref_exp = apply_2d_lut(reference_XYZ, spectral_input_lut)
         else:
@@ -967,7 +972,7 @@ class FilmSpectral:
 
     def compute_lad(self, luminance=0.1):
         """Find the Lab Aim Density for a neutral gray."""
-        projection_light = apply_2d_lut(CCT_to_XYZ(6504), SPECTRUM_LUT)
+        projection_light = apply_2d_lut(CCT_to_XYZ(6504), get_spectrum_lut())
         d_min_sd = self.d_min_sd
         output_mat = (XYZ_CMFS.T * projection_light * 10**-d_min_sd).T
         lad = output_to_density(
@@ -1054,6 +1059,7 @@ class FilmSpectral:
         tint: float = 0.0,
         color_masking: None | float = None,
         push_pull: float = 0.0,
+        upsampling_method: UpsampleMethod | str = "barycentric_nnls_all",
     ) -> np.ndarray:
         """
         Transform from scene referred image data to the per layer activation in absolute
@@ -1078,7 +1084,7 @@ class FilmSpectral:
         if colorspace is not None:
             image = colour.RGB_to_XYZ(image, colorspace, apply_cctf_decoding=True)
 
-        input_lut = self.get_input_lut(exp_kelvin, tint, exp_comp)
+        input_lut = self.get_input_lut(exp_kelvin, tint, exp_comp, upsampling_method)
 
         image = apply_2d_lut(np.clip(image, 0, None), input_lut)
 
@@ -1346,7 +1352,10 @@ class FilmSpectral:
                 image = image * adjust
 
         else:
-            projection_light = apply_2d_lut(CCT_to_XYZ(projector_kelvin), SPECTRUM_LUT)
+            projection_light = apply_2d_lut(
+                CCT_to_XYZ(projector_kelvin),
+                get_spectrum_lut(),
+            )
 
             density_mat = self.spectral_density
 
@@ -1360,7 +1369,8 @@ class FilmSpectral:
                     balance_source = output_mat.sum(axis=0)
 
                 mid_gray_sd = apply_2d_lut(
-                    balance_source / balance_source[1], SPECTRUM_LUT
+                    balance_source / balance_source[1],
+                    get_spectrum_lut(),
                 )
 
                 output_mat = output_mat * (projection_light / mid_gray_sd)[:, None]
