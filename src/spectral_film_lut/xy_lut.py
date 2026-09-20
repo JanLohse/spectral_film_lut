@@ -1,44 +1,50 @@
 r"""
-2D LUT application in chromaticity space using barycentric interpolation.
+2D LUT application in chromaticity space using barycentric interpolation and spectral
+upsampling.
 
-This module implements a lookup-table (LUT) transform in normalized chromaticity
-coordinates derived from tristimulus values. The transform is suitable for
-operators that scale linearly with overall intensity.
+This module provides tools for transforming trichromatic colors (XYZ / xyS) into
+high-dimensional spectral distributions across targeted wavelength bins, applying
+high-performance 2D lookup tables in normalized chromaticity space, and caching
+generated lookup tables on demand.
 
-We operate in $xyS$ space instead of the conventional $xyY$ formulation for
-improved numerical stability when $Y \to 0$:
+Supported Spectral Upsampling Algorithms:
+------------------------------------------
+1. SFL upsampling:
+    A custom hybrid method combining empirical spectral data with constrained
+    optimization. It builds a 2D Delaunay triangulation mesh in chromaticity space from
+    training spectra (RawToACES dataset multiplied across 12 standard illuminants) to
+    derive a barycentric prior spectrum, which is then refined using Non-Negative Least
+    Squares (NNLS) with smoothness and data regularizers.
 
-\begin{align}
-    S &= X + Y + Z \\
-    x &= X / S \\
-    y &= Y / S
-\end{align}
+2. Pure NNLS Optimization:
+    Reconstructs spectra by solving a non-negative least-squares problem matching target
+    XYZ values, constrained purely by a 1D first-derivative smoothness loss penalty
+    without relying on dataset priors.
 
-Key assumptions and conventions:
+3. Simple Matrix:
+    A fast linear least-squares model (`XYZ -> Spectrum`) fitted to D65-illuminated
+    spectral datasets. Reconstructed spectra are clamped to non-negative bounds and
+    re-normalized to unit chromaticity sum S.
 
-- Inputs must be non-negative.
-- For $S = 0$, chromaticity is undefined; we define $(x, y) = (0, 0)$ and
-  the output is set to zero.
-- The LUT is defined over the domain $(x, y, S=1)$, i.e. the unit simplex
-  in chromaticity space.
-- Interpolation is performed in 2D $(x, y)$ space using triangular
-  (barycentric) interpolation within each grid cell.
-- The interpolated result is scaled by the original intensity $S$.
+4. Mallett 2019:
+    Utilizes `colour.XYZ_to_sd` implementation of the Mallett et al. (2019) algorithm.
+    Generates smooth, physically plausible reflectance spectra designed for computer
+    graphics and color management.
 
-LUT format:
+5. Otsu 2018:
+    Utilizes `colour.XYZ_to_sd` implementation of the Otsu et al. (2018) algorithm.
+    Constructs smooth non-negative spectra optimized for wide-gamut RGB/XYZ inputs.
 
-- A LUT of resolution $n$ with $c$ output channels must have shape $(n, n, c)$.
-- The grid spans $(x, y) \in [0, 1] \times [0, 1]$.
-- Values represent the transform evaluated at $(x, y, S=1)$.
-
-Pipeline:
-
-1. Convert input $XYZ \mapsto xyS$.
-2. Interpolate LUT values in $(x, y)$.
-3. Rescale the result by $S$.
+6. Smits 1999:
+    Utilizes `colour.XYZ_to_sd` implementation of Smits' (1999) classical algorithm.
+    Reconstructs spectra using pre-calculated smooth basis curves for primary,
+    secondary, and white colors.
 """
 
+import functools
 import math
+from collections.abc import Callable
+from typing import Literal
 
 import colour
 import numpy as np
@@ -48,17 +54,27 @@ from scipy.spatial import Delaunay
 
 from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
 
+# Color Matching Functions (CMFs)
+
 XYZ_CMFS = np.asarray(
     colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"]
     .align(SPECTRAL_SHAPE)
     .values,
     dtype=DEFAULT_DTYPE,
 )
-"""The CIE XYZ 1931 color matching functions."""
+
+
+_RAWTOACES = colour.characterisation.read_training_data_rawtoaces_v1()
+_RAWTOACES.align(SPECTRAL_SHAPE)
+_RAWTOACES = _RAWTOACES.values.T
+RAWTOACES_XYZ = _RAWTOACES @ XYZ_CMFS
+
+
+# Color Space Conversion & LUT Application Functions
 
 
 def xyS_to_XYZ(xyS: np.ndarray) -> np.ndarray:
-    """Convert from $xyS$ to $XYZ$."""
+    """Convert from xyS to XYZ."""
     h, w, c = xyS.shape
     out = np.empty((h, w, c), dtype=np.float32)
 
@@ -104,36 +120,7 @@ def XYZ_to_xyS(XYZ: np.ndarray) -> np.ndarray:
 
 @njit(parallel=True)
 def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
-    """
-    Apply a 2D lookup table (LUT) in chromaticity space with barycentric interpolation.
-
-    The input is interpreted as tristimulus values $(X, Y, Z)$. Each pixel is
-    mapped to $(x, y, S)$ with $S = X + Y + Z$, interpolated in $(x, y)$ using
-    the LUT defined at $S = 1$, and finally scaled back by $S$.
-
-    Interpolation is performed per pixel using triangular (barycentric)
-    interpolation within each LUT grid cell.
-
-    Args:
-        image (np.ndarray):
-            Input array of shape (..., 3) containing non-negative $XYZ$ values.
-        lut (np.ndarray):
-            2D LUT of shape (n, n, c), where n is the grid resolution and
-            c is the number of output channels. The LUT encodes values for
-            $(x, y, S=1)$ over the domain $[0, 1]^2$.
-
-    Returns:
-        ndarray:
-            Output array of shape (..., c), where c is the number of LUT channels.
-
-    Notes:
-        - Pixels with $S = 0$ produce zero output.
-        - The LUT is indexed assuming a uniform grid over $[0, 1]^2$.
-        - Interpolation switches between two triangles per grid cell based on
-          the fractional position within the cell.
-        - No bounds checking is performed; inputs are assumed to map into
-          the LUT domain.
-    """
+    """Apply a 2D lookup table in chromaticity space with barycentric interpolation."""
     orig_shape = image.shape
     c = orig_shape[-1]
 
@@ -205,12 +192,10 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
     return out_flat.reshape(out_shape)
 
 
-RAWTOACES = colour.characterisation.read_training_data_rawtoaces_v1()
-RAWTOACES.align(SPECTRAL_SHAPE)
-RAWTOACES = RAWTOACES.values.T
-RAWTOACES_XYZ = RAWTOACES @ XYZ_CMFS
+# Lazy Data Loading Helpers
 
-ILLUMINANT_KEYS = [
+
+ALL_ILLUMINANT_KEYS: tuple[str, ...] = (
     "A",
     "D50",
     "D55",
@@ -223,24 +208,32 @@ ILLUMINANT_KEYS = [
     "LED-B3",
     "LED-B5",
     "LED-V1",
-]
+)
 
 
-def _prepare_training_data() -> tuple[np.ndarray, np.ndarray]:
-    """
-    Generates globally stacked, S-normalized training spectra and chromaticity
-    coordinates.
-    """
+@functools.lru_cache(maxsize=8)
+def _get_training_data(
+    illuminants: tuple[str, ...], return_xyz: bool = False
+) -> tuple[np.ndarray, np.ndarray]:
+    """Lazy loader and generator for spectral training datasets."""
+    rawtoaces = colour.characterisation.read_training_data_rawtoaces_v1()
+    rawtoaces.align(SPECTRAL_SHAPE)
+    rawtoaces_data = rawtoaces.values.T
+
     raw_spectra_list = []
-    for key in ILLUMINANT_KEYS:
-        blackbody_spd = np.asarray(
+    for key in illuminants:
+        spd = np.asarray(
             colour.SDS_ILLUMINANTS[key].align(SPECTRAL_SHAPE).values,
             dtype=DEFAULT_DTYPE,
         )
-        raw_spectra_list.append(RAWTOACES * blackbody_spd)
+        raw_spectra_list.append(rawtoaces_data * spd)
 
     all_spectra = np.vstack(raw_spectra_list)
     all_xyz = all_spectra @ XYZ_CMFS
+
+    if return_xyz:
+        return all_xyz, all_spectra
+
     all_s = np.sum(all_xyz, axis=-1, keepdims=True)
 
     all_spectra_norm = all_spectra / all_s
@@ -249,35 +242,33 @@ def _prepare_training_data() -> tuple[np.ndarray, np.ndarray]:
     return all_xy, all_spectra_norm
 
 
-_ALL_XY, _ALL_SPECTRA_NORM = _prepare_training_data()
-
-
-def build_binned_triangulation(grid_res: int) -> tuple[Delaunay, np.ndarray]:
-    """
-    Bins globally stacked S-normalized spectra into a 2D grid matching resolution
-    grid_res.
-    """
+def build_binned_triangulation(
+    all_xy: np.ndarray, all_spectra_norm: np.ndarray, grid_res: int
+) -> tuple[Delaunay, np.ndarray]:
+    """Bins training spectra into grid resolution and creates Delaunay triangulation."""
     scale = grid_res - 1
 
-    x_indices = np.clip(np.floor(_ALL_XY[:, 0] * scale).astype(int), 0, grid_res - 2)
-    y_indices = np.clip(np.floor(_ALL_XY[:, 1] * scale).astype(int), 0, grid_res - 2)
+    x_indices = np.clip(np.floor(all_xy[:, 0] * scale).astype(int), 0, grid_res - 2)
+    y_indices = np.clip(np.floor(all_xy[:, 1] * scale).astype(int), 0, grid_res - 2)
     bin_keys = y_indices * scale + x_indices
 
     unique_bins, inverse_indices = np.unique(bin_keys, return_inverse=True)
     n_unique = len(unique_bins)
 
-    # Fast vectorized bin accumulation
     counts = np.bincount(inverse_indices)
     reduced_xy = np.zeros((n_unique, 2), dtype=np.float32)
-    reduced_spectra = np.zeros((n_unique, _ALL_SPECTRA_NORM.shape[1]), dtype=np.float32)
+    reduced_spectra = np.zeros((n_unique, all_spectra_norm.shape[1]), dtype=np.float32)
 
-    np.add.at(reduced_xy, inverse_indices, _ALL_XY)
-    np.add.at(reduced_spectra, inverse_indices, _ALL_SPECTRA_NORM)
+    np.add.at(reduced_xy, inverse_indices, all_xy)
+    np.add.at(reduced_spectra, inverse_indices, all_spectra_norm)
 
     reduced_xy /= counts[:, None]
     reduced_spectra /= counts[:, None]
 
     return Delaunay(reduced_xy), reduced_spectra
+
+
+# Solver Core Logic
 
 
 def get_barycentric_prior(
@@ -286,9 +277,7 @@ def get_barycentric_prior(
     reduced_spectra: np.ndarray,
     cmfs: np.ndarray,
 ) -> tuple[np.ndarray | None, bool]:
-    """
-    Computes zero-drift XYZ matrix-solved prior spectrum using the binned Delaunay mesh.
-    """
+    """Computes matrix-solved prior spectrum using the binned Delaunay mesh."""
     simplex_idx = triangulation.find_simplex(xy)
     if simplex_idx < 0:
         return None, False
@@ -334,10 +323,10 @@ def xy_to_spectrum_nnls(
     smoothness_loss_factor: float,
     data_loss_factor: float,
     cmfs: np.ndarray,
-    triangulation: Delaunay,
-    reduced_spectra: np.ndarray,
+    triangulation: Delaunay | None = None,
+    reduced_spectra: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Finds a non-negative spectrum guided by the binned multi-illuminant prior."""
+    """Finds a non-negative spectrum, optionally guided by a barycentric prior."""
     x, y = xy
     if x + y > 1 or y <= 0:
         return np.ones(cmfs.shape[0], dtype=np.float32)
@@ -350,16 +339,19 @@ def xy_to_spectrum_nnls(
     n_bins = A.shape[1]
     D1 = np.eye(n_bins, k=0) - np.eye(n_bins, k=1)
 
-    prior_spectrum, has_prior = get_barycentric_prior(
-        xy, triangulation, reduced_spectra, cmfs
-    )
+    has_prior = False
+    prior_spectrum = None
+    if triangulation is not None and reduced_spectra is not None:
+        prior_spectrum, has_prior = get_barycentric_prior(
+            xy, triangulation, reduced_spectra, cmfs
+        )
 
     w_smooth = np.sqrt(smoothness_loss_factor)
     w_data = np.sqrt(data_loss_factor) if has_prior else 0.0
 
     C = np.vstack([A, w_smooth * D1, w_data * np.eye(n_bins)])
 
-    if has_prior:
+    if has_prior and prior_spectrum is not None:
         d = np.concatenate([XYZ_target, np.zeros(n_bins), w_data * prior_spectrum])
     else:
         d = np.concatenate([XYZ_target, np.zeros(n_bins), np.zeros(n_bins)])
@@ -368,30 +360,33 @@ def xy_to_spectrum_nnls(
     return spectrum
 
 
-def generate_spectral_sample_table(
-    n: int, smoothness_loss_factor: float = 1.0, data_loss_factor: float = 2.5
+def _sample_grid_nnls(
+    resolution: int,
+    cmfs: np.ndarray,
+    triangulation: Delaunay | None = None,
+    reduced_spectra: np.ndarray | None = None,
+    smoothness_loss_factor: float = 1.0,
+    data_loss_factor: float = 2.5,
 ) -> np.ndarray:
-    """Generate the full spectral lookup table across the unit simplex grid."""
-    triangulation, reduced_spectra = build_binned_triangulation(grid_res=n)
+    """Helper to sample NNLS across the full 2D grid resolution."""
+    grid_coords = np.linspace(0, 1, resolution, dtype=np.float32)
+    n_bins = cmfs.shape[0]
+    out = np.empty((resolution, resolution, n_bins), dtype=np.float32)
 
-    grid_coords = np.linspace(0, 1, n, dtype=np.float32)
-    n_bins = XYZ_CMFS.shape[0]
-    out = np.empty((n, n, n_bins), dtype=np.float32)
-
-    for i in range(n):
-        for j in range(n):
+    for i in range(resolution):
+        for j in range(resolution):
             xy = (float(grid_coords[i]), float(grid_coords[j]))
 
             spec = xy_to_spectrum_nnls(
                 xy,
                 smoothness_loss_factor,
                 data_loss_factor,
-                XYZ_CMFS,
+                cmfs,
                 triangulation,
                 reduced_spectra,
             )
 
-            s_spectrum = (spec @ XYZ_CMFS).sum()
+            s_spectrum = (spec @ cmfs).sum()
             if s_spectrum > 1e-12:
                 spec /= s_spectrum
             else:
@@ -402,5 +397,284 @@ def generate_spectral_sample_table(
     return out
 
 
-SPECTRUM_LUT: np.ndarray = generate_spectral_sample_table(33)
-"""A look-up table with spectral distributions across the CIE 1931 xy space."""
+# Upsampling Method Registry & Strategy Definitions
+
+
+UpsampleMethod = Literal[
+    "SFL upsampling",
+    "Pure NNLS optimization",
+    "Simple Matrix",
+    "Mallett 2019",
+    "Otsu 2018",
+    "Smits 1999",
+]
+
+MethodHandler = Callable[[int, np.ndarray], np.ndarray]
+_METHOD_REGISTRY: dict[str, MethodHandler] = {}
+
+
+def register_method(name: str):
+    """Decorator to register a new spectral upsampling LUT generator."""
+
+    def decorator(fn: MethodHandler) -> MethodHandler:
+        _METHOD_REGISTRY[name] = fn
+        return fn
+
+    return decorator
+
+
+@register_method("SFL upsampling")
+def _generate_barycentric_nnls_all(resolution: int, cmfs: np.ndarray) -> np.ndarray:
+    all_xy, all_spectra_norm = _get_training_data(ALL_ILLUMINANT_KEYS)
+    tri, reduced_spec = build_binned_triangulation(all_xy, all_spectra_norm, resolution)
+    return _sample_grid_nnls(resolution, cmfs, tri, reduced_spec)
+
+
+@register_method("Pure NNLS optimization")
+def _generate_pure_nnls(resolution: int, cmfs: np.ndarray) -> np.ndarray:
+    return _sample_grid_nnls(resolution, cmfs, triangulation=None, reduced_spectra=None)
+
+
+def _generate_lstsq_matrix(
+    illuminants: tuple[str, ...] = ALL_ILLUMINANT_KEYS,
+):
+    all_xyz, all_spectra_norm = _get_training_data(illuminants, True)
+
+    matrix, _, _, _ = np.linalg.lstsq(all_xyz, all_spectra_norm, rcond=False)
+
+    return matrix
+
+
+@register_method("Simple Matrix")
+def _generate_matrix_lut(resolution: int, cmfs: np.ndarray) -> np.ndarray:
+    matrix = _generate_lstsq_matrix(("D65",))
+
+    x = np.linspace(0, 1, resolution, dtype=DEFAULT_DTYPE)
+    y = np.linspace(0, 1, resolution, dtype=DEFAULT_DTYPE)
+
+    grid_x, grid_y = np.meshgrid(x, y, indexing="ij")
+
+    ones = np.ones((resolution, resolution), dtype=DEFAULT_DTYPE)
+    result = np.stack([grid_x, grid_y, ones], axis=-1)
+
+    xyz_lut = xyS_to_XYZ(result)
+
+    lut = xyz_lut @ matrix
+
+    # Enforce physical non-negativity
+    np.maximum(lut, 0.0, out=lut)
+
+    # Re-normalize reconstructed spectra to unit chromaticity sum S
+    s_spectrum = np.sum(lut @ cmfs, axis=-1, keepdims=True)
+    valid_s = s_spectrum > 1e-12
+    np.divide(lut, s_spectrum, out=lut, where=valid_s)
+    lut[~valid_s[..., 0]] = 0.0
+
+    return lut
+
+
+def _prepare_target_xyz(valid_xyz: np.ndarray) -> np.ndarray:
+    """Soft gamut maps XYZ coordinates into sRGB bounds to preserve hue direction."""
+    with colour.domain_range_scale("1"):
+        rgb = colour.XYZ_to_RGB(valid_xyz, "sRGB")
+
+    # Shift negative RGB components towards white, then scale peak to 1.0
+    min_c = np.min(rgb, axis=-1, keepdims=True)
+    rgb_shifted = rgb + np.maximum(0.0, -min_c)
+    max_c = np.max(rgb_shifted, axis=-1, keepdims=True)
+    max_c[max_c == 0.0] = 1.0
+
+    with colour.domain_range_scale("1"):
+        return colour.RGB_to_XYZ(rgb_shifted / max_c, "sRGB")
+
+
+def _evaluate_xyz_to_sd(
+    valid_xyz: np.ndarray,
+    method: str,
+    target_shape: colour.SpectralShape = SPECTRAL_SHAPE,
+) -> np.ndarray:
+    """
+    Evaluates colour.XYZ_to_sd across vectorized inputs (e.g., Mallett 2019)
+    or element-wise loops for non-vectorized methods (Smits 1999, Otsu 2018).
+    """
+    target_xyz = _prepare_target_xyz(valid_xyz)
+
+    # Try vectorized evaluation (supported by Mallett 2019)
+    try:
+        with colour.domain_range_scale("1"):
+            sd_result = colour.XYZ_to_sd(target_xyz, method=method)
+
+        if hasattr(sd_result, "align") and target_shape is not None:
+            sd_result = sd_result.copy()
+            sd_result.align(target_shape)
+
+        spec_values = (
+            sd_result.values if hasattr(sd_result, "values") else np.asarray(sd_result)
+        )
+
+        if spec_values.ndim == 2 and spec_values.shape[0] == len(target_xyz):
+            return np.nan_to_num(spec_values, nan=0.0, posinf=0.0, neginf=0.0)
+    except Exception:
+        pass  # Fall back to element-wise processing below
+
+    # Point-by-point fallback loop for methods expecting single 1D vectors (Smits, Otsu)
+    spec_list = []
+    with colour.domain_range_scale("1"):
+        for xyz in target_xyz:
+            sd = colour.XYZ_to_sd(xyz, method=method)
+            if hasattr(sd, "align") and target_shape is not None:
+                sd = sd.copy()
+                sd.align(target_shape)
+
+            val = sd.values if hasattr(sd, "values") else np.asarray(sd)
+            spec_list.append(val)
+
+    spec_array = np.array(spec_list, dtype=DEFAULT_DTYPE)
+    return np.nan_to_num(spec_array, nan=0.0, posinf=0.0, neginf=0.0)
+
+
+def _generate_colour_sd_lut(
+    resolution: int,
+    cmfs: np.ndarray | colour.SpectralDistribution = None,
+    method: str = "Mallett 2019",
+) -> np.ndarray:
+    """Generates a 2D xy chromaticity to spectrum LUT using colour.XYZ_to_sd."""
+    # Build xy chromaticity grid (S = X + Y + Z = 1)
+    x = np.linspace(0, 1, resolution, dtype=DEFAULT_DTYPE)
+    y = np.linspace(0, 1, resolution, dtype=DEFAULT_DTYPE)
+    grid_x, grid_y = np.meshgrid(x, y, indexing="ij")
+    grid_z = 1.0 - grid_x - grid_y
+
+    valid_chroma = (grid_x >= 0.0) & (grid_y >= 1e-4) & (grid_z >= 0.0)
+
+    xyz_flat = np.stack([grid_x, grid_y, grid_z], axis=-1).reshape(-1, 3)
+    valid_flat = valid_chroma.reshape(-1)
+    valid_xyz = xyz_flat[valid_flat]
+
+    # Target spectral shape and wavelength count
+    if hasattr(cmfs, "shape") and isinstance(cmfs.shape, colour.SpectralShape):
+        target_shape = cmfs.shape
+    elif hasattr(cmfs, "spectral_shape"):
+        target_shape = cmfs.spectral_shape
+    else:
+        target_shape = SPECTRAL_SHAPE
+
+    cmf_matrix = cmfs.values if hasattr(cmfs, "values") else cmfs
+    num_wavelengths = (
+        cmf_matrix.shape[0] if cmf_matrix is not None else target_shape.count
+    )
+
+    # Evaluate spectra
+    lut_flat = np.zeros((resolution * resolution, num_wavelengths), dtype=DEFAULT_DTYPE)
+    if len(valid_xyz) > 0:
+        lut_flat[valid_flat] = _evaluate_xyz_to_sd(valid_xyz, method, target_shape)
+
+    lut = lut_flat.reshape((resolution, resolution, num_wavelengths))
+    np.maximum(lut, 0.0, out=lut)
+
+    # Re-normalize reconstructed spectra to unit chromaticity sum S
+    if cmf_matrix is not None:
+        s_spectrum = np.sum(lut @ cmf_matrix, axis=-1, keepdims=True)
+        valid_s = s_spectrum > 1e-12
+
+        np.divide(lut, s_spectrum, out=lut, where=valid_s)
+
+        # Equal-energy fallback inside locus to avoid zero-exposure gaps
+        flat_spec = np.full(num_wavelengths, 1.0 / num_wavelengths, dtype=DEFAULT_DTYPE)
+        lut[~valid_s[..., 0] & valid_chroma] = flat_spec
+        lut[~valid_chroma] = 0.0
+
+    return lut
+
+
+@register_method("Mallett 2019")
+def _generate_mallett2019_lut(resolution: int, cmfs: np.ndarray) -> np.ndarray:
+    return _generate_colour_sd_lut(resolution, cmfs, method="Mallett 2019")
+
+
+@register_method("Otsu 2018")
+def _generate_otsu2018_lut(resolution: int, cmfs: np.ndarray) -> np.ndarray:
+    return _generate_colour_sd_lut(resolution, cmfs, method="Otsu 2018")
+
+
+@register_method("Smits 1999")
+def _generate_smits1999_lut(resolution: int, cmfs: np.ndarray) -> np.ndarray:
+    return _generate_colour_sd_lut(resolution, cmfs, method="Smits 1999")
+
+
+@functools.lru_cache(maxsize=32)
+def get_spectrum_lut(
+    method: UpsampleMethod | str = "SFL upsampling",
+    resolution: int = 33,
+    illuminants: tuple[str, ...] | None = None,
+) -> np.ndarray:
+    """
+    Computes or retrieves a cached 2D spectral lookup table.
+
+    Args:
+        method: Upsampling method registered in the registry.
+        resolution: Grid resolution of the chromaticity LUT (resolution x resolution).
+        illuminants: Tuple of illuminant keys for dataset preparation.
+                     If None, defaults to ALL_ILLUMINANT_KEYS.
+
+    Returns:
+        np.ndarray: LUT array of shape (resolution, resolution, n_bins).
+    """
+    if method not in _METHOD_REGISTRY:
+        available = list(_METHOD_REGISTRY.keys())
+        raise ValueError(
+            f"Unknown upsampling method '{method}'. Available: {available}"
+        )
+
+    # Use default illuminants tuple if not specified (Tuples are hashable for lru_cache)
+    if illuminants is None:
+        illuminants_tuple = ALL_ILLUMINANT_KEYS
+    else:
+        illuminants_tuple = tuple(illuminants)
+
+    handler = _METHOD_REGISTRY[method]
+
+    # Pass method-specific keyword parameters cleanly
+    if method == "pca":
+        return handler(
+            resolution=resolution,
+            cmfs=XYZ_CMFS,
+            illuminants=illuminants_tuple,
+        )
+
+    return handler(resolution=resolution, cmfs=XYZ_CMFS)
+
+
+def CCT_to_xy(CCT):
+    """Convert from a color temperature in kelvin to the closest xy pair."""
+    CCT_3 = CCT**3
+    CCT_2 = CCT**2
+
+    if CCT <= 7000:
+        x = (
+            -4.607 * 10**9 / CCT_3
+            + 2.9678 * 10**6 / CCT_2
+            + 0.09911 * 10**3 / CCT
+            + 0.244063
+        )
+    else:
+        x = (
+            -2.0064 * 10**9 / CCT_3
+            + 1.9018 * 10**6 / CCT_2
+            + 0.24748 * 10**3 / CCT
+            + 0.23704
+        )
+
+    y = -3.000 * x**2 + 2.870 * x - 0.275
+    return np.array([x, y], DEFAULT_DTYPE)
+
+
+def CCT_to_XYZ(CCT: float | int, Y: float = 1.0, tint: float = 0.0) -> np.ndarray:
+    """Converts from a color temperature in kelvin to a XYZ triplet."""
+    xy = CCT_to_xy(CCT)
+    xyY = (xy[0], xy[1], Y)
+    XYZ = colour.xyY_to_XYZ(xyY)
+    Lab = colour.XYZ_to_Oklab(XYZ)
+    Lab += np.array([0, 0.9849548, -0.17281227]) * tint / 15
+    XYZ = colour.Oklab_to_XYZ(Lab)
+    return XYZ

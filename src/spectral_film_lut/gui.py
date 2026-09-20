@@ -4,6 +4,7 @@ import math
 import os
 import time
 from functools import lru_cache
+from typing import get_args
 
 import imageio.v3 as iio
 import numpy as np
@@ -41,6 +42,7 @@ from spectral_film_lut.gui_objects import (
     Worker,
 )
 from spectral_film_lut.utils import apply_lut_tetrahedral_int, create_lut
+from spectral_film_lut.xy_lut import UpsampleMethod
 
 
 class MainWindow(QMainWindow):
@@ -654,6 +656,7 @@ class MainWindow(QMainWindow):
             " combine\nnegative and print LUTs arbitrarily.\nWill be ignored for slide"
             "film.",
         )
+
         self.filter_mode = WideComboBox(self)
         self.filter_mode.addItems(
             [
@@ -673,6 +676,57 @@ class MainWindow(QMainWindow):
             "filter, increasing computation cost.\n"
             "Shift computes an offset cube an applies median filtering, giving each"
             "point 8 samples to work with.",
+        )
+
+        self.spectral_upsampling_method = WideComboBox(self)
+        self.spectral_upsampling_method.addItems(get_args(UpsampleMethod))
+        UPSAMPLING_TOOLTIPS = {
+            "SFL upsampling": (
+                "Hybrid approach (Default): Combines real camera response data\n"
+                "(rawtoaces) with smooth mathematical fitting. Offers the most\n"
+                "accurate film color reproduction under varied lighting."
+            ),
+            "Pure NNLS optimization": (
+                "Pure mathematical solver: Reconstructs smooth, physically\n"
+                "plausible light spectra without relying on camera training data.\n"
+                "Clean and predictable across all colors."
+            ),
+            "Simple Matrix": (
+                "Fast linear conversion: Lightweight matrix model tuned for\n"
+                "daylight (D65). Extremely fast, but less precise for saturated\n"
+                "or extreme hues."
+            ),
+            "Mallett 2019": (
+                "Modern graphics method (Mallett et al. 2019): Generates smooth,\n"
+                "natural light spectra tailored for realistic material rendering\n"
+                "and color management."
+            ),
+            "Otsu 2018": (
+                "Smooth wide-gamut method (Otsu et al. 2018): Reconstructs smooth\n"
+                "spectra using optimized basis curves, well-suited for wide-gamut\n"
+                "workspaces and vivid tones."
+            ),
+            "Smits 1999": (
+                "Classic graphics method (Smits 1999): Reconstructs spectra using\n"
+                "smooth primary color curves. Fast and clean, but less\n"
+                "colorimetrically precise."
+            ),
+        }
+        # Example implementation loop for your UI setup:
+        for index, method_name in enumerate(get_args(UpsampleMethod)):
+            if method_name in UPSAMPLING_TOOLTIPS:
+                self.spectral_upsampling_method.setItemData(
+                    index,
+                    UPSAMPLING_TOOLTIPS[method_name],
+                    Qt.ItemDataRole.ToolTipRole,
+                )
+        add_option(
+            self.spectral_upsampling_method,
+            "Spectral upsampling",
+            "SFL upsampling",
+            self.spectral_upsampling_method.setCurrentText,
+            tool_tip="How to reconstruct full spectral light distribution from CIE XYZ "
+            "values.",
         )
 
         self.save_lut_button = AnimatedButton("Save LUT")
@@ -713,6 +767,9 @@ class MainWindow(QMainWindow):
         self.adx_scale.currentTextChanged.connect(self.parameter_changed)
         self.apd_intermediate.stateChanged.connect(self.parameter_changed)
         self.filter_mode.currentTextChanged.connect(self.parameter_changed)
+        self.spectral_upsampling_method.currentTextChanged.connect(
+            self.parameter_changed
+        )
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -777,6 +834,7 @@ class MainWindow(QMainWindow):
             "Oversampling": "oversampling",
             "Shift": "shift",
         }.get(oversampling_mode, None)
+        upsampling_method = self.spectral_upsampling_method.currentText()
 
         lut = create_lut(
             negative_film,
@@ -808,6 +866,7 @@ class MainWindow(QMainWindow):
             apd_intermediate=apd_intermediate,
             filter_mode=filter_mode,
             custom_inversion=custom_inversion,
+            upsampling_method=upsampling_method,
             reference_negative=self.filmstocks["Kodak Vision3 250D 5207"],
         )
         return lut

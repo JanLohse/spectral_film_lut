@@ -25,6 +25,7 @@ from spectral_film_lut.color_space import (
     GAMMA_KEYS,
 )
 from spectral_film_lut.config import DEFAULT_DTYPE
+from spectral_film_lut.xy_lut import UpsampleMethod
 
 if TYPE_CHECKING:
     from spectral_film_lut.film_spectral import FilmSpectral
@@ -62,13 +63,19 @@ def film_conversion(
     idealized_curve: bool = False,
     apd_intermediate: bool = False,
     reference_negative: FilmSpectral | None = None,
+    upsampling_method: UpsampleMethod | str = "SFL upsampling",
 ) -> np.ndarray:
     """
     Emulates the full film pipeline including exposure, printing, and projection.
 
     Args:
-        reference_negative:
-        apd_intermediate:
+        custom_inversion: Use optimized inversion instead of ACES based inversion
+            matrix.
+        upsampling_method: How to perform spectral upsampling.
+        reference_negative: Negative film used as reference for balancing intermediate
+            ADX encoding.
+        apd_intermediate: Whether to convert to APD values from layer activation values
+            for the intermediate step between negative and print.
         image: The image (or LUT) containing the scene referred data.
         negative_film: The film stock to capture the scene.
         print_film: The optional print stock.
@@ -126,6 +133,7 @@ def film_conversion(
             tint,
             color_masking,
             push_pull,
+            upsampling_method,
         )
 
         if apd_intermediate:
