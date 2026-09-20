@@ -68,7 +68,9 @@ jobs:
         run: uv sync
 
       - name: Generate documentation
-        run: uv run zensical build --clean
+        run: |
+          uv run docs/ref-gen.py
+          uv run zensical build --clean
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
