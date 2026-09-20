@@ -626,55 +626,6 @@ def get_spectrum_lut(
             f"Unknown upsampling method '{method}'. Available: {available}"
         )
 
-    # Use default illuminants tuple if not specified (Tuples are hashable for lru_cache)
-    if illuminants is None:
-        illuminants_tuple = ALL_ILLUMINANT_KEYS
-    else:
-        illuminants_tuple = tuple(illuminants)
-
     handler = _METHOD_REGISTRY[method]
 
-    # Pass method-specific keyword parameters cleanly
-    if method == "pca":
-        return handler(
-            resolution=resolution,
-            cmfs=XYZ_CMFS,
-            illuminants=illuminants_tuple,
-        )
-
     return handler(resolution=resolution, cmfs=XYZ_CMFS)
-
-
-def CCT_to_xy(CCT):
-    """Convert from a color temperature in kelvin to the closest xy pair."""
-    CCT_3 = CCT**3
-    CCT_2 = CCT**2
-
-    if CCT <= 7000:
-        x = (
-            -4.607 * 10**9 / CCT_3
-            + 2.9678 * 10**6 / CCT_2
-            + 0.09911 * 10**3 / CCT
-            + 0.244063
-        )
-    else:
-        x = (
-            -2.0064 * 10**9 / CCT_3
-            + 1.9018 * 10**6 / CCT_2
-            + 0.24748 * 10**3 / CCT
-            + 0.23704
-        )
-
-    y = -3.000 * x**2 + 2.870 * x - 0.275
-    return np.array([x, y], DEFAULT_DTYPE)
-
-
-def CCT_to_XYZ(CCT: float | int, Y: float = 1.0, tint: float = 0.0) -> np.ndarray:
-    """Converts from a color temperature in kelvin to a XYZ triplet."""
-    xy = CCT_to_xy(CCT)
-    xyY = (xy[0], xy[1], Y)
-    XYZ = colour.xyY_to_XYZ(xyY)
-    Lab = colour.XYZ_to_Oklab(XYZ)
-    Lab += np.array([0, 0.9849548, -0.17281227]) * tint / 15
-    XYZ = colour.Oklab_to_XYZ(Lab)
-    return XYZ
