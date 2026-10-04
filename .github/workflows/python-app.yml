@@ -187,6 +187,8 @@ jobs:
             install -Dm644 packaging/appimage/spectral_film_lut.desktop \
               AppDir/usr/share/applications/spectral_film_lut.desktop
             install -Dm644 src/spectral_film_lut/resources/spectral_film_lut_512.png \
+              AppDir/spectral_film_lut.png
+            install -Dm644 src/spectral_film_lut/resources/spectral_film_lut_512.png \
               AppDir/usr/share/icons/hicolor/512x512/apps/spectral_film_lut.png
 
             wget -q \
