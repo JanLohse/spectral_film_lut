@@ -166,6 +166,12 @@ jobs:
       - name: Install PyInstaller and local package
         run: uv sync --no-dev --group install
 
+      - name: Install Qt runtime dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0
+
       - name: Build with PyInstaller
         run: uv run pyinstaller --clean --noconfirm spectral_film_lut.spec
 
@@ -193,6 +199,12 @@ jobs:
               AppDir/spectral_film_lut.png
             install -Dm644 src/spectral_film_lut/resources/spectral_film_lut_512.png \
               AppDir/usr/share/icons/hicolor/512x512/apps/spectral_film_lut.png
+            install -Dm755 /usr/lib/x86_64-linux-gnu/libxkbcommon-x11.so.0 \
+              AppDir/usr/lib/x86_64-linux-gnu/libxkbcommon-x11.so.0
+            install -Dm755 /usr/lib/x86_64-linux-gnu/libxkbcommon.so.0 \
+              AppDir/usr/lib/x86_64-linux-gnu/libxkbcommon.so.0
+            install -Dm755 /usr/lib/x86_64-linux-gnu/libxcb-cursor.so.0 \
+              AppDir/usr/lib/x86_64-linux-gnu/libxcb-cursor.so.0
 
             wget -q \
               https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \

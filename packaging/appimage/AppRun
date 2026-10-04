@@ -1,3 +1,4 @@
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"
+export LD_LIBRARY_PATH="$HERE/usr/lib/x86_64-linux-gnu:$HERE/usr/bin/_internal:$LD_LIBRARY_PATH"
 exec "$HERE/usr/bin/SpectralFilmLUT" "$@"
