@@ -178,7 +178,8 @@ jobs:
             libxcb-keysyms1 \
             libxcb-render-util0 \
             libxcb-xinerama0 \
-            libxcb-xkb1
+            libxcb-xkb1 \
+            zsync
 
       - name: Build with PyInstaller
         run: uv run pyinstaller --clean --noconfirm spectral_film_lut.spec
@@ -186,8 +187,6 @@ jobs:
       - name: Package binaries
         shell: bash
         run: |
-          VERSION=$(uv pip list --format freeze | grep "^zensical=" | cut -d'=' -f3 || echo "dev")
-
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             mv dist/SpectralFilmLUT.exe SpectralFilmLUT.exe
           else
@@ -225,8 +224,16 @@ jobs:
               https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
               -O appimagetool
             chmod +x appimagetool
-            ARCH=x86_64 ./appimagetool --appimage-extract-and-run \
-              AppDir SpectralFilmLUT.AppImage
+            VERSION="${{ needs.create-tag.outputs.VERSION }}"
+            if [[ -n "$VERSION" ]]; then
+              UPDATE_INFORMATION="zsync|https://github.com/${{ github.repository }}/releases/download/${{ needs.create-tag.outputs.TAG }}/SpectralFilmLUT-${VERSION}.AppImage.zsync"
+              ARCH=x86_64 ./appimagetool --appimage-extract-and-run \
+                --updateinformation "$UPDATE_INFORMATION" \
+                AppDir SpectralFilmLUT.AppImage
+            else
+              ARCH=x86_64 ./appimagetool --appimage-extract-and-run \
+                AppDir SpectralFilmLUT.AppImage
+            fi
           fi
 
       - name: Upload artifacts
@@ -259,6 +266,9 @@ jobs:
           fi
           if [ -f "SpectralFilmLUT.AppImage" ]; then
             mv SpectralFilmLUT.AppImage "SpectralFilmLUT-${VERSION}.AppImage"
+          fi
+          if [ -f "SpectralFilmLUT.AppImage.zsync" ]; then
+            mv SpectralFilmLUT.AppImage.zsync "SpectralFilmLUT-${VERSION}.AppImage.zsync"
           fi
 
       - name: Create Release
