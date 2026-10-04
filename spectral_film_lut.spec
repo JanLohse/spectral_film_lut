@@ -3,6 +3,7 @@
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 import colour.characterisation.datasets.rawtoaces as rawtoaces
 import os
+import sys
 
 block_cipher = None
 
@@ -67,7 +68,7 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,    # This will now use our filtered list
+    a.binaries,
     a.zipfiles,
     a.datas,
     name="SpectralFilmLUT",
@@ -76,4 +77,14 @@ exe = EXE(
     upx=False,
     console=False,
     icon=icon,
+    exclude_binaries=sys.platform == "linux",
 )
+
+if sys.platform == "linux":
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        name="SpectralFilmLUT",
+    )
