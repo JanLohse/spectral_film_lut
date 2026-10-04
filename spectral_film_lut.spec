@@ -65,26 +65,35 @@ a.binaries = filtered_binaries
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    name="SpectralFilmLUT",
-    debug=False,
-    strip=False,
-    upx=False,
-    console=False,
-    icon=icon,
-    exclude_binaries=sys.platform == "linux",
-)
-
 if sys.platform == "linux":
+    exe = EXE(
+        pyz,
+        a.scripts,
+        name="SpectralFilmLUT",
+        debug=False,
+        strip=False,
+        upx=False,
+        console=False,
+        exclude_binaries=True,
+    )
     coll = COLLECT(
         exe,
         a.binaries,
         a.zipfiles,
         a.datas,
         name="SpectralFilmLUT",
+    )
+else:
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        name="SpectralFilmLUT",
+        debug=False,
+        strip=False,
+        upx=False,
+        console=False,
+        icon=icon,
     )

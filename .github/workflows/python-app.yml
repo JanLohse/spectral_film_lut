@@ -167,7 +167,7 @@ jobs:
         run: uv sync --no-dev --group install
 
       - name: Build with PyInstaller
-        run: uv run pyinstaller spectral_film_lut.spec
+        run: uv run pyinstaller --clean --noconfirm spectral_film_lut.spec
 
       - name: Package binaries
         shell: bash
@@ -177,6 +177,8 @@ jobs:
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             mv dist/SpectralFilmLUT.exe SpectralFilmLUT.exe
           else
+            test -x dist/SpectralFilmLUT/SpectralFilmLUT
+            test -d dist/SpectralFilmLUT/_internal
             mkdir -p AppDir/usr/bin \
               AppDir/usr/share/applications \
               AppDir/usr/share/icons/hicolor/512x512/apps
