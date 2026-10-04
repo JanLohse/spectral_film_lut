@@ -170,7 +170,15 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0
+          sudo apt-get install -y \
+            libxkbcommon-x11-0 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-render-util0 \
+            libxcb-xinerama0 \
+            libxcb-xkb1
 
       - name: Build with PyInstaller
         run: uv run pyinstaller --clean --noconfirm spectral_film_lut.spec
@@ -199,12 +207,19 @@ jobs:
               AppDir/spectral_film_lut.png
             install -Dm644 src/spectral_film_lut/resources/spectral_film_lut_512.png \
               AppDir/usr/share/icons/hicolor/512x512/apps/spectral_film_lut.png
-            install -Dm755 /usr/lib/x86_64-linux-gnu/libxkbcommon-x11.so.0 \
-              AppDir/usr/lib/x86_64-linux-gnu/libxkbcommon-x11.so.0
-            install -Dm755 /usr/lib/x86_64-linux-gnu/libxkbcommon.so.0 \
-              AppDir/usr/lib/x86_64-linux-gnu/libxkbcommon.so.0
-            install -Dm755 /usr/lib/x86_64-linux-gnu/libxcb-cursor.so.0 \
-              AppDir/usr/lib/x86_64-linux-gnu/libxcb-cursor.so.0
+            XCB_PLUGIN="AppDir/usr/bin/_internal/PyQt6/Qt6/plugins/platforms/libqxcb.so"
+            ldd "$XCB_PLUGIN" \
+              | awk '/=> \// { print $3 } /^\/lib/ { print $1 }' \
+              | sort -u \
+              | while read -r library; do
+                  case "$(basename "$library")" in
+                    libc.so.*|libm.so.*|libdl.so.*|libpthread.so.*|librt.so.*|libresolv.so.*|libgcc_s.so.*|libstdc++.so.*)
+                      continue
+                      ;;
+                  esac
+                  install -Dm755 "$library" \
+                    "AppDir/usr/lib/x86_64-linux-gnu/$(basename "$library")"
+                done
 
             wget -q \
               https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
