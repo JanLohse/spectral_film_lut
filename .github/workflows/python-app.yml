@@ -180,7 +180,8 @@ jobs:
             mkdir -p AppDir/usr/bin \
               AppDir/usr/share/applications \
               AppDir/usr/share/icons/hicolor/512x512/apps
-            install -Dm755 dist/SpectralFilmLUT AppDir/usr/bin/SpectralFilmLUT
+            cp -a dist/SpectralFilmLUT/. AppDir/usr/bin/
+            chmod +x AppDir/usr/bin/SpectralFilmLUT
             install -Dm755 packaging/appimage/AppRun AppDir/AppRun
             install -Dm644 packaging/appimage/spectral_film_lut.desktop \
               AppDir/spectral_film_lut.desktop
