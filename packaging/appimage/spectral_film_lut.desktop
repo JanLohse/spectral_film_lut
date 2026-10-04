@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Spectral Film LUT
+Comment=Create LUTs to emulate film from spectral datasheets
+Exec=SpectralFilmLUT
+Icon=spectral_film_lut
+Type=Application
+Categories=Graphics;Utility;
+Terminal=false
