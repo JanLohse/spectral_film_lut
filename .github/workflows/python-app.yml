@@ -149,7 +149,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ windows-latest, ubuntu-latest ]
+        os: [ windows-latest, ubuntu-22.04 ]
 
     steps:
       - name: Checkout commit
