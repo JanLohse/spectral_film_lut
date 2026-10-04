@@ -177,8 +177,26 @@ jobs:
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             mv dist/SpectralFilmLUT.exe SpectralFilmLUT.exe
           else
-            chmod +x dist/SpectralFilmLUT
-            mv dist/SpectralFilmLUT SpectralFilmLUT.AppImage
+            mkdir -p AppDir/usr/bin \
+              AppDir/usr/share/applications \
+              AppDir/usr/share/icons/hicolor/512x512/apps
+            install -Dm755 dist/SpectralFilmLUT AppDir/usr/bin/SpectralFilmLUT
+            install -Dm755 packaging/appimage/AppRun AppDir/AppRun
+            install -Dm644 packaging/appimage/spectral_film_lut.desktop \
+              AppDir/spectral_film_lut.desktop
+            install -Dm644 packaging/appimage/spectral_film_lut.desktop \
+              AppDir/usr/share/applications/spectral_film_lut.desktop
+            install -Dm644 src/spectral_film_lut/resources/spectral_film_lut_512.png \
+              AppDir/spectral_film_lut.png
+            install -Dm644 src/spectral_film_lut/resources/spectral_film_lut_512.png \
+              AppDir/usr/share/icons/hicolor/512x512/apps/spectral_film_lut.png
+
+            wget -q \
+              https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+              -O appimagetool
+            chmod +x appimagetool
+            ARCH=x86_64 ./appimagetool --appimage-extract-and-run \
+              AppDir SpectralFilmLUT.AppImage
           fi
 
       - name: Upload artifacts
