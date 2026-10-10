@@ -988,7 +988,38 @@ class MainWindow(QMainWindow):
             print(f"applied lut in {time.time() - start:.2f} seconds")
 
     def save_lut(self):
-        filename, ok = QFileDialog.getSaveFileName(self)
+        mode = self.mode.currentText()
+        size = f"{self.lut_size.getValue():.0f}"
+
+        parts = {
+            "full": [
+                self.negative_selector.currentText(),
+                self.print_selector.currentText(),
+                self.input_colorspace_selector.currentText(),
+                size,
+            ],
+            "negative": [
+                self.negative_selector.currentText(),
+                self.input_colorspace_selector.currentText(),
+                size,
+            ],
+            "print": [
+                self.print_selector.currentText(),
+                "print",
+                size,
+            ],
+            "grain": [
+                self.negative_selector.currentText(),
+                "grain",
+                size,
+            ],
+        }
+
+        default_name = "_".join(parts[mode]).replace(" ", "-")
+
+        filename, ok = QFileDialog.getSaveFileName(
+            self, "Save LUT", default_name, ".cube"
+        )
 
         if ok:
             self.generate_lut(filename)
