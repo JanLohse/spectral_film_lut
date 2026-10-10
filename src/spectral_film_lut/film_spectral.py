@@ -1129,55 +1129,29 @@ class FilmSpectral:
         if color_masking is None:
             color_masking = self.color_masking
 
-        weights = self.log_H_ref / np.mean(self.log_H_ref)
-
         if self.density_measure == "status_m" and not force_simple:
             # Invert the forward physical coupling chain:
             # Dye Spectra -> APD Filter -> ADX Crosstalk
-            coupled_apd_matrix = (
-                DENSIOMETRY["apd"].T @ self.spectral_density @ CDD_TO_CID.T
-            )
-            M_unmix_density = np.linalg.inv(coupled_apd_matrix)
-
-            # Scale density unmixing to relative Log-H exposure domain
-            W_ratio = weights[None, :] / weights[:, None]
-            K_exp_full = M_unmix_density * W_ratio
-
-            # Linearly interpolate between Identity (s=0.0) and full unmixing (s=1.0)
-            M_blended = (1.0 - color_masking) * np.eye(
-                3, dtype=DEFAULT_DTYPE
-            ) + color_masking * K_exp_full
-
-            # Normalize rows to guarantee zero exposure shift on neutral tones
-            row_sums = M_blended.sum(axis=1, keepdims=True)
-            M_log = M_blended / row_sums
+            M = DENSIOMETRY["apd"].T @ self.spectral_density @ CDD_TO_CID.T
 
         else:
-            k = color_masking / 5.0
-
-            # Construct row-normalized, sensitivity-weighted Log-E inhibition matrix
-            M_log = np.array(
-                [
-                    [
-                        1.0 + (weights[1] / weights[0] + weights[2] / weights[0]) * k,
-                        -k * (weights[1] / weights[0]),
-                        -k * (weights[2] / weights[0]),
-                    ],
-                    [
-                        -k * (weights[0] / weights[1]),
-                        1.0 + (weights[0] / weights[1] + weights[2] / weights[1]) * k,
-                        -k * (weights[2] / weights[1]),
-                    ],
-                    [
-                        -k * (weights[0] / weights[2]),
-                        -k * (weights[1] / weights[2]),
-                        1.0 + (weights[0] / weights[2] + weights[1] / weights[2]) * k,
-                    ],
-                ],
-                dtype=DEFAULT_DTYPE,
+            M = (
+                np.eye(3, dtype=DEFAULT_DTYPE)
+                + np.ones((3, 3), dtype=DEFAULT_DTYPE) * 0.2
             )
 
-        return M_log
+        M_inv = np.linalg.inv(M)
+
+        # Normalize rows to guarantee zero exposure shift on neutral tones
+        row_sums = M_inv.sum(axis=1, keepdims=True)
+        M_norm = M_inv / row_sums
+
+        # Linearly interpolate between Identity (s=0.0) and full unmixing (s=1.0)
+        M_blended = (1.0 - color_masking) * np.eye(
+            3, dtype=DEFAULT_DTYPE
+        ) + color_masking * M_norm
+
+        return M_blended
 
     def print_to(
         self,
