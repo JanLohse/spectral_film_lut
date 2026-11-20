@@ -65,15 +65,12 @@ class MainWindow(QMainWindow):
         pagelayout = QHBoxLayout()
         left_layout = QVBoxLayout()
         widget = QWidget()
-        widget.setSizePolicy(
-            QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        )
+        widget.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed))
         sidelayout = QGridLayout()
         widget.setLayout(sidelayout)
         widget.setObjectName("sidelayout")
         widget.setStyleSheet(
-            f"#sidelayout {{background-color: {BASE_COLOR}; border-radius: "
-            f"{BORDER_RADIUS};}}"
+            f"#sidelayout {{background-color: {BASE_COLOR}; border-radius: {BORDER_RADIUS};}}"
         )
         sidelayout.setAlignment(Qt.AlignmentFlag.AlignBottom)
 
@@ -94,9 +91,7 @@ class MainWindow(QMainWindow):
             self.side_counter += 1
             sidelayout.addWidget(widget, self.side_counter, 1)
             label = QLabel(name)
-            label.setAlignment(
-                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-            )
+            label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             sidelayout.addWidget(label, self.side_counter, 0)
             if default is not None and setter is not None:
                 label.mouseDoubleClickEvent = lambda *args: setter(default)
@@ -195,9 +190,7 @@ class MainWindow(QMainWindow):
                 "Sensitivity": f"ISO {filmstocks[x].iso}"
                 if filmstocks[x].iso is not None
                 else None,
-                "sensitivity": filmstocks[x].iso
-                if filmstocks[x].iso is not None
-                else None,
+                "sensitivity": filmstocks[x].iso if filmstocks[x].iso is not None else None,
                 "resolution": f"{filmstocks[x].resolution} lines/mm"
                 if filmstocks[x].resolution is not None
                 else None,
@@ -211,9 +204,7 @@ class MainWindow(QMainWindow):
                 if filmstocks[x].year is not None
                 else None,
                 "stage": filmstocks[x].stage,
-                "Chromaticity": "BW"
-                if filmstocks[x].density_measure == "bw"
-                else "Color",
+                "Chromaticity": "BW" if filmstocks[x].density_measure == "bw" else "Color",
                 "image": QImage(
                     np.require(filmstocks[x].color_checker, np.uint8, "C"),
                     6,
@@ -228,9 +219,7 @@ class MainWindow(QMainWindow):
             }
             for x in filmstocks
         }
-        negative_info = {
-            x: y for x, y in filmstock_info.items() if y["stage"] == "camera"
-        }
+        negative_info = {x: y for x, y in filmstock_info.items() if y["stage"] == "camera"}
         sort_keys_negative = [
             "Name",
             "Year",
@@ -306,6 +295,30 @@ class MainWindow(QMainWindow):
             "Not recommended for use with slide film.",
         )
 
+        self.dye_inhibition = Slider()
+        """How strongly dye inhibition reduces saturation through inter-layer effects."""
+        self.dye_inhibition.setMinMaxTicks(0, 1, 1, 20, 0.5)
+        self.dye_inhibition.set_color_gradient(
+            np.array(
+                [
+                    0.666,
+                    0.0,
+                    0.0,
+                ]
+            ),
+            np.array([0.666, 0.25, 2.0]),
+            20,
+            False,
+        )
+        add_option(
+            self.dye_inhibition,
+            "Dye inhibition",
+            0.5,
+            self.dye_inhibition.setValue,
+            tool_tip="How strongly inter-layer dye inhibition reduces saturation.\n"
+            "0 disables dye inhibition and 1 applies the full effect.",
+        )
+
         self.color_masking = Slider()
         """
         How effective the orange color mask of the film is. Value of 1 perfectly
@@ -316,7 +329,7 @@ class MainWindow(QMainWindow):
         For film without a color mask like slide film this can be used to simulate other
         inter-layer effects. Should probably set lower, but should be experimented with.
         """
-        self.color_masking.setMinMaxTicks(0, 2, 1, 10, 1)
+        self.color_masking.setMinMaxTicks(0, 1, 1, 20, 0.0)
         self.color_masking.set_color_gradient(
             np.array(
                 [
@@ -332,7 +345,7 @@ class MainWindow(QMainWindow):
         add_option(
             self.color_masking,
             "Color masking",
-            1.0,
+            0.0,
             self.color_masking.setValue,
             tool_tip="How effective the orange color mask of the film is. Value of 1\n"
             "perfectly compensates for color layer cross contamination. An\n"
@@ -457,8 +470,7 @@ class MainWindow(QMainWindow):
             "Projector WB",
             6500,
             self.projector_kelvin.setValue,
-            tool_tip="The color of the projection lamp or the viewing lamp for paper \n"
-            "prints.",
+            tool_tip="The color of the projection lamp or the viewing lamp for paper \nprints.",
         )
 
         self.inversion_gamma = Slider()
@@ -469,8 +481,7 @@ class MainWindow(QMainWindow):
             "Inversion gamma",
             3.0,
             self.inversion_gamma.setValue,
-            tool_tip="The gamma applied using the inversion if 'Inversion' is\n"
-            "selected.",
+            tool_tip="The gamma applied using the inversion if 'Inversion' is\nselected.",
         )
 
         self.idealized_curve = QCheckBox("Pure curve")
@@ -536,8 +547,7 @@ class MainWindow(QMainWindow):
             "Sat",
             1,
             self.sat_adjust.setValue,
-            tool_tip="A simple post processing saturation slider. Not physically\n"
-            "based.",
+            tool_tip="A simple post processing saturation slider. Not physically\nbased.",
         )
 
         self.shadow_comp = Slider()
@@ -725,8 +735,7 @@ class MainWindow(QMainWindow):
             "Spectral upsampling",
             "SFL upsampling",
             self.spectral_upsampling_method.setCurrentText,
-            tool_tip="How to reconstruct full spectral light distribution from CIE XYZ "
-            "values.",
+            tool_tip="How to reconstruct full spectral light distribution from CIE XYZ values.",
         )
 
         self.save_lut_button = AnimatedButton("Save LUT")
@@ -739,9 +748,7 @@ class MainWindow(QMainWindow):
         self.noise_button.clicked.connect(self.export_noise)
         add_option(self.noise_button, tool_tip="Open the grain overlay export dialog.")
 
-        self.input_colorspace_selector.currentTextChanged.connect(
-            self.parameter_changed
-        )
+        self.input_colorspace_selector.currentTextChanged.connect(self.parameter_changed)
         self.negative_selector.currentTextChanged.connect(self.negative_changed)
         self.output_gamut.currentTextChanged.connect(self.parameter_changed)
         self.output_gamma.currentTextChanged.connect(self.parameter_changed)
@@ -753,6 +760,7 @@ class MainWindow(QMainWindow):
         self.exp_wb.valueChanged.connect(self.parameter_changed)
         self.tint.valueChanged.connect(self.parameter_changed)
         self.push_pull.valueChanged.connect(self.parameter_changed)
+        self.dye_inhibition.valueChanged.connect(self.parameter_changed)
         self.red_light.valueChanged.connect(self.lights_changed)
         self.green_light.valueChanged.connect(self.lights_changed)
         self.blue_light.valueChanged.connect(self.lights_changed)
@@ -767,9 +775,7 @@ class MainWindow(QMainWindow):
         self.adx_scale.currentTextChanged.connect(self.parameter_changed)
         self.apd_intermediate.stateChanged.connect(self.parameter_changed)
         self.filter_mode.currentTextChanged.connect(self.parameter_changed)
-        self.spectral_upsampling_method.currentTextChanged.connect(
-            self.parameter_changed
-        )
+        self.spectral_upsampling_method.currentTextChanged.connect(self.parameter_changed)
 
         widget = QWidget()
         widget.setLayout(pagelayout)
@@ -818,6 +824,7 @@ class MainWindow(QMainWindow):
             Qt.CheckState.Checked: 2,
         }[self.white_balance.checkState()]
         shadow_comp = self.shadow_comp.getValue()
+        dye_inhibition = self.dye_inhibition.getValue()
         color_masking = self.color_masking.getValue()
         mode = self.mode.currentText()
         exp_wb = self.exp_wb.getValue()
@@ -855,6 +862,7 @@ class MainWindow(QMainWindow):
             green_light=green_light,
             blue_light=blue_light,
             shadow_comp=shadow_comp,
+            dye_inhibition=dye_inhibition,
             color_masking=color_masking,
             tint=tint,
             sat_adjust=sat_adjust,
@@ -1017,9 +1025,7 @@ class MainWindow(QMainWindow):
 
         default_name = "_".join(parts[mode]).replace(" ", "-")
 
-        filename, ok = QFileDialog.getSaveFileName(
-            self, "Save LUT", default_name, ".cube"
-        )
+        filename, ok = QFileDialog.getSaveFileName(self, "Save LUT", default_name, ".cube")
 
         if ok:
             self.generate_lut(filename)

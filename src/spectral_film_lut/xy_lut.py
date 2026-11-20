@@ -57,9 +57,7 @@ from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
 # Color Matching Functions (CMFs)
 
 XYZ_CMFS = np.asarray(
-    colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"]
-    .align(SPECTRAL_SHAPE)
-    .values,
+    colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].align(SPECTRAL_SHAPE).values,
     dtype=DEFAULT_DTYPE,
 )
 
@@ -171,9 +169,7 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
                 g_val = lut[r_ind, g_ind + 1, ch]
                 S_val = lut[r_ind, g_ind, ch]
 
-                out_flat[i, ch] = (
-                    r_val * r_factor + g_val * g_factor + S_val * s_factor
-                ) * S
+                out_flat[i, ch] = (r_val * r_factor + g_val * g_factor + S_val * s_factor) * S
         else:
             s_factor = factor_sum - 1.0
             r_factor2 = 1.0 - g_factor
@@ -184,9 +180,7 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
                 g_val = lut[r_ind, g_ind + 1, ch]
                 S_val = lut[r_ind + 1, g_ind + 1, ch]
 
-                out_flat[i, ch] = (
-                    r_val * r_factor2 + g_val * g_factor2 + S_val * s_factor
-                ) * S
+                out_flat[i, ch] = (r_val * r_factor2 + g_val * g_factor2 + S_val * s_factor) * S
 
     out_shape = orig_shape[:-1] + (k,)
     return out_flat.reshape(out_shape)
@@ -342,9 +336,7 @@ def xy_to_spectrum_nnls(
     has_prior = False
     prior_spectrum = None
     if triangulation is not None and reduced_spectra is not None:
-        prior_spectrum, has_prior = get_barycentric_prior(
-            xy, triangulation, reduced_spectra, cmfs
-        )
+        prior_spectrum, has_prior = get_barycentric_prior(xy, triangulation, reduced_spectra, cmfs)
 
     w_smooth = np.sqrt(smoothness_loss_factor)
     w_data = np.sqrt(data_loss_factor) if has_prior else 0.0
@@ -508,9 +500,7 @@ def _evaluate_xyz_to_sd(
             sd_result = sd_result.copy()
             sd_result.align(target_shape)
 
-        spec_values = (
-            sd_result.values if hasattr(sd_result, "values") else np.asarray(sd_result)
-        )
+        spec_values = sd_result.values if hasattr(sd_result, "values") else np.asarray(sd_result)
 
         if spec_values.ndim == 2 and spec_values.shape[0] == len(target_xyz):
             return np.nan_to_num(spec_values, nan=0.0, posinf=0.0, neginf=0.0)
@@ -560,9 +550,7 @@ def _generate_colour_sd_lut(
         target_shape = SPECTRAL_SHAPE
 
     cmf_matrix = cmfs.values if hasattr(cmfs, "values") else cmfs
-    num_wavelengths = (
-        cmf_matrix.shape[0] if cmf_matrix is not None else target_shape.count
-    )
+    num_wavelengths = cmf_matrix.shape[0] if cmf_matrix is not None else target_shape.count
 
     # Evaluate spectra
     lut_flat = np.zeros((resolution * resolution, num_wavelengths), dtype=DEFAULT_DTYPE)
@@ -622,9 +610,7 @@ def get_spectrum_lut(
     """
     if method not in _METHOD_REGISTRY:
         available = list(_METHOD_REGISTRY.keys())
-        raise ValueError(
-            f"Unknown upsampling method '{method}'. Available: {available}"
-        )
+        raise ValueError(f"Unknown upsampling method '{method}'. Available: {available}")
 
     handler = _METHOD_REGISTRY[method]
 

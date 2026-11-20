@@ -21,15 +21,11 @@ class SplashScreen(QWidget):
         super().__init__()
         self.setWindowTitle(f"{name} {version}")
         self.setFixedSize(400, 180)
-        self.setWindowFlags(
-            Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.CoverWindow
-        )
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.CoverWindow)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
 
         # Background color
-        self.setStyleSheet(
-            f"background-color: {BACKGROUND_COLOR}; color: {TEXT_PRIMARY};"
-        )
+        self.setStyleSheet(f"background-color: {BACKGROUND_COLOR}; color: {TEXT_PRIMARY};")
 
         # Layout
         layout = QVBoxLayout(self)
@@ -65,9 +61,7 @@ class SplashScreen(QWidget):
     def update_style_sheet(self, progress, colour=None):
         # Style the progress bar
         if colour is not None and progress:
-            progress_color = colour.convert(
-                (0.5, 0.08, progress), "Oklch", "Hexadecimal"
-            )
+            progress_color = colour.convert((0.5, 0.08, progress), "Oklch", "Hexadecimal")
         else:
             progress_color = "transparent"
         self.progress.setStyleSheet(f"""

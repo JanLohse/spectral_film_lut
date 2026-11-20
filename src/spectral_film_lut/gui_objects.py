@@ -121,9 +121,7 @@ class WideComboBox(QComboBox):
     def showPopup(self):
         # Measure the widest item text
         fm = QFontMetrics(self.view().font())
-        max_width = max(
-            fm.horizontalAdvance(self.itemText(i)) for i in range(self.count())
-        )
+        max_width = max(fm.horizontalAdvance(self.itemText(i)) for i in range(self.count()))
         # Add some padding
         max_width += 30
 
@@ -267,9 +265,7 @@ class FileSelector(QWidget):
         self.show()
 
     def open_file_dialog(self):
-        filename, ok = QFileDialog.getOpenFileName(
-            self, "Select a File", "", self.filetype
-        )
+        filename, ok = QFileDialog.getOpenFileName(self, "Select a File", "", self.filetype)
         if filename:
             path = Path(filename)
             self.filename_edit.setText(str(path))
@@ -524,9 +520,7 @@ class CoreGradientSlider(QSlider):
         total_range = max_val - min_val if max_val > min_val else 1.0
 
         def value_to_x(val):
-            return (
-                groove_rect.left() + (val - min_val) / total_range * groove_rect.width()
-            )
+            return groove_rect.left() + (val - min_val) / total_range * groove_rect.width()
 
         # Clamp visual value safely into range before mapping coordinates
         clamped_visual = max(min_val, min(max_val, self._visualValue))
@@ -569,9 +563,7 @@ class CoreGradientSlider(QSlider):
 
         # Drawing the handle layouts
         if self.modern_design:
-            handle_bg_width = (
-                float(self.handle_width) / 2.0 - 1.0
-            ) + self._hoverProgress
+            handle_bg_width = (float(self.handle_width) / 2.0 - 1.0) + self._hoverProgress
             handle_bg_rect = QRectF(
                 handle_x - handle_bg_width,
                 groove_rect.center().y() - groove_thickness,
@@ -656,9 +648,7 @@ class BaseSliderWidget(QWidget):
         self.slider.setOrientation(Qt.Orientation.Horizontal)
 
         self.text = HoverLineEdit()
-        self.text.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
+        self.text.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.text.setFixedWidth(40)  # Expanded slightly to protect 3-decimal values
         self.text.editingFinished.connect(self._apply_text_value)
 
@@ -793,9 +783,7 @@ class Slider(BaseSliderWidget):
             self.slider.scroll_anim.setDuration(self.slider.duration_glide_default)
 
         target_step = round((value - self.min) * self.denominator / self.enumerator)
-        clamped_step = max(
-            self.slider.minimum(), min(self.slider.maximum(), target_step)
-        )
+        clamped_step = max(self.slider.minimum(), min(self.slider.maximum(), target_step))
 
         self.slider.setValue(clamped_step)
 
@@ -973,9 +961,7 @@ class AnimatedToolButton(QToolButton):
 
     def mouseReleaseEvent(self, event):
         # After releasing, go back depending on hover/toggle state
-        target_bg = (
-            self._hover_color if self.underMouse() else self._get_base_state_color()
-        )
+        target_bg = self._hover_color if self.underMouse() else self._get_base_state_color()
         self._start_color_animation(target_bg, PRESS_DURATION)
         self._set_text_color(self._base_text_color)
         super().mouseReleaseEvent(event)
@@ -1171,9 +1157,7 @@ class ModeSelector(QWidget):
         self._container.setMouseTracking(True)
 
         self._layout = QHBoxLayout(self._container)
-        self._layout.setContentsMargins(
-            bg_padding, bg_padding, bg_padding - 2, bg_padding
-        )
+        self._layout.setContentsMargins(bg_padding, bg_padding, bg_padding - 2, bg_padding)
         self._layout.setSpacing(2)
 
         outer_layout.addWidget(self._container)
@@ -1248,8 +1232,7 @@ class ModeSelector(QWidget):
             p_right = curve_slow.valueForProgress(val)
 
         left = int(
-            self._start_rect.left()
-            + (self._target_rect.left() - self._start_rect.left()) * p_left
+            self._start_rect.left() + (self._target_rect.left() - self._start_rect.left()) * p_left
         )
         right = int(
             self._start_rect.right()

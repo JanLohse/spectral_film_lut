@@ -19,11 +19,7 @@ def load_filmstocks(progress_callback, gray_value=None):
     total = len(FILM_STOCKS)
     for i, film_stock in enumerate(FILM_STOCKS, start=1):
         instance = FilmSpectral(film_stock, gray_value=gray_value)
-        if (
-            result
-            and instance.stage == "print"
-            and instance.density_measure == "status_a"
-        ):
+        if result and instance.stage == "print" and instance.density_measure == "status_a":
             instance.set_color_checker(negative=result[0])
         else:
             instance.set_color_checker()

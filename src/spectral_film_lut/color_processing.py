@@ -24,19 +24,9 @@ def CCT_to_xy(CCT):
     CCT_2 = CCT**2
 
     if CCT <= 7000:
-        x = (
-            -4.607 * 10**9 / CCT_3
-            + 2.9678 * 10**6 / CCT_2
-            + 0.09911 * 10**3 / CCT
-            + 0.244063
-        )
+        x = -4.607 * 10**9 / CCT_3 + 2.9678 * 10**6 / CCT_2 + 0.09911 * 10**3 / CCT + 0.244063
     else:
-        x = (
-            -2.0064 * 10**9 / CCT_3
-            + 1.9018 * 10**6 / CCT_2
-            + 0.24748 * 10**3 / CCT
-            + 0.23704
-        )
+        x = -2.0064 * 10**9 / CCT_3 + 1.9018 * 10**6 / CCT_2 + 0.24748 * 10**3 / CCT + 0.23704
 
     y = -3.000 * x**2 + 2.870 * x - 0.275
     return np.array([x, y], DEFAULT_DTYPE)
@@ -79,9 +69,7 @@ COLORCHECKER_2005 = COLORCHECKER_2005[1:]
 COLORCHECKER_2005 = np.asarray(COLORCHECKER_2005, DEFAULT_DTYPE)
 
 
-def compress_gamut(
-    image: np.ndarray, gamut_compression: float | None = None
-) -> np.ndarray:
+def compress_gamut(image: np.ndarray, gamut_compression: float | None = None) -> np.ndarray:
     """
     A simple gamut compression that limits the maximal relative distance from the
     achromatic. Inspired by ACES Reference Gamut Compression. Has been simplified
@@ -310,7 +298,7 @@ CDD_TO_CID = np.array(
         [0.02230, -0.02829, 0.76460],
     ],
     DEFAULT_DTYPE,
-)
+).T
 
 EXP_TO_ACES = np.array(
     [
@@ -359,9 +347,7 @@ def apd_to_xyz(
     # Convert to xyz
     if exp_to_xyz is None:
         white_point = CCT_to_xy(projector_kelvin)
-        exp_to_xyz = colour.RGB_to_XYZ(
-            EXP_TO_ACES, "ACES2065-1", illuminant=white_point
-        )
+        exp_to_xyz = colour.RGB_to_XYZ(EXP_TO_ACES, "ACES2065-1", illuminant=white_point)
     else:
         white_point = CCT_to_XYZ(projector_kelvin)
         exp_to_xyz = exp_to_xyz / exp_to_xyz.sum(axis=0) * white_point

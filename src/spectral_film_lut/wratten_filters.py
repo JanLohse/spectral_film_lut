@@ -3956,9 +3956,9 @@ def cleanup(curve):
 
     # convert to spectral distribution and align with shape
     spectral_distribution = colour.SpectralDistribution(filtered_curve)
-    spectral_distribution.align(
-        SPECTRAL_SHAPE, extrapolator_kwargs={"method": "linear"}
-    ).align(SPECTRAL_SHAPE)
+    spectral_distribution.align(SPECTRAL_SHAPE, extrapolator_kwargs={"method": "linear"}).align(
+        SPECTRAL_SHAPE
+    )
 
     # convert to array and then to transmission factor
     density = np.asarray(spectral_distribution.values)

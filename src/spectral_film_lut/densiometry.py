@@ -351,9 +351,7 @@ DENSITY_MEASURE = Literal["status_a", "status_m", "apd", "absolute", "bw"]
 """The available density measures."""
 
 
-def wavelength_argmax(
-    distribution: colour.SpectralDistribution, low=None, high=None
-) -> int:
+def wavelength_argmax(distribution: colour.SpectralDistribution, low=None, high=None) -> int:
     """Gets the argmax of a spectral distribution."""
     range = distribution.copy()
     if low is not None and high is not None:
@@ -362,9 +360,7 @@ def wavelength_argmax(
     return peak
 
 
-def wavelength_argmin(
-    distribution: colour.SpectralDistribution, low=None, high=None
-) -> int:
+def wavelength_argmin(distribution: colour.SpectralDistribution, low=None, high=None) -> int:
     """Gets the argmax of a spectral distribution."""
     range = distribution.copy()
     if low is not None and high is not None:
@@ -373,9 +369,7 @@ def wavelength_argmin(
     return peak
 
 
-def construct_spectral_density(
-    ref_density: colour.SpectralDistribution, sigma=25
-) -> np.ndarray:
+def construct_spectral_density(ref_density: colour.SpectralDistribution, sigma=20) -> np.ndarray:
     """Split single density curve into separate layers using local extrema."""
     red_peak = wavelength_argmax(ref_density, 600, min(750, SPECTRAL_SHAPE.end))
     green_peak = wavelength_argmax(ref_density, 500, 600)
@@ -391,9 +385,9 @@ def construct_spectral_density(
             np.where(wavelengths <= bg_cutoff, 1.0, 0.0),
         )
     )
-    factors = ndimage.gaussian_filter(
-        factors, sigma=(0, sigma / SPECTRAL_SHAPE.interval)
-    ).astype(DEFAULT_DTYPE)
+    factors = ndimage.gaussian_filter(factors, sigma=(0, sigma / SPECTRAL_SHAPE.interval)).astype(
+        DEFAULT_DTYPE
+    )
 
     out = (factors * np.asarray(ref_density.values)).T
     return out
@@ -666,8 +660,7 @@ def adx16_decode(
         apd_min = apd_min[0]
 
     apd = (
-        (adx.astype(DEFAULT_DTYPE) / scaling - 1520.0 / 65535.0)
-        / (scale * 8000.0 / 65535.0)
+        (adx.astype(DEFAULT_DTYPE) / scaling - 1520.0 / 65535.0) / (scale * 8000.0 / 65535.0)
     ) + apd_min
 
     return apd

@@ -44,6 +44,7 @@ def film_conversion(
     tint: float = 0.0,
     exp_comp: float = 0.0,
     color_masking: None | float = None,
+    dye_inhibition: None | float = None,
     adx_coding: bool = True,
     adx_scaling: float | int = 1.0,
     red_light: float = 0.0,
@@ -84,6 +85,7 @@ def film_conversion(
         exp_kelvin: The scene WB in kelvin.
         tint: The tint adjustment on the green -- red/purple axis.
         exp_comp: Exposure compensation in stops.
+        dye_inhibition: Strength of interlayer dye inhibition. 0 disables it.
         color_masking: How strong the color mask is on the negative film. 0 for no mask.
             1 for a perfectly optimized mask (no pollution of other layers). >1 for
             increased saturation. Most film stocks don't provide exact data. For films
@@ -121,19 +123,22 @@ def film_conversion(
     """
     image = np.ascontiguousarray(image)
 
+    color_masking = 0.0  # TODO revert
+
     if negative_film.density_measure == "status_a":
         apd_intermediate = False
 
     if mode == "negative" or mode == "full":
         image = negative_film.input_transform(
             image,
-            input_colorspace,
-            exp_comp,
-            exp_kelvin,
-            tint,
-            color_masking,
-            push_pull,
-            upsampling_method,
+            colorspace=input_colorspace,
+            exp_comp=exp_comp,
+            exp_kelvin=exp_kelvin,
+            tint=tint,
+            dye_inhibition=dye_inhibition,
+            push_pull=push_pull,
+            upsampling_method=upsampling_method,
+            color_masking=color_masking,
         )
 
         if apd_intermediate:
@@ -142,18 +147,28 @@ def film_conversion(
                 red_light=red_light,
                 green_light=green_light,
                 blue_light=blue_light,
+                color_masking=color_masking,
+                dye_inhibition=dye_inhibition,
             )
 
     if adx_coding and mode == "negative":
-        image = negative_film.adx_encoding(image, adx_scaling, apd_intermediate)
+        image = negative_film.adx_encoding(
+            image,
+            adx_scaling,
+            apd_intermediate,
+            color_masking=color_masking,
+            dye_inhibition=dye_inhibition,
+        )
 
     if adx_coding and (mode == "print" or mode == "grain"):
-        image = negative_film.adx_decoding(image, adx_scaling, apd_intermediate)
-    elif (
-        mode == "print"
-        and negative_film.density_measure == "bw"
-        and not apd_intermediate
-    ):
+        image = negative_film.adx_decoding(
+            image,
+            adx_scaling,
+            apd_intermediate,
+            color_masking=color_masking,
+            dye_inhibition=dye_inhibition,
+        )
+    elif mode == "print" and negative_film.density_measure == "bw" and not apd_intermediate:
         image = image[..., 0][..., np.newaxis]  # reduce dim
 
     if mode == "print" or mode == "full":
@@ -164,6 +179,8 @@ def film_conversion(
                     red_light=red_light,
                     green_light=green_light,
                     blue_light=blue_light,
+                    color_masking=color_masking,
+                    dye_inhibition=dye_inhibition,
                 )
 
             if negative_film.density_measure == "bw":
@@ -172,9 +189,7 @@ def film_conversion(
             elif custom_inversion:
                 exp_to_xyz = negative_film.cid_to_xyz
 
-                image = apd_to_xyz(
-                    image, inversion_gamma, projector_kelvin, exp_to_xyz=exp_to_xyz
-                )
+                image = apd_to_xyz(image, inversion_gamma, projector_kelvin, exp_to_xyz=exp_to_xyz)
 
             else:
                 image = apd_to_xyz(image, inversion_gamma, projector_kelvin)
@@ -190,6 +205,7 @@ def film_conversion(
                         idealized_gamma=inversion_gamma,
                         reference_negative=reference_negative,
                         d_min=d_min,
+                        color_masking=color_masking,
                     )
                 else:
                     image = negative_film.print_to(
@@ -201,6 +217,8 @@ def film_conversion(
                         idealized_curve,
                         inversion_gamma,
                         d_min=d_min,
+                        color_masking=color_masking,
+                        dye_inhibition=dye_inhibition,
                     )
             else:
                 output_film = negative_film
@@ -210,6 +228,8 @@ def film_conversion(
                 projector_kelvin,
                 white_clip,
                 white_balance if print_film is None else 0,
+                color_masking=color_masking,
+                dye_inhibition=dye_inhibition,
             )
 
         image = output_transform(
@@ -264,9 +284,7 @@ def create_lut(
         raise ValueError(f"Unsupported filter_mode: {filter_mode}")
 
     # Apply film look
-    table = film_conversion(
-        eval_grid * linear_scaling, negative_film, print_film, **kwargs
-    )
+    table = film_conversion(eval_grid * linear_scaling, negative_film, print_film, **kwargs)
     if table.shape[-1] == 1:
         table = np.repeat(table, 3, axis=-1)
 
@@ -419,48 +437,18 @@ def apply_lut_tetrahedral_int(
             # Tetrahedral interpolation
             if dr >= dg:
                 if dg >= db:
-                    c = (
-                        c000 * scale
-                        + dr * (c100 - c000)
-                        + dg * (c110 - c100)
-                        + db * (c111 - c110)
-                    )
+                    c = c000 * scale + dr * (c100 - c000) + dg * (c110 - c100) + db * (c111 - c110)
                 elif dr >= db:
-                    c = (
-                        c000 * scale
-                        + dr * (c100 - c000)
-                        + db * (c101 - c100)
-                        + dg * (c111 - c101)
-                    )
+                    c = c000 * scale + dr * (c100 - c000) + db * (c101 - c100) + dg * (c111 - c101)
                 else:
-                    c = (
-                        c000 * scale
-                        + db * (c001 - c000)
-                        + dr * (c101 - c001)
-                        + dg * (c111 - c101)
-                    )
+                    c = c000 * scale + db * (c001 - c000) + dr * (c101 - c001) + dg * (c111 - c101)
             else:
                 if db >= dg:
-                    c = (
-                        c000 * scale
-                        + db * (c001 - c000)
-                        + dg * (c011 - c001)
-                        + dr * (c111 - c011)
-                    )
+                    c = c000 * scale + db * (c001 - c000) + dg * (c011 - c001) + dr * (c111 - c011)
                 elif db >= dr:
-                    c = (
-                        c000 * scale
-                        + dg * (c010 - c000)
-                        + db * (c011 - c010)
-                        + dr * (c111 - c011)
-                    )
+                    c = c000 * scale + dg * (c010 - c000) + db * (c011 - c010) + dr * (c111 - c011)
                 else:
-                    c = (
-                        c000 * scale
-                        + dg * (c010 - c000)
-                        + dr * (c110 - c010)
-                        + db * (c111 - c110)
-                    )
+                    c = c000 * scale + dg * (c010 - c000) + dr * (c110 - c010) + db * (c111 - c110)
 
             # Convert back to uint8 safely
             out[y, x, 0] = np.uint8(c[0] // scale_out)

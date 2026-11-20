@@ -64,9 +64,7 @@ def gaussian_noise(shape, cached=False):
         [noise_size - shape[0] + 1, noise_size - shape[1] + 1],
         size=(shape[2], 2),
     )
-    noise = np.stack(
-        [noise_map[x : shape[0] + x, y : shape[1] + y] for x, y in offsets], axis=-1
-    )
+    noise = np.stack([noise_map[x : shape[0] + x, y : shape[1] + y] for x, y in offsets], axis=-1)
     return noise
 
 
@@ -115,9 +113,7 @@ def grain_kernel(
         grain_size_mm: The grain diameter in mm.
         grain_sigma: The grain size distribution standard variance
     """
-    dye_size1_mm, dye_size2_mm, w1, w2 = two_component_params(
-        grain_size_mm, grain_sigma
-    )
+    dye_size1_mm, dye_size2_mm, w1, w2 = two_component_params(grain_size_mm, grain_sigma)
 
     kernel_size_mm = 1.5 * max(dye_size1_mm, dye_size2_mm)
     kernel_size = round(kernel_size_mm / pixel_size_mm)
@@ -179,9 +175,7 @@ def generate_grain(
     if bw_grain:
         shape = (shape[0], shape[1], 1)
     noise = gaussian_noise(shape, cached=cached)
-    kernel = grain_kernel(
-        1 / scale, grain_size_mm=grain_size_mm, grain_sigma=grain_sigma
-    )
+    kernel = grain_kernel(1 / scale, grain_size_mm=grain_size_mm, grain_sigma=grain_sigma)
     if kernel is not None:
         noise = cv.filter2D(noise, -1, kernel)
     if len(noise.shape) == 2:
@@ -288,9 +282,7 @@ class ExportGrainDialog(QDialog):
         layout.addWidget(QLabel("Frame rate:"))
         self.frame_rate = WideComboBox()
         self.frame_rate.setEditable(True)
-        self.frame_rate.addItems(
-            ["23.976", "24", "25", "29.97", "30", "50", "59.94", "60"]
-        )
+        self.frame_rate.addItems(["23.976", "24", "25", "29.97", "30", "50", "59.94", "60"])
         self.frame_rate.setValidator(double_validator)
         self.frame_rate.setCurrentText("24")
         layout.addWidget(self.frame_rate)
@@ -298,9 +290,7 @@ class ExportGrainDialog(QDialog):
         layout.addWidget(QLabel("Frame width (mm):"))
         self.frame_width_field = WideComboBox()
         self.frame_width_field.setEditable(True)
-        self.frame_width_field.addItems(
-            ["5.79", "6.30", "12.42", "24.90", "36", "52.15", "70.41"]
-        )
+        self.frame_width_field.addItems(["5.79", "6.30", "12.42", "24.90", "36", "52.15", "70.41"])
         self.frame_width_field.setValidator(double_validator)
         self.frame_width_field.setCurrentText("36")
         layout.addWidget(self.frame_width_field)
@@ -352,9 +342,7 @@ class ExportGrainDialog(QDialog):
         )
         ext = FILE_FORMATS[file_format]["extension"]
 
-        filename, ok = QFileDialog.getSaveFileName(
-            self, "Choose output file", "", "*" + ext
-        )
+        filename, ok = QFileDialog.getSaveFileName(self, "Choose output file", "", "*" + ext)
         if not ok or not filename:
             return
 
@@ -362,9 +350,7 @@ class ExportGrainDialog(QDialog):
             filename += ext
 
         # --- Setup QProgressDialog ---
-        self.progress_dialog = QProgressDialog(
-            "Preparing export...", "Cancel", 0, frames + 1, self
-        )
+        self.progress_dialog = QProgressDialog("Preparing export...", "Cancel", 0, frames + 1, self)
         self.progress_dialog.setWindowTitle("Export grain overlay")
         self.progress_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.progress_dialog.setMinimumDuration(0)
@@ -409,13 +395,9 @@ QProgressBar::chunk {{
                 for i in range(frames):
                     if self.cancelled:
                         break
-                    frame = generate_grain_frame(
-                        width, height, channels, scale, grain_size
-                    )
+                    frame = generate_grain_frame(width, height, channels, scale, grain_size)
                     writer.append_data(frame)
-                    self.progress_dialog.setLabelText(
-                        f"Exported {i + 1}/{frames} frames"
-                    )
+                    self.progress_dialog.setLabelText(f"Exported {i + 1}/{frames} frames")
                     self.progress_dialog.setValue(i + 1)
                 self.progress_dialog.setLabelText("Finishing up video file")
                 QApplication.processEvents()

@@ -11,9 +11,7 @@ from spectral_film_lut.splash_screen import launch_splash_screen
 
 def run(exit_immediately: bool = False):
     if sys.platform == "win32":
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-            "jan_lohse.spectral_film_lut"
-        )
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("jan_lohse.spectral_film_lut")
 
     app, splash_screen = launch_splash_screen("Spectral Film LUT", __version__)
 

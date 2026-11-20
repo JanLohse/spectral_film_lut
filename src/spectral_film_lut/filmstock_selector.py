@@ -406,24 +406,16 @@ class FilmStockSelectorWindow(QDialog):
                     attr_label = QLabel(val_str)
                     attr_label.setMinimumWidth(2)
                     attr_label.setMaximumWidth(70)
-                    attr_label.setSizePolicy(
-                        QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-                    )
+                    attr_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
                     attr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     item_layout.addWidget(attr_label)
 
                 item_widget.setLayout(item_layout)
                 item_widget.setFrameStyle(QLabel.Shape.Box)
-                item_widget.setSizePolicy(
-                    QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-                )
+                item_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
                 item_widget.setMinimumHeight(40)
-                item_widget.mousePressEvent = lambda e, s=stock: self.highlight_widget(
-                    s
-                )
-                item_widget.mouseDoubleClickEvent = lambda e, s=stock: (
-                    self.confirm_selection()
-                )
+                item_widget.mousePressEvent = lambda e, s=stock: self.highlight_widget(s)
+                item_widget.mouseDoubleClickEvent = lambda e, s=stock: self.confirm_selection()
 
                 self.list_layout.addWidget(item_widget)
 
@@ -469,9 +461,7 @@ class FilmStockSelectorWindow(QDialog):
                     image_label.setFixedHeight(70)
                     original_image = self.film_stocks[stock][self.image_key]
                     pixmap = QPixmap.fromImage(original_image)
-                    scaled_pixmap = pixmap.scaled(
-                        col_width, 70, Qt.AspectRatioMode.KeepAspectRatio
-                    )
+                    scaled_pixmap = pixmap.scaled(col_width, 70, Qt.AspectRatioMode.KeepAspectRatio)
                     image_label.setPixmap(scaled_pixmap)
                     layout.addWidget(image_label)
 
@@ -480,15 +470,11 @@ class FilmStockSelectorWindow(QDialog):
                 layout.addWidget(text_label)
 
                 container.setFixedSize(QSize(col_width, col_height))
-                container.setSizePolicy(
-                    QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-                )
+                container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
                 # Mouse events
                 container.mousePressEvent = lambda e, s=stock: self.highlight_widget(s)
-                container.mouseDoubleClickEvent = lambda e, s=stock: (
-                    self.confirm_selection()
-                )
+                container.mouseDoubleClickEvent = lambda e, s=stock: self.confirm_selection()
 
                 self.grid_layout.addWidget(container, row, col)
                 self.grid_widgets[stock] = container
@@ -501,9 +487,7 @@ class FilmStockSelectorWindow(QDialog):
             if col != 0:
                 row += 1
 
-        self.grid_layout.setAlignment(
-            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
-        )
+        self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.grid_container.adjustSize()
 
         self.highlight_widget()
