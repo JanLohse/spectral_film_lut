@@ -94,6 +94,12 @@ class FilmStockSelector(QWidget):
         self.kwargs["view_state"] = dialog.view_toggle.isChecked()
 
     def setEnabled(self, a0):
+        """
+        Enable or disable the selector controls.
+
+        Args:
+            a0: Whether the controls are enabled.
+        """
         self.film_combo.setEnabled(a0)
         self.select_button.setEnabled(a0)
         super().setEnabled(a0)
@@ -273,6 +279,7 @@ class FilmStockSelectorWindow(QDialog):
             self.ensure_highlighted_visible()
 
     def eventFilter(self, obj, event):
+        """Handle grid-view resize events."""
         if obj is self.grid_scroll.viewport() and event.type() == QEvent.Type.Resize:
             col_width = 150
             view_width = self.grid_scroll.viewport().width()
@@ -284,6 +291,8 @@ class FilmStockSelectorWindow(QDialog):
 
     def sort_and_group_stocks(self) -> dict:
         """
+        Sort, filter, and group the available film stocks.
+
         Returns:
             Sorted, filtered, and grouped film stocks.
         """
@@ -325,6 +334,7 @@ class FilmStockSelectorWindow(QDialog):
         return sorted(groups.items(), key=lambda x: (x[0] != self.UNKNOWN_LABEL, x[0]))
 
     def update_sidebar(self, stock):
+        """Update the sidebar details for a film stock."""
         if self.image_key is not None and self.image_key in self.film_stocks[stock]:
             original_pixmap = QPixmap.fromImage(self.film_stocks[stock][self.image_key])
             scaled_pixmap = original_pixmap.scaled(
@@ -341,6 +351,7 @@ class FilmStockSelectorWindow(QDialog):
         self.detail_label.setText(detail_text)
 
     def highlight_widget(self, stock=None):
+        """Highlight the list and grid entry for a stock."""
         if stock is not None:
             if stock in self.grid_widgets and stock in self.list_widgets:
                 grid_widget = self.grid_widgets[stock]
@@ -372,11 +383,13 @@ class FilmStockSelectorWindow(QDialog):
             self.update_sidebar(stock)
 
     def confirm_selection(self):
+        """Accept the currently highlighted film stock."""
         if self.highlighted_stock:
             self.selected_film = self.highlighted_stock
             self.accept()
 
     def populate_list_view(self):
+        """Populate the grouped list view."""
         self.list_widgets = {}
 
         for i in reversed(range(self.list_layout.count())):
@@ -422,6 +435,7 @@ class FilmStockSelectorWindow(QDialog):
                 self.list_widgets[stock] = item_widget
 
     def populate_grid_view(self):
+        """Populate the grouped grid view."""
         self.grid_widgets = {}
 
         while self.grid_layout.count():
@@ -494,26 +508,33 @@ class FilmStockSelectorWindow(QDialog):
         self.ensure_highlighted_visible()
 
     def update_views(self):
+        """Refresh both film-stock views after a filter or sort change."""
         self.populate_list_view()
         self.populate_grid_view()
 
     def toggle_view(self, checked):
+        """Switch between list and grid views."""
         self.stacked_view.setCurrentIndex(1 if checked else 0)
         self.ensure_highlighted_visible()
 
     def get_selected_film_stock(self):
+        """Return the selected film-stock name, or `None`."""
         return self.selected_film
 
     def get_sort_key(self):
+        """Return the active sort key."""
         return self.sort_combo.currentText()
 
     def get_group_key(self):
+        """Return the active grouping key."""
         return self.group_combo.currentText()
 
     def get_filter_key(self):
+        """Return the active search filter."""
         return self.search_bar.text()
 
     def ensure_highlighted_visible(self):
+        """Scroll the active view so the highlighted stock is visible."""
         if self.highlighted_stock is None:
             return
 

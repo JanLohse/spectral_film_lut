@@ -19,7 +19,15 @@ from spectral_film_lut.xy_lut import apply_2d_lut, xyS_to_XYZ
 
 
 def CCT_to_xy(CCT):
-    """Convert from a color temperature in kelvin to the closest xy pair."""
+    """
+    Convert a color temperature in kelvin to the closest CIE xy coordinates.
+
+    Args:
+        CCT: Correlated color temperature in kelvin.
+
+    Returns:
+        CIE xy coordinates.
+    """
     CCT_3 = CCT**3
     CCT_2 = CCT**2
 
@@ -122,6 +130,9 @@ def output_color_transform(
         output_gamut: The name of the output color space.
         sat_adjust: By what factor to multiply the saturation.
         lut_size: The size of the LUT. Default is 33x33.
+        rolloff: Apply a highlight roll-off before encoding.
+        gamma_func: Gamma or transfer function used for display output.
+        gamut_compression: Relative gamut distance limit, or `None` for the default.
 
     Returns:
         The transformed image in the output gamut.
@@ -281,7 +292,17 @@ def output_transform(
 
 
 def CCT_to_XYZ(CCT: float | int, Y: float = 1.0, tint: float = 0.0) -> np.ndarray:
-    """Converts from a color temperature in kelvin to a XYZ triplet."""
+    """
+    Convert a color temperature in kelvin to CIE XYZ.
+
+    Args:
+        CCT: Correlated color temperature in kelvin.
+        Y: Luminance value.
+        tint: Green-red/purple tint adjustment.
+
+    Returns:
+        CIE XYZ values.
+    """
     xy = CCT_to_xy(CCT)
     xyY = (xy[0], xy[1], Y)
     XYZ = colour.xyY_to_XYZ(xyY)

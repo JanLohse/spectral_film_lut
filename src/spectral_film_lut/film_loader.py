@@ -12,9 +12,7 @@ from spectral_film_lut.film_spectral import FilmSpectral
 
 
 def load_filmstocks(progress_callback, gray_value=None):
-    """
-    Processes film stock data in parallel and reports the progress to the progress bar.
-    """
+    """Processes film stock data in parallel and reports the progress to the progress bar."""
     result = []
     total = len(FILM_STOCKS)
     for i, film_stock in enumerate(FILM_STOCKS, start=1):
@@ -35,9 +33,7 @@ def load_ui(
     gray_value: float | None = None,
     exit_immediately: bool = False,
 ):
-    """
-    Helper function for loading UI elements in *spectral_film_lut* and *raw2film*.
-    """
+    """Helper function for loading UI elements in *spectral_film_lut* and *raw2film*."""
     app.setStyleSheet(THEME)
 
     def update_progress(current, total, name):

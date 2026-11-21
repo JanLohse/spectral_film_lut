@@ -46,14 +46,20 @@ from spectral_film_lut.gui_objects import (
 
 @cache
 def gaussian_noise_cache(shape):
-    """Computes and pre caches gaussian noise."""
+    """Compute and cache Gaussian noise for a given shape."""
     return np.random.default_rng().standard_normal(shape, dtype=DEFAULT_DTYPE)
 
 
 def gaussian_noise(shape, cached=False):
     """
-    Computes gaussian noise.
-    If cached noise is used a random crop is used to not get identical noise every time.
+    Generate Gaussian noise, optionally from a cached random map.
+
+    Args:
+        shape: Output noise shape.
+        cached: Reuse a larger cached map and crop it randomly.
+
+    Returns:
+        Gaussian noise with the requested shape.
     """
     if not cached:
         return np.random.default_rng().standard_normal(shape, dtype=DEFAULT_DTYPE)
@@ -82,6 +88,14 @@ def two_component_params(
       :math:`p=3 \rightarrow` volume/scattering)
 
     All returned as floats: :math:`(d_1, d_2, w_1, w_2)`.
+
+    Args:
+        grain_size_mm: Mean grain diameter in millimeters.
+        sigma: Grain size distribution standard deviation.
+        p: Moment weighting exponent.
+
+    Returns:
+        The two component sizes and weights.
     """
     mu = np.log(grain_size_mm) - 0.5 * sigma**2
 
@@ -112,6 +126,9 @@ def grain_kernel(
         pixel_size_mm: The side length of the pixels in mm.
         grain_size_mm: The grain diameter in mm.
         grain_sigma: The grain size distribution standard variance
+
+    Returns:
+        A normalized convolution kernel, or `None` when it would be smaller than 3 pixels.
     """
     dye_size1_mm, dye_size2_mm, w1, w2 = two_component_params(grain_size_mm, grain_sigma)
 
@@ -186,7 +203,21 @@ def generate_grain(
 def generate_grain_frame(
     width, height, channels, scale, grain_size_mm=0.06, std_div=0.001, grain_sigma=0.3
 ) -> np.ndarray:
-    """Generates a single frame of grain scaled to 8 bit int values."""
+    """
+    Generate a single grain frame scaled to 8-bit integer values.
+
+    Args:
+        width: Frame width in pixels.
+        height: Frame height in pixels.
+        channels: Number of output channels.
+        scale: Pixel scale in pixels per millimeter.
+        grain_size_mm: Mean grain diameter in millimeters.
+        std_div: Noise standard-deviation divisor.
+        grain_sigma: Grain size distribution standard deviation.
+
+    Returns:
+        An 8-bit grain frame.
+    """
     noise = (
         generate_grain(
             (height, width, channels),
@@ -203,8 +234,13 @@ def generate_grain_frame(
 
 def output_file(noise: np.ndarray, file_format: str, filename: str, ext: str):
     """
-    Writes the noise array to an image or video file. Formats specified in
-    `.file_formats`.
+    Write noise frames to an image, video, or image sequence.
+
+    Args:
+        noise: Grain noise array or frame sequence.
+        file_format: Key in `FILE_FORMATS`.
+        filename: Output path.
+        ext: File extension.
     """
     kwargs = FILE_FORMATS[file_format]["kwargs"]
     # Write output
@@ -223,6 +259,12 @@ class ExportGrainDialog(QDialog):
     """Dialog for exporting random grain overlays as images or video."""
 
     def __init__(self, parent=None):
+        """
+        Initialize the grain export dialog.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setWindowTitle("Export Noise")
         self.setStyleSheet(f"""
@@ -317,6 +359,13 @@ class ExportGrainDialog(QDialog):
         cancel_button.clicked.connect(self.reject)
 
     def get_values(self):
+        """
+        Read and validate the export settings.
+
+        Returns:
+            Width, height, frame count, channel count, format, frame rate, scale,
+            and grain size.
+        """
         width = int(self.width_field.text() or 1920)
         height = int(self.height_field.text() or 1080)
         frames = int(self.frame_field.text() or 1)
@@ -337,6 +386,7 @@ class ExportGrainDialog(QDialog):
         )
 
     def export_noise(self):
+        """Prompt for an output file and export the grain frames."""
         width, height, frames, channels, file_format, frame_rate, scale, grain_size = (
             self.get_values()
         )
@@ -407,6 +457,7 @@ QProgressBar::chunk {{
         QApplication.processEvents()
 
     def cancel(self):
+        """Cancel the in-progress grain export."""
         self.cancelled = True
 
 

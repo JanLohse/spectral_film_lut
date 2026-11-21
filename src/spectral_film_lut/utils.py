@@ -259,13 +259,26 @@ def create_lut(
     **kwargs,
 ) -> np.ndarray | str:
     """
-    Creates a 3D LUT using film spectral conversions with selectable
-    oversampling and cell-shift filtering modes.
+    Create a 3D LUT using film spectral conversions.
+
+    Args:
+        negative_film: Film stock used to capture the scene.
+        print_film: Optional print stock.
+        lut_size: Size of the output LUT grid.
+        name: Name and base filename of the LUT.
+        cube: Write a `.cube` file instead of returning the table.
+        verbose: Print creation status.
+        linear_scaling: Scale applied to the LUT input grid.
+        filter_mode: `oversampling`, `shift`, or `None`.
+        **kwargs: Arguments passed to `film_conversion`.
+
+    Returns:
+        The LUT table, or the generated `.cube` filename.
 
     Modes:
-      - 'oversampling' : (2N-1)^3 grid, 3x3x3 3D median filter + direct decimation.
-      - 'shift'        : (N+1)^3 dual grid, 8-corner cell voxel median.
-      - None           : Standard N^3 evaluation without oversampling.
+        - `oversampling`: Oversampled grid followed by a median filter.
+        - `shift`: Dual-grid evaluation followed by 8-corner voxel averaging.
+        - `None`: Standard N-cube evaluation.
     """
     start = time.time()
 
@@ -471,6 +484,10 @@ def smooth_roll_off(
         x0: At which position to hit y0.
         y0: Which value to hit at x0.
         gamma: The slope of the curve.
+        d_min: Minimum density of the rolled-off curve.
+
+    Returns:
+        The rolled-off density values.
     """
     offset = np.log10(10 ** (y0 - d_min) - 1) - gamma * x0
     return np.log10(1 + 10 ** (gamma * x + offset)) + d_min
@@ -490,6 +507,9 @@ def linear_roll_off(
         x0: At which position to hit y0.
         y0: Which value to hit at x0.
         gamma: The slope of the curve.
+
+    Returns:
+        The linearly rolled-off values.
     """
     return gamma * x + (y0 - x0 * gamma)
 

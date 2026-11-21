@@ -72,7 +72,15 @@ RAWTOACES_XYZ = _RAWTOACES @ XYZ_CMFS
 
 
 def xyS_to_XYZ(xyS: np.ndarray) -> np.ndarray:
-    """Convert from xyS to XYZ."""
+    """
+    Convert xyS chromaticity data to CIE XYZ.
+
+    Args:
+        xyS: Array whose channels are x, y, and sum.
+
+    Returns:
+        CIE XYZ values.
+    """
     h, w, c = xyS.shape
     out = np.empty((h, w, c), dtype=np.float32)
 
@@ -95,7 +103,15 @@ def xyS_to_XYZ(xyS: np.ndarray) -> np.ndarray:
 
 @njit(parallel=True)
 def XYZ_to_xyS(XYZ: np.ndarray) -> np.ndarray:
-    """Convert from XYZ to xyS."""
+    """
+    Convert CIE XYZ data to xyS chromaticity data.
+
+    Args:
+        XYZ: CIE XYZ array.
+
+    Returns:
+        Array whose channels are x, y, and sum.
+    """
     h, w, c = XYZ.shape
     out = np.empty((h, w, c), dtype=np.float32)
 
@@ -118,7 +134,16 @@ def XYZ_to_xyS(XYZ: np.ndarray) -> np.ndarray:
 
 @njit(parallel=True)
 def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
-    """Apply a 2D lookup table in chromaticity space with barycentric interpolation."""
+    """
+    Apply a 2D lookup table in chromaticity space with barycentric interpolation.
+
+    Args:
+        image: CIE XYZ image or LUT data.
+        lut: 2D spectral or XYZ lookup table.
+
+    Returns:
+        Values sampled from the lookup table.
+    """
     orig_shape = image.shape
     c = orig_shape[-1]
 
@@ -239,7 +264,17 @@ def _get_training_data(
 def build_binned_triangulation(
     all_xy: np.ndarray, all_spectra_norm: np.ndarray, grid_res: int
 ) -> tuple[Delaunay, np.ndarray]:
-    """Bins training spectra into grid resolution and creates Delaunay triangulation."""
+    """
+    Bin training spectra and create a Delaunay triangulation.
+
+    Args:
+        all_xy: Training chromaticity coordinates.
+        all_spectra_norm: Corresponding normalized spectra.
+        grid_res: Resolution used to bin the training data.
+
+    Returns:
+        The triangulation and averaged spectra.
+    """
     scale = grid_res - 1
 
     x_indices = np.clip(np.floor(all_xy[:, 0] * scale).astype(int), 0, grid_res - 2)
@@ -271,7 +306,18 @@ def get_barycentric_prior(
     reduced_spectra: np.ndarray,
     cmfs: np.ndarray,
 ) -> tuple[np.ndarray | None, bool]:
-    """Computes matrix-solved prior spectrum using the binned Delaunay mesh."""
+    """
+    Compute a barycentric prior spectrum using the binned Delaunay mesh.
+
+    Args:
+        xy: Target chromaticity coordinates.
+        triangulation: Delaunay triangulation of training coordinates.
+        reduced_spectra: Spectra averaged for each triangulation vertex.
+        cmfs: Spectral color-matching functions.
+
+    Returns:
+        The prior spectrum and whether a valid triangle was found.
+    """
     simplex_idx = triangulation.find_simplex(xy)
     if simplex_idx < 0:
         return None, False
@@ -320,7 +366,20 @@ def xy_to_spectrum_nnls(
     triangulation: Delaunay | None = None,
     reduced_spectra: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Finds a non-negative spectrum, optionally guided by a barycentric prior."""
+    """
+    Find a non-negative spectrum, optionally guided by a barycentric prior.
+
+    Args:
+        xy: Target chromaticity coordinates.
+        smoothness_loss_factor: Weight for spectral smoothness.
+        data_loss_factor: Weight for matching a barycentric prior.
+        cmfs: Spectral color-matching functions.
+        triangulation: Optional Delaunay triangulation.
+        reduced_spectra: Optional spectra used to build the prior.
+
+    Returns:
+        A normalized non-negative spectrum.
+    """
     x, y = xy
     if x + y > 1 or y <= 0:
         return np.ones(cmfs.shape[0], dtype=np.float32)
@@ -406,7 +465,15 @@ _METHOD_REGISTRY: dict[str, MethodHandler] = {}
 
 
 def register_method(name: str):
-    """Decorator to register a new spectral upsampling LUT generator."""
+    """
+    Register a spectral upsampling LUT generator.
+
+    Args:
+        name: Name used to select the method.
+
+    Returns:
+        A decorator that registers the generator function.
+    """
 
     def decorator(fn: MethodHandler) -> MethodHandler:
         _METHOD_REGISTRY[name] = fn

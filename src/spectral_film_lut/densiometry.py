@@ -315,8 +315,14 @@ def interpolate_status_density(
     status: list[dict[int, float]], spectral_shape=SPECTRAL_SHAPE
 ) -> np.ndarray:
     """
-    Converts logarithmic status density values to a normalized linear status density
-    matrix.
+    Convert logarithmic status density values to a normalized linear density matrix.
+
+    Args:
+        status: Status-density spectra for the film layers.
+        spectral_shape: Wavelength shape used for interpolation.
+
+    Returns:
+        Normalized spectral density values.
     """
     result = []
     for i, density in enumerate(status):
@@ -352,7 +358,17 @@ DENSITY_MEASURE = Literal["status_a", "status_m", "apd", "absolute", "bw"]
 
 
 def wavelength_argmax(distribution: colour.SpectralDistribution, low=None, high=None) -> int:
-    """Gets the argmax of a spectral distribution."""
+    """
+    Get the wavelength of maximum value within an optional range.
+
+    Args:
+        distribution: Spectral distribution to inspect.
+        low: Optional lower wavelength bound.
+        high: Optional upper wavelength bound.
+
+    Returns:
+        Wavelength of the maximum value.
+    """
     range = distribution.copy()
     if low is not None and high is not None:
         range.trim(colour.SpectralShape(low, high, 1))
@@ -361,7 +377,17 @@ def wavelength_argmax(distribution: colour.SpectralDistribution, low=None, high=
 
 
 def wavelength_argmin(distribution: colour.SpectralDistribution, low=None, high=None) -> int:
-    """Gets the argmax of a spectral distribution."""
+    """
+    Get the wavelength of minimum value within an optional range.
+
+    Args:
+        distribution: Spectral distribution to inspect.
+        low: Optional lower wavelength bound.
+        high: Optional upper wavelength bound.
+
+    Returns:
+        Wavelength of the minimum value.
+    """
     range = distribution.copy()
     if low is not None and high is not None:
         range.trim(colour.SpectralShape(low, high, 1))
@@ -370,7 +396,16 @@ def wavelength_argmin(distribution: colour.SpectralDistribution, low=None, high=
 
 
 def construct_spectral_density(ref_density: colour.SpectralDistribution, sigma=20) -> np.ndarray:
-    """Split single density curve into separate layers using local extrema."""
+    """
+    Split a reference density curve into separate layers using local extrema.
+
+    Args:
+        ref_density: Combined spectral density curve.
+        sigma: Gaussian smoothing width for layer separation.
+
+    Returns:
+        Spectral density values for each separated layer.
+    """
     red_peak = wavelength_argmax(ref_density, 600, min(750, SPECTRAL_SHAPE.end))
     green_peak = wavelength_argmax(ref_density, 500, 600)
     blue_peak = wavelength_argmax(ref_density, max(400, SPECTRAL_SHAPE.start), 500)
@@ -395,8 +430,10 @@ def construct_spectral_density(ref_density: colour.SpectralDistribution, sigma=2
 
 def compute_printer_lights() -> tuple[np.ndarray, np.ndarray]:
     """
-    Converts the APD printer light to a three light matrix by splitting into separate
-    red, green, and blue lights.
+    Convert the APD printer spectrum into red, green, and blue printer lights.
+
+    Returns:
+        The printer spectrum and its three-channel spectral density matrix.
     """
     printer_light = colour.SpectralDistribution(
         {
@@ -674,27 +711,17 @@ def output_to_density(
     method: str = "lm",
 ) -> np.ndarray:
     """
-    Numerically invert the mapping:
-        y = (10 ** -(x @ a.T)) @ b
-    to recover x.
+    Numerically recover density values from a spectral output mapping.
 
-    Parameters
-    ----------
-    y : array-like, shape (p,)
-        Output vector.
-    a : array-like, shape (m, n)
-        Density matrix (used in forward map).
-    b : array-like, shape (m, p)
-        Output matrix (used in forward map).
-    x0 : array-like, shape (n,), optional
-        Initial guess for x. Defaults to zeros.
-    method : str, optional
-        Least-squares solver method: 'lm', 'trf', or 'dogbox'.
+    Args:
+        y: Target output vector.
+        a: Density matrix used in the forward mapping.
+        b: Output matrix used in the forward mapping.
+        x0: Initial estimate, or zeros if `None`.
+        method: Least-squares solver method: `lm`, `trf`, or `dogbox`.
 
-    Returns
-    -------
-    x : ndarray, shape (n,)
-        Estimated vector such that (10 ** -(x @ a.T)) @ b ≈ y
+    Returns:
+        Density values whose forward mapping approximates `y`.
     """
     n = a.shape[1]
     if x0 is None:
