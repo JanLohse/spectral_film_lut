@@ -345,7 +345,10 @@ class FilmSpectral:
         running_avg = np.convolve(grad, kernel, mode="valid")
         self.gamma = running_avg.max()
 
-        self._dye_inhibition_base = np.ones((3, 3), dtype=DEFAULT_DTYPE) * 0.2 / self.gamma
+        if self.film_type == "positive":
+            self._dye_inhibition_base = np.ones((3, 3), dtype=DEFAULT_DTYPE) * 0.2 / self.gamma
+        else:
+            self._dye_inhibition_base = np.ones((3, 3), dtype=DEFAULT_DTYPE) * 0.15 / self.gamma
 
     def set_color_checker(
         self,
@@ -1075,7 +1078,6 @@ class FilmSpectral:
             density_curve = self._adjust_density_curve(density_curve, dye_inhibition_matrix)
 
             image = multi_channel_interp(image, density_curve)
-
         else:
             image = self.log_exposure_to_density(
                 image, push_pull, color_masking=color_masking, dye_inhibition=dye_inhibition
@@ -1140,27 +1142,79 @@ class FilmSpectral:
 
         return np.vstack((x_new[None, :], adjusted_densities)).astype(DEFAULT_DTYPE)
 
-    def get_dye_inhibition_matrix(self, dye_inhibition: float) -> np.ndarray:
+    def _estimate_adjusted_gamma(
+        self, adjusted_curve: np.ndarray, fallback: float = 0.6
+    ) -> np.ndarray:
+        """Estimate per-channel d(density)/d(log_H) around log_H_ref on the adjusted curve."""
+        x = adjusted_curve[0]
+        densities = adjusted_curve[1:]  # (3, N)
+        ref_x = float(np.asarray(self.log_H_ref)[0])
 
-        print(self.gamma, self.gamma * 0.35 if self.film_type == "negative" else self.gamma * 0.1)
+        slopes = np.empty(densities.shape[0], dtype=DEFAULT_DTYPE)
+        for ch in range(densities.shape[0]):
+            dy_dx = np.gradient(densities[ch], x)
+            if np.all(np.isfinite(dy_dx)):
+                slopes[ch] = float(np.interp(ref_x, x, dy_dx))
+            else:
+                slopes[ch] = float(self.gamma) if self.gamma else fallback
+
+        return np.clip(np.abs(slopes), 0.1, None).astype(DEFAULT_DTYPE)
+
+    def get_effective_inhibition_matrix(
+        self,
+        dye_inhibition: float | None,
+        push_pull: float = 0.0,
+        color_masking: float | None = 0.0,
+        adx_gamma: float = 0.6,
+    ) -> np.ndarray:
+        """
+        Recompute the effective DIR + curve-adjustment matrix statelessly from
+        current parameters and the base curve initialized in __init__.
+        """
+        eye = np.eye(3, dtype=DEFAULT_DTYPE)
+        if dye_inhibition is None or dye_inhibition == 0 or self.density_measure == "bw":
+            return eye
+
+        inh = self.get_dye_inhibition_matrix(dye_inhibition)
+        base_curve = self.get_density_curve(
+            push_pull=push_pull,
+            color_masking=color_masking,
+        )
+        adjusted_curve = self._adjust_density_curve(base_curve, inh)
+        eff_gamma = self._estimate_adjusted_gamma(adjusted_curve, fallback=adx_gamma)
+
+        gamma_ratio = np.clip(eff_gamma / adx_gamma, 0.25, 4.0)[:, None]
+        return (eye - (inh * gamma_ratio) * adx_gamma).astype(DEFAULT_DTYPE)
+
+    def get_dye_inhibition_matrix(self, dye_inhibition: float) -> np.ndarray:
         return (self._dye_inhibition_base * float(dye_inhibition)).astype(DEFAULT_DTYPE)
 
     def get_color_masking_matrix(
-        self, color_masking: float | None = None, dye_inhibition: float | None = None
+        self,
+        color_masking: float | None = None,
+        dye_inhibition: float | None = None,
+        push_pull: float = 0.0,
     ) -> np.ndarray:
-        if dye_inhibition is not None:
-            dye_inhibition_matrix = self.get_dye_inhibition_matrix(dye_inhibition)
+        mask_amount = 0.0 if color_masking is None else float(color_masking)
+        eye = np.eye(3, dtype=DEFAULT_DTYPE)
+        if self.density_measure == "bw" or mask_amount == 0.0:
+            return eye
+
+        # Unmix base spectral crosstalk without inverting the DIR saturation matrix,
+        # which otherwise over-compensates and reduces saturation when combined with DIR.
+        base_unmix = np.linalg.inv(CDD_TO_CID @ self._crosstalk_matrix)
+
+        # Optional subtle coupling so DIR doesn't get wiped out when color_masking is high
+        if dye_inhibition is not None and dye_inhibition != 0:
+            inh = self.get_dye_inhibition_matrix(dye_inhibition)
+            # Keep diagonal at 1 and attenuate off-diagonal over-correction slightly
+            damping = 1.0 / (1.0 + 0.5 * abs(float(dye_inhibition)))
+            off_diag = (inh - np.diag(np.diag(inh))) * damping
+            unmix_target = base_unmix @ (eye - off_diag * 0.25)
         else:
-            dye_inhibition_matrix = np.eye(3, dtype=DEFAULT_DTYPE)
+            unmix_target = base_unmix
 
-        color_masking_matrix = np.linalg.inv(
-            dye_inhibition_matrix @ CDD_TO_CID @ self._crosstalk_matrix
-        )
-
-        return (
-            np.eye(3, dtype=DEFAULT_DTYPE) * (1 - color_masking)
-            + color_masking_matrix * color_masking
-        )
+        return (eye * (1.0 - mask_amount) + unmix_target * mask_amount).astype(DEFAULT_DTYPE)
 
     def get_spectral_density(
         self, color_masking: float | None = None, dye_inhibition: float | None = None

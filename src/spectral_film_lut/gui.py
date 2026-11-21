@@ -329,7 +329,7 @@ class MainWindow(QMainWindow):
         For film without a color mask like slide film this can be used to simulate other
         inter-layer effects. Should probably set lower, but should be experimented with.
         """
-        self.color_masking.setMinMaxTicks(0, 1, 1, 20, 0.0)
+        self.color_masking.setMinMaxTicks(0, 1, 1, 20, 0.5)
         self.color_masking.set_color_gradient(
             np.array(
                 [
@@ -345,7 +345,7 @@ class MainWindow(QMainWindow):
         add_option(
             self.color_masking,
             "Color masking",
-            0.0,
+            0.5,
             self.color_masking.setValue,
             tool_tip="How effective the orange color mask of the film is. Value of 1\n"
             "perfectly compensates for color layer cross contamination. An\n"

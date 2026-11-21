@@ -123,8 +123,6 @@ def film_conversion(
     """
     image = np.ascontiguousarray(image)
 
-    color_masking = 0.0  # TODO revert
-
     if negative_film.density_measure == "status_a":
         apd_intermediate = False
 
