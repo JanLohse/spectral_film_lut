@@ -6,7 +6,7 @@ from PyQt6.QtCore import QSize
 from PyQt6.QtGui import QIcon
 
 from spectral_film_lut import BASE_DIR, __version__
-from spectral_film_lut.splash_screen import launch_splash_screen
+from spectral_film_lut.ui.splash import launch_splash_screen
 
 
 def run(exit_immediately: bool = False):
@@ -22,8 +22,8 @@ def run(exit_immediately: bool = False):
 
     app.setWindowIcon(icon)
 
-    from spectral_film_lut.film_loader import load_ui
-    from spectral_film_lut.gui import MainWindow
+    from spectral_film_lut.data.film_loader import load_ui
+    from spectral_film_lut.ui import MainWindow
 
     load_ui(MainWindow, splash_screen, app, exit_immediately=exit_immediately)
 

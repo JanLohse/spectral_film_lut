@@ -14,14 +14,14 @@ from colour.hints import LiteralRGBColourspace
 from matplotlib import pyplot as plt
 from scipy.interpolate import PchipInterpolator
 
-from spectral_film_lut.color_processing import (
+from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
+from spectral_film_lut.core.color_processing import (
     CDD_TO_CID,
     COLORCHECKER_2005,
     CCT_to_XYZ,
 )
-from spectral_film_lut.color_space import LAD_NEGATIVE
-from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
-from spectral_film_lut.densiometry import (
+from spectral_film_lut.core.color_space import LAD_NEGATIVE
+from spectral_film_lut.core.densiometry import (
     APD,
     DENSIOMETRY,
     PRINTER_LIGHT_APD,
@@ -31,21 +31,21 @@ from spectral_film_lut.densiometry import (
     construct_spectral_density,
     output_to_density,
 )
-from spectral_film_lut.film_data import FilmData
-from spectral_film_lut.utils import (
+from spectral_film_lut.core.utils import (
     apd_to_xyz,
     film_conversion,
     log_clip,
     multi_channel_interp,
     smooth_roll_off,
 )
-from spectral_film_lut.xy_lut import (
+from spectral_film_lut.core.xy_lut import (
     RAWTOACES_XYZ,
     XYZ_CMFS,
     UpsampleMethod,
     apply_2d_lut,
     get_spectrum_lut,
 )
+from spectral_film_lut.data.film_data import FilmData
 
 
 class FilmSpectral:
@@ -81,7 +81,6 @@ class FilmSpectral:
 
     def _copy_film_metadata(self, film_data: FilmData, gray_value):
         self.name = film_data.name
-        self.color_masking = film_data.color_masking
         self.iso = film_data.iso
         self.lad = film_data.lad
         self.exposure_base = film_data.exposure_base
@@ -160,12 +159,7 @@ class FilmSpectral:
 
     def _initialize_color_attributes(self):
         self.color = "BW" if self.density_measure == "bw" else "Color"
-
-        if self.color_masking is None:
-            if self.density_measure == "status_m":
-                self.color_masking = 1.0
-            else:
-                self.color_masking = 0.0
+        self.color_masking = 0.5
 
     def _initialize_sensitivity(self):
         if self.log_sensitivity is not None:
@@ -1144,7 +1138,7 @@ class FilmSpectral:
         dye_inhibition: None | float = None,
         color_masking: None | float = None,
         push_pull: float = 0.0,
-        upsampling_method: UpsampleMethod | str = "barycentric_nnls_all",
+        upsampling_method: UpsampleMethod | str = "SFL upsampling",
     ) -> np.ndarray:
         """
         Transform from scene referred image data to the per layer activation in absolute
@@ -1173,7 +1167,12 @@ class FilmSpectral:
 
         log_clip(image)
 
-        if dye_inhibition is not None and dye_inhibition != 0 and self.density_measure != "bw":
+        if (
+            dye_inhibition is not None
+            and dye_inhibition != 0
+            and self.density_measure != "bw"
+            and self.stage == "camera"
+        ):
             density_curve = self.get_density_curve(
                 push_pull, dye_inhibition=dye_inhibition, color_masking=color_masking
             )
@@ -1293,7 +1292,12 @@ class FilmSpectral:
             The effective inhibition matrix.
         """
         eye = np.eye(3, dtype=DEFAULT_DTYPE)
-        if dye_inhibition is None or dye_inhibition == 0 or self.density_measure == "bw":
+        if (
+            dye_inhibition is None
+            or dye_inhibition == 0
+            or self.density_measure == "bw"
+            or self.stage != "camera"
+        ):
             return eye
 
         inh = self.get_dye_inhibition_matrix(dye_inhibition)
@@ -1317,6 +1321,8 @@ class FilmSpectral:
         Returns:
             The dye-inhibition matrix.
         """
+        if self.density_measure == "bw" or self.stage != "camera":
+            return np.eye(3, dtype=DEFAULT_DTYPE)
         return (self._dye_inhibition_base * float(dye_inhibition)).astype(DEFAULT_DTYPE)
 
     def get_color_masking_matrix(
@@ -1338,7 +1344,12 @@ class FilmSpectral:
         """
         mask_amount = 0.0 if color_masking is None else float(color_masking)
         eye = np.eye(3, dtype=DEFAULT_DTYPE)
-        if self.density_measure == "bw" or mask_amount == 0.0:
+        if (
+            self.density_measure == "bw"
+            or self.stage != "camera"
+            or self.film_type != "negative"
+            or mask_amount == 0.0
+        ):
             return eye
 
         # Unmix base spectral crosstalk without inverting the DIR saturation matrix,
