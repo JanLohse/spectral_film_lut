@@ -1,4 +1,4 @@
-"""Fuji Natura 1600"""
+"""Fuji Natura 1600."""
 
 from spectral_film_lut.data.film_data import FilmData
 

@@ -1,4 +1,4 @@
-"""Fuji C200"""
+"""Fuji C200."""
 
 from spectral_film_lut.data.film_data import FilmData
 

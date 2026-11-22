@@ -1,4 +1,4 @@
-"""Kodak Vision3 250D 5207"""
+"""Kodak Vision3 250D 5207."""
 
 from spectral_film_lut.data.film_data import FilmData
 

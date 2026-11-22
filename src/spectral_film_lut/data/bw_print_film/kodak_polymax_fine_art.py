@@ -1,4 +1,4 @@
-"""Kodak Professional Polymax Fine-Art Paper"""
+"""Kodak Professional Polymax Fine-Art Paper."""
 
 from dataclasses import replace
 

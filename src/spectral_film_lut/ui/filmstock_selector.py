@@ -1,6 +1,4 @@
-"""
-Widget to select film stocks.
-"""
+"""Widget to select film stocks."""
 
 from typing import Any
 
@@ -42,8 +40,9 @@ class FilmStockSelector(QWidget):
         parent: QWidget | None,
         **kwargs: Any,
     ):
-        """
-        Combobox style UI element that lets you select a film stock and can open a
+        """Provide a combo box for selecting and inspecting film stocks.
+
+        It can open a
         pop-up window for more detailed information on the various film stocks.
 
         Args:
@@ -51,6 +50,7 @@ class FilmStockSelector(QWidget):
             main_parent: The main window.
             parent: The parent object.
             **kwargs: Arguments passed to FilmStockSelectorWindow.
+
         """
         super().__init__(parent)
         self.film_stocks = film_stocks
@@ -75,9 +75,7 @@ class FilmStockSelector(QWidget):
         self.main_parent = main_parent
 
     def open_selector(self):
-        """
-        Opens the FilmStockSelectorWindow when clicking on the looking-glass button.
-        """
+        """Open the film stock selector window."""
         current_stock = self.film_combo.currentText()
         dialog = FilmStockSelectorWindow(
             self.main_parent,
@@ -94,11 +92,11 @@ class FilmStockSelector(QWidget):
         self.kwargs["view_state"] = dialog.view_toggle.isChecked()
 
     def setEnabled(self, a0):
-        """
-        Enable or disable the selector controls.
+        """Enable or disable the selector controls.
 
         Args:
             a0: Whether the controls are enabled.
+
         """
         self.film_combo.setEnabled(a0)
         self.select_button.setEnabled(a0)
@@ -125,8 +123,9 @@ class FilmStockSelectorWindow(QDialog):
         image_key: str | None = None,
         view_state: bool | None = None,
     ):
-        """
-        Popup window which lets you choose a film stock with more detailed info.
+        """Choose a film stock and show detailed information.
+
+        The popup provides
         Has a tabular view with some details and a grid view with thumbnail color
         checkers. Lets you sort and group by keys and has a search field.
         Shows detailed info of the currently selected film stock on the sidebar.
@@ -140,8 +139,11 @@ class FilmStockSelectorWindow(QDialog):
             sidebar_keys: Keys for attributes that show up in the sidebar view.
             default_sort: Default sort key.
             default_group: Default group key.
+            default_filter: Default filter key.
             highlighted_stock: Currently highlighted stock.
             image_key: Key of the image used in the grid and sidebar view.
+            view_state: Initial grid or table view state.
+
         """
         super().__init__(parent)
         self.setWindowTitle("Select Film Stock")
@@ -160,7 +162,7 @@ class FilmStockSelectorWindow(QDialog):
             all_keys = list({key for d in self.film_stocks.values() for key in d})
         else:
             all_keys = []
-        self.sort_keys = sort_keys or ["Name"] + all_keys
+        self.sort_keys = sort_keys or ["Name", *all_keys]
         self.group_keys = group_keys or all_keys
         self.list_keys = list_keys or all_keys
         self.sidebar_keys = sidebar_keys or all_keys
@@ -174,7 +176,7 @@ class FilmStockSelectorWindow(QDialog):
         self.sort_combo = WideComboBox(base_color=BACKGROUND_COLOR)
         self.group_combo = WideComboBox(base_color=BACKGROUND_COLOR)
         self.sort_combo.addItems(self.sort_keys)
-        self.group_combo.addItems(["none"] + self.group_keys)
+        self.group_combo.addItems(["none", *self.group_keys])
         if default_group is not None and default_group in self.group_keys:
             self.group_combo.setCurrentText(default_group)
         if default_sort is not None and default_sort in self.sort_keys:
@@ -290,11 +292,11 @@ class FilmStockSelectorWindow(QDialog):
         return super().eventFilter(obj, event)
 
     def sort_and_group_stocks(self) -> dict:
-        """
-        Sort, filter, and group the available film stocks.
+        """Sort, filter, and group the available film stocks.
 
         Returns:
             Sorted, filtered, and grouped film stocks.
+
         """
         sort_key = self.sort_combo.currentText()
         group_key = self.group_combo.currentText()
@@ -307,7 +309,7 @@ class FilmStockSelectorWindow(QDialog):
             return (val is not None, val)
 
         def filter_search(tags, filter_key):
-            return all([x in tags for x in filter_key.split(" ")])
+            return all(x in tags for x in filter_key.split(" "))
 
         filtered_stocks = {
             x: y

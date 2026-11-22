@@ -1,6 +1,4 @@
-"""
-Color processing transforms not directly related to film.
-"""
+"""Color processing transforms not directly related to film."""
 
 import math
 
@@ -19,14 +17,14 @@ from spectral_film_lut.core.xy_lut import apply_2d_lut, xyS_to_XYZ
 
 
 def CCT_to_xy(CCT):
-    """
-    Convert a color temperature in kelvin to the closest CIE xy coordinates.
+    """Convert a color temperature in kelvin to the closest CIE xy coordinates.
 
     Args:
         CCT: Correlated color temperature in kelvin.
 
     Returns:
         CIE xy coordinates.
+
     """
     CCT_3 = CCT**3
     CCT_2 = CCT**2
@@ -78,8 +76,9 @@ COLORCHECKER_2005 = np.asarray(COLORCHECKER_2005, DEFAULT_DTYPE)
 
 
 def compress_gamut(image: np.ndarray, gamut_compression: float | None = None) -> np.ndarray:
-    """
-    A simple gamut compression that limits the maximal relative distance from the
+    """Compress gamut while limiting relative distance from achromatic.
+
+    This limits the maximal relative distance from the
     achromatic. Inspired by ACES Reference Gamut Compression. Has been simplified
     to be color space agnostic and use a simple clipping function instead of a
     roll-off. It is not perceptually neutral and should be used conservatively. It
@@ -93,6 +92,7 @@ def compress_gamut(image: np.ndarray, gamut_compression: float | None = None) ->
 
     Returns:
         The compressed image.
+
     """
     if gamut_compression is None:
         gamut_compression = 0.99
@@ -117,10 +117,10 @@ def output_color_transform(
     lut_size: int = 33,
     rolloff: bool = False,
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
-    gamut_compression: None | float = None,
+    gamut_compression: float | None = None,
 ) -> np.ndarray:
-    """
-    Transform from XYZ to the target gamut and adjust the saturation.
+    """Transform from XYZ to the target gamut and adjust the saturation.
+
     Saturation adjustment is performed in OkLch for visual uniformity.
     Gamut compression is performed to avoid visual artifacts.
     To preserve high performance the transforms are applied as a 2D xy LUT.
@@ -136,6 +136,7 @@ def output_color_transform(
 
     Returns:
         The transformed image in the output gamut.
+
     """
     if image.shape[-1] == 1:
         return np.repeat(image, 3, axis=-1)
@@ -182,8 +183,9 @@ def output_color_transform(
 
 
 def shadow_compensation(image: np.ndarray, intensity: float = 0.0) -> np.ndarray:
-    """
-    Raises or lowers shadows. Has been computed to act as an OOTF for the ITU-R
+    """Raise or lower shadows using an inverse-compatible OOTF.
+
+    This has been computed to act as an OOTF for the ITU-R
     BT.1886 curve. Setting gamma to Gamma 2.4 and Black offset to 1.0 will yield
     essentially Rec. 709. Setting gamma to Rec. 709 and Black offset to -1.0 in turn
     gives essentially Gamma 2.4. Has been computed from BT.1886 as to not be
@@ -196,6 +198,7 @@ def shadow_compensation(image: np.ndarray, intensity: float = 0.0) -> np.ndarray
 
     Returns:
         The shadow compensated image.
+
     """
     # Make the intensity less sensitive close to 0.
     intensity *= abs(intensity)
@@ -219,8 +222,9 @@ def shadow_compensation(image: np.ndarray, intensity: float = 0.0) -> np.ndarray
 def simple_shadow_compensation(
     image: np.ndarray, intensity: float = 0.0, d_max: float = 2.0
 ) -> np.ndarray:
-    r"""
-    A simpler shadow compensation function. For it is designed so that for an intensity
+    r"""Apply a simple shadow compensation curve.
+
+    For an intensity
     of 1.0 we lift the shadow such that the black level is that of a print with density
     d_min. The functions is supposed to be simple, but still resemble the natural
     shadow roll-off of a photographic print. $\sqrt{x^2 + black^2}$, where
@@ -236,6 +240,7 @@ def simple_shadow_compensation(
 
     Returns:
         The image with adjusted shadow compensation.
+
     """
     if not intensity:
         return image
@@ -255,10 +260,11 @@ def output_transform(
     shadow_comp: float = 0.0,
     gamma_func: GAMMA_KEYS = "Gamma 2.4",
     rolloff: bool = False,
-    gamut_compression: None | float = None,
+    gamut_compression: float | None = None,
 ) -> np.ndarray:
-    """
-    Transform display referred linear CIE XYZ data to a display color space with some
+    """Transform display-referred CIE XYZ data to a display color space.
+
+    This applies post-processing adjustments.
     post-processing adjustments.
 
     Args:
@@ -269,9 +275,12 @@ def output_transform(
         lut_size: The size of the 2D xy LUT used to apply output color transform.
         shadow_comp: How much to compensate the shadows in the range [-1, 1].
         gamma_func: The gamma function to encode the output in.
+        rolloff: Apply a highlight roll-off before encoding.
+        gamut_compression: Relative gamut distance limit, or `None` for the default.
 
     Returns:
         The transformed image in the target gamma and gamut.
+
     """
     image = output_color_transform(
         image,
@@ -292,8 +301,7 @@ def output_transform(
 
 
 def CCT_to_XYZ(CCT: float | int, Y: float = 1.0, tint: float = 0.0) -> np.ndarray:
-    """
-    Convert a color temperature in kelvin to CIE XYZ.
+    """Convert a color temperature in kelvin to CIE XYZ.
 
     Args:
         CCT: Correlated color temperature in kelvin.
@@ -302,6 +310,7 @@ def CCT_to_XYZ(CCT: float | int, Y: float = 1.0, tint: float = 0.0) -> np.ndarra
 
     Returns:
         CIE XYZ values.
+
     """
     xy = CCT_to_xy(CCT)
     xyY = (xy[0], xy[1], Y)
@@ -337,9 +346,10 @@ def apd_to_xyz(
     projector_kelvin: float | int = 6500,
     exp_to_xyz: np.ndarray | None = None,
 ) -> np.ndarray:
-    """
-    Adaptation of the [ADX to ACES transform](https://github.com/aces-aswf/aces-input-and-colorspaces/blob/main/ADX/CSC.Academy.ADX10_to_ACES.ctl)
-    to take APD input and map them ot ACES instead of the original ADX10 to ACES AP0.
+    """Adapt the ADX-to-ACES transform for APD input.
+
+    Based on the [ADX to ACES transform](https://github.com/aces-aswf/aces-input-and-colorspaces/blob/main/ADX/CSC.Academy.ADX10_to_ACES.ctl),
+    this maps APD input to ACES instead of the original ADX10 to ACES AP0.
 
     Args:
         apd: The input APD data.
@@ -349,6 +359,7 @@ def apd_to_xyz(
 
     Returns:
         The transformed image in CIE XYZ.
+
     """
     # Convert for APD to channel dependent density
     cdd = apd * np.array([1.0, 0.92, 0.95], DEFAULT_DTYPE)
@@ -383,8 +394,7 @@ def bw_inversion(
     inversion_gamma: float = 2.0,
     projector_kelvin: float | int = 6500,
 ) -> np.ndarray:
-    """
-    Invert BW APD density values similar to `apd_to_xyz`.
+    """Invert BW APD density values similar to `apd_to_xyz`.
 
     Args:
         apd: The input APD data.
@@ -393,6 +403,7 @@ def bw_inversion(
 
     Returns:
         The transformed image in CIE XYZ.
+
     """
     density = apd.mean(axis=-1, keepdims=True)
 

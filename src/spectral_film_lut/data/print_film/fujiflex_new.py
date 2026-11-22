@@ -1,4 +1,4 @@
-"""Fujiflex Crystal Archive New Version"""
+"""Fujiflex Crystal Archive New Version."""
 
 from spectral_film_lut.data.film_data import FilmData
 

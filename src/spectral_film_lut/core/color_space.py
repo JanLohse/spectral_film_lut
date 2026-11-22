@@ -79,34 +79,33 @@ COLOR_SPACE_KEYS = Literal[
 
 
 def rec_709_encoding(x):
-    """
-    Apply the Rec. 709 opto-electronic transfer function.
+    """Apply the Rec. 709 opto-electronic transfer function.
 
     Args:
         x: Linear RGB or luminance values.
 
     Returns:
         Encoded Rec. 709 values.
+
     """
     return np.where(x < 0.018, 4.5 * x, 1.099 * x**0.45 - 0.099)
 
 
 def srgb_encoding(x):
-    """
-    Apply the sRGB opto-electronic transfer function.
+    """Apply the sRGB opto-electronic transfer function.
 
     Args:
         x: Linear RGB or luminance values.
 
     Returns:
         Encoded sRGB values.
+
     """
     return np.where(x <= 0.0031308, 12.92 * x, 1.055 * x ** (1 / 2.4) - 0.055)
 
 
 def hlg_encoding(x, paper_white=203):
-    """
-    Apply the HLG opto-electronic transfer function.
+    """Apply the HLG opto-electronic transfer function.
 
     Args:
         x: Linear RGB or luminance values.
@@ -114,6 +113,7 @@ def hlg_encoding(x, paper_white=203):
 
     Returns:
         Encoded HLG values.
+
     """
     a = 0.17883277
     b = 0.28466892
@@ -123,8 +123,7 @@ def hlg_encoding(x, paper_white=203):
 
 
 def pq_encoding(x, paper_white=203):
-    """
-    Apply the PQ (SMPTE ST 2084) opto-electronic transfer function.
+    """Apply the PQ (SMPTE ST 2084) opto-electronic transfer function.
 
     Args:
         x: Linear RGB or luminance values.
@@ -132,6 +131,7 @@ def pq_encoding(x, paper_white=203):
 
     Returns:
         Encoded PQ values.
+
     """
     m1 = 2610 / 16384
     m2 = 2523 / 32

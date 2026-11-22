@@ -1,3 +1,5 @@
+"""Generate API reference pages for documentation."""
+
 from pathlib import Path
 
 PROJECT_NAME = "spectral_film_lut"
@@ -69,6 +71,7 @@ OUT_DIR = Path("docs/reference")
 
 
 def iter_modules():
+    """Yield source modules that should have reference pages."""
     for py_file in sorted(SRC_DIR.rglob("*.py")):
         if py_file.name.startswith("_") and py_file.name != "__init__.py":
             continue
@@ -76,14 +79,14 @@ def iter_modules():
 
 
 def format_title(name: str) -> str:
+    """Format a module name as a human-readable page title."""
     words = name.replace("_", " ").split()
-    formatted = [
-        w.upper() if w.upper() in SPECIAL_CAPS else w.capitalize() for w in words
-    ]
+    formatted = [w.upper() if w.upper() in SPECIAL_CAPS else w.capitalize() for w in words]
     return " ".join(formatted)
 
 
 def get_paths(py_file: Path):
+    """Resolve the module name and output path for a source file."""
     rel = py_file.relative_to(SRC_DIR)
 
     if py_file.name == "__init__.py":
@@ -98,15 +101,13 @@ def get_paths(py_file: Path):
     module = ".".join((PROJECT_NAME, *mod_parts))
 
     # special case: project root
-    if rel == Path("__init__.py"):
-        display_name = "Reference"
-    else:
-        display_name = format_title(name_source)
+    display_name = "Reference" if rel == Path("__init__.py") else format_title(name_source)
 
     return module, out_file, display_name
 
 
 def get_tags(name: str) -> list[str]:
+    """Return documentation tags inferred from a module name."""
     tags = {"Reference"}  # always present
     name_lower = name.lower()
 
@@ -126,6 +127,7 @@ def get_tags(name: str) -> list[str]:
 
 
 def get_icon(all_names: str, tags: list[str]):
+    """Return the Zensical icon frontmatter for a reference page."""
     if "reference" in all_names:
         return "icon: lucide/book-open-text\n"
 
@@ -137,6 +139,7 @@ def get_icon(all_names: str, tags: list[str]):
 
 
 def write_file(py_file: Path):
+    """Write the reference page for one source module."""
     module, out_file, display_name = get_paths(py_file)
 
     out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -149,26 +152,20 @@ def write_file(py_file: Path):
 
     icon_block = get_icon(all_names, tags)
 
-    content = (
-        "---\n"
-        f"{icon_block}"
-        "tags:\n"
-        f"{tag_block}\n"
-        "---\n\n"
-        f"# {display_name}\n\n"
-        f"::: {module}\n"
-    )
+    content = f"---\n{icon_block}tags:\n{tag_block}\n---\n\n# {display_name}\n\n::: {module}\n"
 
     out_file.write_text(content, encoding="utf-8")
 
 
 def clean_output():
+    """Remove previously generated reference pages."""
     if OUT_DIR.exists():
         for f in OUT_DIR.rglob("*.md"):
             f.unlink()
 
 
 def main():
+    """Clean and regenerate all API reference pages."""
     clean_output()
 
     for py_file in iter_modules():

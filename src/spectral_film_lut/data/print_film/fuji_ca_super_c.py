@@ -1,4 +1,4 @@
-"""Fuji Crystal Archive Super Type C"""
+"""Fuji Crystal Archive Super Type C."""
 
 from spectral_film_lut.data.film_data import FilmData
 

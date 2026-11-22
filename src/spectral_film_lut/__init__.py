@@ -1,3 +1,5 @@
+"""Spectral film LUT generation and simulation."""
+
 from pathlib import Path
 
 from spectral_film_lut.data.bw_negative_film.kodak_5222 import (
@@ -234,3 +236,4 @@ REVERSAL_FILM = [
 FILM_STOCKS = NEGATIVE_FILM + REVERSAL_FILM + PRINT_FILM + REVERSAL_PRINT
 FILM_STOCKS = sorted(FILM_STOCKS, key=lambda x: x.name)
 """All film stocks."""
+"""Spectral film LUT generation and simulation."""

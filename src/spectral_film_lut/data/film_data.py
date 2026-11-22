@@ -1,6 +1,4 @@
-"""
-The main class for storing unprocessed film data.
-"""
+"""The main class for storing unprocessed film data."""
 
 from dataclasses import dataclass
 from typing import Literal

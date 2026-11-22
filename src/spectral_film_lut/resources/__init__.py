@@ -1,3 +1,1 @@
-"""
-Contains assets for the UI.
-"""
+"""Contains assets for the UI."""

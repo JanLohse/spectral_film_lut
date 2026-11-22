@@ -1,4 +1,4 @@
-"""Agfa Vista 100"""
+"""Agfa Vista 100."""
 
 from spectral_film_lut.data.film_data import FilmData
 

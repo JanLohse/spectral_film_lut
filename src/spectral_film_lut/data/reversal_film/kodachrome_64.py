@@ -1,4 +1,4 @@
-"""Kodachrome 64"""
+"""Kodachrome 64."""
 
 from spectral_film_lut.data.film_data import FilmData
 

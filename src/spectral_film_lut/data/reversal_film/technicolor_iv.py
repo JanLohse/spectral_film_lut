@@ -1,4 +1,4 @@
-"""Technicolor IV"""
+"""Technicolor IV."""
 
 from dataclasses import replace
 

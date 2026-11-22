@@ -1,3 +1,1 @@
-"""
-Here we include the data of color negative camera films.
-"""
+"""Here we include the data of color negative camera films."""

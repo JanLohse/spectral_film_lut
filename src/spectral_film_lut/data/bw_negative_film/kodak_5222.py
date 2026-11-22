@@ -1,4 +1,4 @@
-"""Kodak 5222"""
+"""Kodak 5222."""
 
 from dataclasses import replace
 

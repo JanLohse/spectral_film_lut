@@ -1,4 +1,4 @@
-"""Fuji Pro 160S"""
+"""Fuji Pro 160S."""
 
 from spectral_film_lut.data.film_data import FilmData
 

@@ -1,4 +1,4 @@
-"""Fuji Crystal Archive DPII"""
+"""Fuji Crystal Archive DPII."""
 
 from spectral_film_lut.data.film_data import FilmData
 

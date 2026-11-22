@@ -1,6 +1,4 @@
-"""
-Functions to simulate film grain and to export film grain overlays.
-"""
+"""Functions to simulate film grain and to export film grain overlays."""
 
 import math
 import os
@@ -51,8 +49,7 @@ def gaussian_noise_cache(shape):
 
 
 def gaussian_noise(shape, cached=False):
-    """
-    Generate Gaussian noise, optionally from a cached random map.
+    """Generate Gaussian noise, optionally from a cached random map.
 
     Args:
         shape: Output noise shape.
@@ -60,6 +57,7 @@ def gaussian_noise(shape, cached=False):
 
     Returns:
         Gaussian noise with the requested shape.
+
     """
     if not cached:
         return np.random.default_rng().standard_normal(shape, dtype=DEFAULT_DTYPE)
@@ -77,15 +75,16 @@ def gaussian_noise(shape, cached=False):
 def two_component_params(
     grain_size_mm: float, sigma: float, p=2
 ) -> tuple[float, float, float, float]:
-    r"""
-    Return :math:`d_1`, :math:`d_2`, :math:`w_1`, :math:`w_2` for a 2-component
+    r"""Return parameters for a two-component grain size approximation.
+
+    The values :math:`d_1`, :math:`d_2`, :math:`w_1`, :math:`w_2` define a 2-component
     approximation of :math:`LogNormal(\mu, \sigma^2)`.
     - :math:`d_1 = \exp(\mu - \sigma)`
     - :math:`d_2 = \exp(\mu + \sigma)`
     - Split point :math:`=` geometric mean :math:`= \exp(\mu)`
     - Weights :math:`w_1, w_2` derived for weighting :math:`~ d^p \cdot \text{pdf}(d)`
       (:math:`p=0 \rightarrow` number weighting, :math:`p=2 \rightarrow` area weighting,
-      :math:`p=3 \rightarrow` volume/scattering)
+      :math:`p=3 \rightarrow` volume/scattering).
 
     All returned as floats: :math:`(d_1, d_2, w_1, w_2)`.
 
@@ -96,6 +95,7 @@ def two_component_params(
 
     Returns:
         The two component sizes and weights.
+
     """
     mu = np.log(grain_size_mm) - 0.5 * sigma**2
 
@@ -117,8 +117,8 @@ def two_component_params(
 def grain_kernel(
     pixel_size_mm: float, grain_size_mm: float = 0.006, grain_sigma: float = 0.3
 ) -> np.ndarray:
-    r"""
-    Computes a convolution kernel for film grain.
+    r"""Compute a convolution kernel for film grain.
+
     Based on the paper *Simulating Film Grain using the Noise-Power Spectrum* by Ian
     Stephenson and Arthur Saunders.
 
@@ -129,6 +129,7 @@ def grain_kernel(
 
     Returns:
         A normalized convolution kernel, or `None` when it would be smaller than 3 pixels.
+
     """
     dye_size1_mm, dye_size2_mm, w1, w2 = two_component_params(grain_size_mm, grain_sigma)
 
@@ -171,8 +172,9 @@ def generate_grain(
     grain_sigma: float = 0.3,
     **kwargs: Any,
 ) -> np.ndarray:
-    """
-    Computes random grain somewhat efficiently with the grain smoothing inspired by
+    """Generate random film grain efficiently.
+
+    Grain smoothing is inspired by
     the paper *Simulating Film Grain using the Noise-Power Spectrum* by Ian Stephenson
     and Arthur Saunders.
 
@@ -187,6 +189,7 @@ def generate_grain(
 
     Returns:
         An ndarray that is essentially a grain overlay.
+
     """
     # compute scaling factor of exposure rms in regard to measuring device size
     if bw_grain:
@@ -203,8 +206,7 @@ def generate_grain(
 def generate_grain_frame(
     width, height, channels, scale, grain_size_mm=0.06, std_div=0.001, grain_sigma=0.3
 ) -> np.ndarray:
-    """
-    Generate a single grain frame scaled to 8-bit integer values.
+    """Generate a single grain frame scaled to 8-bit integer values.
 
     Args:
         width: Frame width in pixels.
@@ -217,6 +219,7 @@ def generate_grain_frame(
 
     Returns:
         An 8-bit grain frame.
+
     """
     noise = (
         generate_grain(
@@ -233,14 +236,14 @@ def generate_grain_frame(
 
 
 def output_file(noise: np.ndarray, file_format: str, filename: str, ext: str):
-    """
-    Write noise frames to an image, video, or image sequence.
+    """Write noise frames to an image, video, or image sequence.
 
     Args:
         noise: Grain noise array or frame sequence.
         file_format: Key in `FILE_FORMATS`.
         filename: Output path.
         ext: File extension.
+
     """
     kwargs = FILE_FORMATS[file_format]["kwargs"]
     # Write output
@@ -259,11 +262,11 @@ class ExportGrainDialog(QDialog):
     """Dialog for exporting random grain overlays as images or video."""
 
     def __init__(self, parent=None):
-        """
-        Initialize the grain export dialog.
+        """Initialize the grain export dialog.
 
         Args:
             parent: Optional parent widget.
+
         """
         super().__init__(parent)
         self.setWindowTitle("Export Noise")
@@ -359,12 +362,12 @@ class ExportGrainDialog(QDialog):
         cancel_button.clicked.connect(self.reject)
 
     def get_values(self):
-        """
-        Read and validate the export settings.
+        """Read and validate the export settings.
 
         Returns:
             Width, height, frame count, channel count, format, frame rate, scale,
             and grain size.
+
         """
         width = int(self.width_field.text() or 1920)
         height = int(self.height_field.text() or 1080)

@@ -1,4 +1,4 @@
-"""Technicolor V"""
+"""Technicolor V."""
 
 from spectral_film_lut.data.film_data import FilmData
 

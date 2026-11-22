@@ -1,4 +1,4 @@
-"""Kodak Dye Transfer Separation"""
+"""Kodak Dye Transfer Separation."""
 
 from spectral_film_lut.data.film_data import FilmData
 

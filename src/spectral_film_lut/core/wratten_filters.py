@@ -1,6 +1,4 @@
-"""
-Spectral data on the Kodak Wratten filters.
-"""
+"""Spectral data on the Kodak Wratten filters."""
 
 import colour
 import numpy as np

@@ -66,6 +66,7 @@ class RoundedScrollArea(QScrollArea):
     """A QScrollArea with rounded corners."""
 
     def __init__(self, radius=None, *args, **kwargs):
+        """Initialize the rounded scroll area."""
         super().__init__(*args, **kwargs)
         if radius is None:
             radius = BORDER_RADIUS
@@ -78,6 +79,7 @@ class WideComboBox(QComboBox):
     """A combo box with animated hover and expanded and styled frame."""
 
     def __init__(self, parent=None, base_color=None):
+        """Initialize the styled combo box."""
         super().__init__(parent)
 
         # Colors (tweak these)
@@ -119,6 +121,7 @@ class WideComboBox(QComboBox):
         self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
 
     def showPopup(self):
+        """Resize the popup to fit its items and display it."""
         # Measure the widest item text
         fm = QFontMetrics(self.view().font())
         max_width = max(fm.horizontalAdvance(self.itemText(i)) for i in range(self.count()))
@@ -130,20 +133,24 @@ class WideComboBox(QComboBox):
         super().showPopup()
 
     def enterEvent(self, event):
+        """Animate the combo box toward its hover color."""
         self._start_color_animation(self._hover_color, HOVER_DURATION // 2)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
+        """Animate the combo box toward its base color."""
         self._start_color_animation(self._base_color, HOVER_DURATION)
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):
+        """Animate the combo box toward its pressed color."""
         # Animate background quickly and change text color instantly
         self._start_color_animation(self._pressed_color, PRESS_DURATION)
         self._set_text_color(self._pressed_text_color)
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
+        """Restore the combo box color after a mouse release."""
         # Restore background and text color depending on mouse position
         target_bg = self._hover_color if self.underMouse() else self._base_color
         self._start_color_animation(target_bg, PRESS_DURATION)
@@ -158,9 +165,11 @@ class WideComboBox(QComboBox):
         self._anim.start()
 
     def getColor(self):
+        """Return the current combo box color."""
         return self._color
 
     def setColor(self, color: QColor):
+        """Set the combo box color."""
         self._color = QColor(color)
         self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
 
@@ -189,7 +198,7 @@ class WorkerSignals(QObject):
     finished
         No data
 
-    error
+    Error:
         tuple (exctype, value, traceback.format_exc())
 
     result
@@ -197,6 +206,7 @@ class WorkerSignals(QObject):
 
     progress
         float indicating % progress
+
     """
 
     finished = pyqtSignal()
@@ -219,6 +229,7 @@ class Worker(QRunnable):
     """
 
     def __init__(self, fn, *args, **kwargs):
+        """Initialize the worker with a callback and arguments."""
         super().__init__()
         self.fn = fn
         self.args = args
@@ -229,6 +240,7 @@ class Worker(QRunnable):
 
     @pyqtSlot()
     def run(self):
+        """Execute the worker callback and emit its signals."""
         try:
             result = self.fn(*self.args, **self.kwargs)
         except Exception:
@@ -245,6 +257,7 @@ class FileSelector(QWidget):
     """A widget with a src line edit and a button to open a system file selector."""
 
     def __init__(self, *args, **kwargs):
+        """Initialize the file selector controls."""
         super().__init__(*args, **kwargs)
         layout = QHBoxLayout()
         self.setLayout(layout)
@@ -265,17 +278,20 @@ class FileSelector(QWidget):
         self.show()
 
     def open_file_dialog(self):
-        filename, ok = QFileDialog.getOpenFileName(self, "Select a File", "", self.filetype)
+        """Open a file dialog and select the chosen path."""
+        filename, _ = QFileDialog.getOpenFileName(self, "Select a File", "", self.filetype)
         if filename:
             path = Path(filename)
             self.filename_edit.setText(str(path))
 
     def currentText(self):
+        """Return the currently selected file path."""
         return self.filename_edit.text()
 
 
 class CoreGradientSlider(QSlider):
-    """Internal core slider handling Oklab gradients, hover micro-interactions,
+    """Handle internal Oklab gradients, hover micro-interactions.
+
     and dual-mode handle visual smoothing with scalable parameters.
     """
 
@@ -289,6 +305,7 @@ class CoreGradientSlider(QSlider):
         handle_color=TEXT_PRIMARY,
         **kwargs,
     ):
+        """Initialize the gradient slider and its animations."""
         super().__init__(*args, **kwargs)
         self.gradient = None
         self.modern_design = modern_design
@@ -341,15 +358,18 @@ class CoreGradientSlider(QSlider):
 
     @pyqtProperty(float)
     def hoverProgress(self):
+        """Return the current hover animation progress."""
         return self._hoverProgress
 
     @hoverProgress.setter
     def hoverProgress(self, value):
+        """Set the hover animation progress."""
         self._hoverProgress = value
         self.update()
 
     @pyqtProperty(float)
     def visualValue(self):
+        """Return the animated visual value."""
         return self._visualValue
 
     @pyqtProperty(float)
@@ -358,6 +378,7 @@ class CoreGradientSlider(QSlider):
 
     @visualValue.setter
     def visualValue(self, value):
+        """Set and synchronize the animated visual value."""
         self._visualValue = value
 
         if self.continuous:
@@ -374,6 +395,7 @@ class CoreGradientSlider(QSlider):
         self.update()
 
     def set_color_gradient(self, start_color, end_color, steps=10, blend_in_lab=True):
+        """Set the slider's gradient between two colors."""
         if blend_in_lab:
             start_color = colour.convert(start_color, "Oklch", "Oklab")
             end_color = colour.convert(end_color, "Oklch", "Oklab")
@@ -394,6 +416,7 @@ class CoreGradientSlider(QSlider):
         self.update()
 
     def sliderChange(self, change):
+        """Start glide animation when the slider value changes."""
         super().sliderChange(change)
         if change == QSlider.SliderChange.SliderValueChange:
             if self._is_animating:
@@ -403,6 +426,7 @@ class CoreGradientSlider(QSlider):
             self._kick_glide_animation(target_value)
 
     def mousePressEvent(self, event):
+        """Handle a slider press and set the nearest value."""
         if event.button() == Qt.MouseButton.LeftButton:
             target_value = self._get_value_from_mouse(event)
             self.setSliderDown(True)
@@ -419,6 +443,7 @@ class CoreGradientSlider(QSlider):
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        """Update the slider value while dragging."""
         if self.isSliderDown():
             target_value = self._get_value_from_mouse(event)
 
@@ -456,6 +481,7 @@ class CoreGradientSlider(QSlider):
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
+        """Finish a slider mouse interaction."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.setSliderDown(False)
             self.scroll_anim.setDuration(self.duration_glide_default)
@@ -487,6 +513,7 @@ class CoreGradientSlider(QSlider):
         return round(self.minimum() + (fraction * range_len))
 
     def enterEvent(self, event):
+        """Start the hover animation."""
         self._hover = True
         self.hover_anim.stop()
         self.hover_anim.setStartValue(self._hoverProgress)
@@ -495,6 +522,7 @@ class CoreGradientSlider(QSlider):
         super().enterEvent(event)
 
     def leaveEvent(self, event):
+        """End the hover animation."""
         self._hover = False
         self.hover_anim.stop()
         self.hover_anim.setStartValue(self._hoverProgress)
@@ -503,6 +531,7 @@ class CoreGradientSlider(QSlider):
         super().leaveEvent(event)
 
     def paintEvent(self, event):
+        """Paint the slider groove and handle."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -599,20 +628,25 @@ class CoreGradientSlider(QSlider):
         painter.end()
 
     def sizeHint(self):
+        """Return the preferred slider size."""
         # Keeps the vertical profile tightly locked to a minimal 16 pixels
         return QSize(150, 16)
 
     def minimumSizeHint(self):
+        """Return the minimum slider size."""
         return self.sizeHint()
 
     def get_groove_thickness(self):
+        """Return the groove thickness."""
         return self.groove_thickness
 
     def set_reference_value(self, value: int):
+        """Set the reference value used for visual alignment."""
         self.reference_value = value
         self.update()
 
     def setValueSilently(self, raw_step: int):
+        """Set a slider value without emitting change signals."""
         self._visualValue = float(raw_step)
         self._lastEmittedValue = raw_step
         self.scroll_anim.stop()
@@ -631,6 +665,7 @@ class BaseSliderWidget(QWidget):
     valueChanged = pyqtSignal(float)
 
     def __init__(self, continuous=True, *args, **kwargs):
+        """Initialize the shared slider layout and interactions."""
         super().__init__(*args, **kwargs)
         self._last_wheel_time = 0.0
 
@@ -667,12 +702,15 @@ class BaseSliderWidget(QWidget):
         self.valueChanged.emit(self.getValue())
 
     def update_text_display(self):
+        """Update the text display for this slider."""
         raise NotImplementedError
 
     def getValue(self):
+        """Return the slider's mapped value."""
         raise NotImplementedError
 
     def customWheelEvent(self, event: QWheelEvent):
+        """Apply wheel increments using the configured slider mode."""
         import time
 
         now = time.time()
@@ -709,15 +747,19 @@ class BaseSliderWidget(QWidget):
         event.accept()
 
     def getPosition(self):
+        """Return the slider's raw position."""
         return self.slider.value()
 
     def setPosition(self, position):
+        """Set the slider's raw position."""
         self.slider.setValue(position)
 
     def increase(self, value=1):
+        """Increase the slider position."""
         self.slider.setValue(self.slider.value() + value)
 
     def decrease(self, value=1):
+        """Decrease the slider position."""
         self.slider.setValue(self.slider.value() - value)
 
     def _apply_text_value(self):
@@ -752,10 +794,12 @@ class Slider(BaseSliderWidget):
     """A slider with float value support using parameterized layouts."""
 
     def __init__(self, continuous=True, *args, **kwargs):
-        super().__init__(continuous=continuous, *args, **kwargs)
+        """Initialize the linear value slider."""
+        super().__init__(*args, continuous=continuous, **kwargs)
         self.setMinMaxTicks(0, 1, 1)
 
     def setMinMaxTicks(self, min_val, max_val, enumerator=1, denominator=1, default=0):
+        """Configure linear slider bounds and tick spacing."""
         self.min = min_val
         self.enumerator = enumerator
         self.denominator = denominator
@@ -770,13 +814,16 @@ class Slider(BaseSliderWidget):
         self.slider.set_reference_value(self.getPosition())
 
     def update_text_display(self):
+        """Update the linear slider text display."""
         val = self.getValue()
         self.text.setText(str(int(val)) if val.is_integer() else f"{val:.2f}")
 
     def getValue(self):
+        """Return the linear slider value."""
         return self.slider.value() * self.enumerator / self.denominator + self.min
 
     def setValue(self, value, duration=None):
+        """Set the linear slider value."""
         if duration is not None:
             self.slider.scroll_anim.setDuration(duration)
         else:
@@ -792,10 +839,12 @@ class SliderLog(BaseSliderWidget):
     """A slider with float value support and a logarithmic value distribution."""
 
     def __init__(self, continuous=True, *args, **kwargs):
-        super().__init__(continuous=continuous, *args, **kwargs)
+        """Initialize the logarithmic value slider."""
+        super().__init__(*args, continuous=continuous, **kwargs)
         self.setMinMaxSteps(1, 10, 100, 3)
 
     def setMinMaxSteps(self, min_val, max_val, steps=100, default=1, precision=None):
+        """Configure logarithmic slider bounds and step count."""
         self.min = min_val
         self.max = max_val
         self.steps = steps
@@ -810,10 +859,12 @@ class SliderLog(BaseSliderWidget):
         self.slider.set_reference_value(self.getPosition())
 
     def update_text_display(self):
+        """Update the logarithmic slider text display."""
         val = self.getValue()
         self.text.setText(str(int(val)) if val.is_integer() else f"{val:.3f}")
 
     def getValue(self):
+        """Return the logarithmic slider value."""
         fraction = self.slider.value() / self.steps
         value = self.min * (self.max / self.min) ** fraction
         if self.precision is not None:
@@ -821,6 +872,7 @@ class SliderLog(BaseSliderWidget):
         return value
 
     def setValue(self, value):
+        """Set the logarithmic slider value."""
         fraction = math.log(value / self.min) / math.log(self.max / self.min)
         self.slider.setValue(round(fraction * self.steps))
 
@@ -829,7 +881,8 @@ class AnimatedButton(QPushButton):
     """A button with animated hover and press."""
 
     def __init__(self, text=None, base_color=None, *args, **kwargs):
-        super().__init__(text=text, *args, **kwargs)
+        """Initialize the animated push button."""
+        super().__init__(*args, text=text, **kwargs)
 
         # Colors (tweak these)
         if base_color is None:
@@ -855,20 +908,24 @@ class AnimatedButton(QPushButton):
         self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
 
     def enterEvent(self, event):
+        """Animate the button toward its hover color."""
         self._start_color_animation(self._hover_color, HOVER_DURATION // 2)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
+        """Animate the button toward its base color."""
         self._start_color_animation(self._base_color, HOVER_DURATION)
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):
+        """Animate the button toward its pressed color."""
         # Animate background quickly and change text color instantly
         self._start_color_animation(self._pressed_color, PRESS_DURATION)
         self._set_text_color(self._pressed_text_color)
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
+        """Restore the button color after a mouse release."""
         # Restore background and text color depending on mouse position
         target_bg = self._hover_color if self.underMouse() else self._base_color
         self._start_color_animation(target_bg, PRESS_DURATION)
@@ -883,9 +940,11 @@ class AnimatedButton(QPushButton):
         self._anim.start()
 
     def getColor(self):
+        """Return the button's current color."""
         return self._color
 
     def setColor(self, color: QColor):
+        """Set the button's current color."""
         self._color = QColor(color)
         self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
 
@@ -918,6 +977,7 @@ class AnimatedToolButton(QToolButton):
     """A tool button with animated hover and press."""
 
     def __init__(self, base_color=None, *args, **kwargs):
+        """Initialize the animated tool button."""
         super().__init__(*args, **kwargs)
 
         if base_color is None:
@@ -947,19 +1007,23 @@ class AnimatedToolButton(QToolButton):
         self.toggled.connect(self._update_state_color)
 
     def enterEvent(self, event):
+        """Animate the tool button toward its hover color."""
         self._start_color_animation(self._hover_color, HOVER_DURATION // 2)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
+        """Animate the tool button toward its state color."""
         self._start_color_animation(self._get_base_state_color(), HOVER_DURATION)
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):
+        """Animate the tool button toward its pressed color."""
         self._start_color_animation(self._pressed_color, PRESS_DURATION)
         self._set_text_color(self._pressed_text_color)
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
+        """Restore the tool button color after a mouse release."""
         # After releasing, go back depending on hover/toggle state
         target_bg = self._hover_color if self.underMouse() else self._get_base_state_color()
         self._start_color_animation(target_bg, PRESS_DURATION)
@@ -972,7 +1036,7 @@ class AnimatedToolButton(QToolButton):
         self._start_color_animation(target, HOVER_DURATION)
 
     def _get_base_state_color(self):
-        """Returns the correct base color depending on state."""
+        """Return the correct base color depending on state."""
         if self.isCheckable() and self.isChecked():
             return self._checked_color
         return self._base_color
@@ -985,9 +1049,11 @@ class AnimatedToolButton(QToolButton):
         self._anim.start()
 
     def getColor(self):
+        """Return the tool button's current color."""
         return self._color
 
     def setColor(self, color: QColor):
+        """Set the tool button's current color."""
         self._color = QColor(color)
         self.setStyleSheet(self._build_stylesheet(self._color, self._text_color))
 
@@ -1013,6 +1079,7 @@ class HoverLineEdit(QLineEdit):
     """A line edit with animated hover."""
 
     def __init__(self, *args, **kwargs):
+        """Initialize the hover-animated line edit."""
         super().__init__(*args, **kwargs)
 
         # Colors
@@ -1028,10 +1095,12 @@ class HoverLineEdit(QLineEdit):
         self.setStyleSheet(self._build_stylesheet(self._color))
 
     def enterEvent(self, event):
+        """Animate the line edit toward its hover color."""
         self._start_color_animation(self._hover_color, HOVER_DURATION // 2)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
+        """Animate the line edit toward its base color."""
         self._start_color_animation(self._base_color, HOVER_DURATION)
         super().leaveEvent(event)
 
@@ -1043,9 +1112,11 @@ class HoverLineEdit(QLineEdit):
         self._anim.start()
 
     def getColor(self):
+        """Return the line edit's current color."""
         return self._color
 
     def setColor(self, color: QColor):
+        """Set the line edit's current color."""
         self._color = QColor(color)
         self.setStyleSheet(self._build_stylesheet(self._color))
 
@@ -1061,12 +1132,16 @@ class HoverLineEdit(QLineEdit):
 
 
 class StyledContainer(QWidget):
+    """Render a colored, optionally rounded container."""
+
     def __init__(self, parent=None, bg_color=BASE_COLOR, radius=16.0):
+        """Initialize the container appearance."""
         super().__init__(parent)
         self.bg_color = QColor(bg_color)
         self.radius = radius
 
     def paintEvent(self, event):
+        """Paint the rounded container background."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         path = QPainterPath()
@@ -1075,7 +1150,10 @@ class StyledContainer(QWidget):
 
 
 class StyledPill(QWidget):
+    """Render a rounded pill with hover expansion."""
+
     def __init__(self, parent=None, color=TEXT_PRIMARY, pad_x=2.0, pad_y=5.0):
+        """Initialize the pill appearance and geometry."""
         super().__init__(parent)
         self.color = QColor(color)
         self._hover_progress = 0.0
@@ -1086,14 +1164,17 @@ class StyledPill(QWidget):
 
     @pyqtProperty(float)
     def hoverProgress(self):
+        """Return the pill's hover animation progress."""
         return self._hover_progress
 
     @hoverProgress.setter
     def hoverProgress(self, val):
+        """Set the pill's hover animation progress."""
         self._hover_progress = val
         self.update()
 
     def paintEvent(self, event):
+        """Paint the expanded pill."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -1118,6 +1199,8 @@ class StyledPill(QWidget):
 
 
 class ModeSelector(QWidget):
+    """Provide an animated, exclusive text-based mode selector."""
+
     currentTextChanged = pyqtSignal(str)
 
     def __init__(
@@ -1131,6 +1214,7 @@ class ModeSelector(QWidget):
         bg_radius: float = 14.0,
         bg_padding: int = 2,
     ):
+        """Initialize the animated mode selector."""
         super().__init__(parent)
         self._items = list(items or [])
         self._buttons = []
@@ -1210,10 +1294,12 @@ class ModeSelector(QWidget):
 
     @pyqtProperty(float)
     def animProgress(self):
+        """Return the selector's slide animation progress."""
         return self._anim_progress
 
     @animProgress.setter
     def animProgress(self, val):
+        """Set the selector's slide animation progress."""
         self._anim_progress = val
         if self._start_rect.isNull() or self._target_rect.isNull():
             return
@@ -1269,6 +1355,7 @@ class ModeSelector(QWidget):
                         btn.setChecked(False)
 
     def enterEvent(self, event):
+        """Expand the selected mode pill on hover."""
         self._hover_anim.stop()
         self._hover_anim.setStartValue(self._pill.hoverProgress)
         self._hover_anim.setEndValue(1.0)
@@ -1276,6 +1363,7 @@ class ModeSelector(QWidget):
         super().enterEvent(event)
 
     def leaveEvent(self, event):
+        """Restore the selected mode pill after hover."""
         self._hover_anim.stop()
         self._hover_anim.setStartValue(self._pill.hoverProgress)
         self._hover_anim.setEndValue(0.0)
@@ -1283,6 +1371,7 @@ class ModeSelector(QWidget):
         super().leaveEvent(event)
 
     def addItems(self, items):
+        """Add selectable mode items."""
         for text in items:
             btn = QPushButton(text, self._container)
             btn.setCheckable(True)
@@ -1304,6 +1393,7 @@ class ModeSelector(QWidget):
         QTimer.singleShot(50, self._position_pill_on_current)
 
     def setCurrentText(self, text):
+        """Select a mode by text."""
         if self._current == text:
             return
 
@@ -1317,6 +1407,7 @@ class ModeSelector(QWidget):
                 return
 
     def currentText(self):
+        """Return the selected mode text."""
         return self._current
 
     def _select_button_at_pos(self, pos):
@@ -1327,6 +1418,7 @@ class ModeSelector(QWidget):
                 break
 
     def mousePressEvent(self, event):
+        """Select a mode under the mouse press."""
         if event.button() == Qt.MouseButton.LeftButton:
             self._select_button_at_pos(event.position().toPoint())
             event.accept()
@@ -1334,6 +1426,7 @@ class ModeSelector(QWidget):
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        """Select a mode while dragging."""
         if event.buttons() & Qt.MouseButton.LeftButton:
             self._select_button_at_pos(event.position().toPoint())
             event.accept()
@@ -1341,6 +1434,7 @@ class ModeSelector(QWidget):
             super().mouseMoveEvent(event)
 
     def wheelEvent(self, event):
+        """Cycle through modes with the mouse wheel."""
         if not self._buttons:
             event.ignore()
             return
@@ -1418,6 +1512,7 @@ class ModeSelector(QWidget):
                 break
 
     def resizeEvent(self, event):
+        """Reposition the selector pill after resizing."""
         super().resizeEvent(event)
         QTimer.singleShot(0, self._position_pill_on_current)
 
@@ -1432,6 +1527,8 @@ def qcolor_to_rgba_string(c: QColor) -> str:
 
 
 class AboutDialog(QMessageBox):
+    """Display styled application information."""
+
     def __init__(
         self,
         parent=None,
@@ -1442,8 +1539,7 @@ class AboutDialog(QMessageBox):
         license_type="MIT License",
         links=None,
     ):
-        """
-        A highly customizable and styled About Dialog for PyQt6 applications.
+        """Initialize a customizable, styled about dialog.
 
         :param links: Dict of {'Link Text': 'URL'}
         """

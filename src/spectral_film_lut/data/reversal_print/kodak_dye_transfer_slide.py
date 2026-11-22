@@ -1,4 +1,4 @@
-"""Kodak Dye Transfer for Slides"""
+"""Kodak Dye Transfer for Slides."""
 
 from dataclasses import replace
 

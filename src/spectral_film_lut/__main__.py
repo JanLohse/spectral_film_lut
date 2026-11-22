@@ -1,3 +1,5 @@
+"""Application entry point for Spectral Film LUT."""
+
 import ctypes
 import multiprocessing
 import sys
@@ -10,6 +12,7 @@ from spectral_film_lut.ui.splash import launch_splash_screen
 
 
 def run(exit_immediately: bool = False):
+    """Start the application and load the main window."""
     if sys.platform == "win32":
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("jan_lohse.spectral_film_lut")
 

@@ -32,10 +32,19 @@ from spectral_film_lut.ui.theme import BASE_COLOR, BORDER_RADIUS
 from spectral_film_lut.ui.widgets.controls import AboutDialog, Worker
 
 
+@lru_cache(maxsize=8)
+def _load_image_data(src):
+    image = iio.imread(src)
+    if image.dtype == np.uint8:
+        image = image.astype(np.uint16) * 255
+    return image
+
+
 class MainWindow(QMainWindow):
     """The main window of Raw2Film."""
 
     def __init__(self, filmstocks):
+        """Initialize the main window and its controls."""
         super().__init__()
 
         self.setWindowTitle(f"Spectral Film LUT {__version__}")
@@ -132,16 +141,18 @@ class MainWindow(QMainWindow):
         self.threadpool = QThreadPool()
 
     def resizeEvent(self, event):
+        """Refresh the preview after the window is resized."""
         self.update_preview()
         super().resizeEvent(event)
 
     def generate_lut(self, name="temp", cube=True):
+        """Generate a LUT using the current UI settings."""
         settings = collect_lut_settings(self)
         kwargs = settings.create_kwargs(name=name, cube=cube)
         return create_lut(**kwargs)
 
     def lights_changed(self, value):
-
+        """Apply a light setting change and refresh the preview."""
         if self.link_lights.isChecked():
             if (
                 value
@@ -164,6 +175,7 @@ class MainWindow(QMainWindow):
             self.parameter_changed()
 
     def print_light_changed(self):
+        """Update control availability after changing the print light."""
         if (
             self.print_selector.currentText() == "None"
             or "Inversion" in self.print_selector.currentText()
@@ -180,18 +192,22 @@ class MainWindow(QMainWindow):
         self.parameter_changed()
 
     def print_output(self, s):
+        """Handle print output notifications."""
         return
 
     def update_finished(self):
+        """Allow preview updates to run after the worker finishes."""
         self.running = False
         if self.waiting:
             self.waiting = False
             self.parameter_changed()
 
     def progress_fn(self, n):
+        """Handle preview progress updates."""
         return
 
     def parameter_changed(self):
+        """Queue a preview refresh when a parameter changes."""
         if self.running:
             self.waiting = True
             return
@@ -203,14 +219,12 @@ class MainWindow(QMainWindow):
 
         self.threadpool.start(worker)
 
-    @lru_cache(maxsize=8)
     def load_image_data(self, src):
-        image = iio.imread(src)
-        if image.dtype == np.uint8:
-            image = image.astype(np.uint16) * 255
-        return image
+        """Load and normalize image data from a source path."""
+        return _load_image_data(src)
 
     def update_preview(self, verbose=False, *args, **kwargs):
+        """Apply the current LUT and update the preview image."""
         if verbose:
             start = time.time()
         if self.image_selector.currentText() == "" or not os.path.isfile(
@@ -250,9 +264,10 @@ class MainWindow(QMainWindow):
 
         self.image.setPixmap(scaled_pixmap)
         if verbose:
-            print(f"applied lut in {time.time() - start:.2f} seconds")
+            print(f"applied lut in {time.time() - start:.2f} seconds")  # noqa: T201
 
     def save_lut(self):
+        """Generate and save a LUT to a user-selected file."""
         mode = self.mode.currentText()
         size = f"{self.lut_size.getValue():.0f}"
 
@@ -288,10 +303,12 @@ class MainWindow(QMainWindow):
             self.generate_lut(filename)
 
     def export_noise(self):
+        """Open the film-grain export dialog."""
         dialog = ExportGrainDialog(self)
         dialog.exec()
 
     def show_about(self):
+        """Display application links and project information."""
         app_links = {
             "GitHub Page": "https://github.com/JanLohse/spectral_film_lut",
             "PyPI Page": "https://pypi.org/project/spectral_film_lut/",

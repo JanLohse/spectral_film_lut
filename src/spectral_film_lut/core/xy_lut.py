@@ -1,6 +1,6 @@
-r"""
-2D LUT application in chromaticity space using barycentric interpolation and spectral
-upsampling.
+r"""Apply 2D LUTs in chromaticity space using barycentric interpolation.
+
+This module also provides spectral upsampling.
 
 This module provides tools for transforming trichromatic colors (XYZ / xyS) into
 high-dimensional spectral distributions across targeted wavelength bins, applying
@@ -42,6 +42,7 @@ Supported Spectral Upsampling Algorithms:
 """
 
 import functools
+import logging
 import math
 from collections.abc import Callable
 from typing import Literal
@@ -53,6 +54,8 @@ from scipy.optimize import nnls
 from scipy.spatial import Delaunay
 
 from spectral_film_lut.config import DEFAULT_DTYPE, SPECTRAL_SHAPE
+
+logger = logging.getLogger(__name__)
 
 # Color Matching Functions (CMFs)
 
@@ -72,14 +75,14 @@ RAWTOACES_XYZ = _RAWTOACES @ XYZ_CMFS
 
 
 def xyS_to_XYZ(xyS: np.ndarray) -> np.ndarray:
-    """
-    Convert xyS chromaticity data to CIE XYZ.
+    """Convert xyS chromaticity data to CIE XYZ.
 
     Args:
         xyS: Array whose channels are x, y, and sum.
 
     Returns:
         CIE XYZ values.
+
     """
     h, w, c = xyS.shape
     out = np.empty((h, w, c), dtype=np.float32)
@@ -103,14 +106,14 @@ def xyS_to_XYZ(xyS: np.ndarray) -> np.ndarray:
 
 @njit(parallel=True)
 def XYZ_to_xyS(XYZ: np.ndarray) -> np.ndarray:
-    """
-    Convert CIE XYZ data to xyS chromaticity data.
+    """Convert CIE XYZ data to xyS chromaticity data.
 
     Args:
         XYZ: CIE XYZ array.
 
     Returns:
         Array whose channels are x, y, and sum.
+
     """
     h, w, c = XYZ.shape
     out = np.empty((h, w, c), dtype=np.float32)
@@ -134,8 +137,7 @@ def XYZ_to_xyS(XYZ: np.ndarray) -> np.ndarray:
 
 @njit(parallel=True)
 def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
-    """
-    Apply a 2D lookup table in chromaticity space with barycentric interpolation.
+    """Apply a 2D lookup table in chromaticity space with barycentric interpolation.
 
     Args:
         image: CIE XYZ image or LUT data.
@@ -143,6 +145,7 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
 
     Returns:
         Values sampled from the lookup table.
+
     """
     orig_shape = image.shape
     c = orig_shape[-1]
@@ -176,8 +179,8 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
         r *= inv_sum
         g *= inv_sum
 
-        r_ind = int(math.floor(r))
-        g_ind = int(math.floor(g))
+        r_ind = math.floor(r)
+        g_ind = math.floor(g)
 
         r_ind = min(max(r_ind, 0), lut_size - 2)
         g_ind = min(max(g_ind, 0), lut_size - 2)
@@ -207,7 +210,7 @@ def apply_2d_lut(image: np.ndarray, lut: np.ndarray) -> np.ndarray:
 
                 out_flat[i, ch] = (r_val * r_factor2 + g_val * g_factor2 + S_val * s_factor) * S
 
-    out_shape = orig_shape[:-1] + (k,)
+    out_shape = (*orig_shape[:-1], k)
     return out_flat.reshape(out_shape)
 
 
@@ -264,8 +267,7 @@ def _get_training_data(
 def build_binned_triangulation(
     all_xy: np.ndarray, all_spectra_norm: np.ndarray, grid_res: int
 ) -> tuple[Delaunay, np.ndarray]:
-    """
-    Bin training spectra and create a Delaunay triangulation.
+    """Bin training spectra and create a Delaunay triangulation.
 
     Args:
         all_xy: Training chromaticity coordinates.
@@ -274,6 +276,7 @@ def build_binned_triangulation(
 
     Returns:
         The triangulation and averaged spectra.
+
     """
     scale = grid_res - 1
 
@@ -306,8 +309,7 @@ def get_barycentric_prior(
     reduced_spectra: np.ndarray,
     cmfs: np.ndarray,
 ) -> tuple[np.ndarray | None, bool]:
-    """
-    Compute a barycentric prior spectrum using the binned Delaunay mesh.
+    """Compute a barycentric prior spectrum using the binned Delaunay mesh.
 
     Args:
         xy: Target chromaticity coordinates.
@@ -317,6 +319,7 @@ def get_barycentric_prior(
 
     Returns:
         The prior spectrum and whether a valid triangle was found.
+
     """
     simplex_idx = triangulation.find_simplex(xy)
     if simplex_idx < 0:
@@ -366,8 +369,7 @@ def xy_to_spectrum_nnls(
     triangulation: Delaunay | None = None,
     reduced_spectra: np.ndarray | None = None,
 ) -> np.ndarray:
-    """
-    Find a non-negative spectrum, optionally guided by a barycentric prior.
+    """Find a non-negative spectrum, optionally guided by a barycentric prior.
 
     Args:
         xy: Target chromaticity coordinates.
@@ -379,6 +381,7 @@ def xy_to_spectrum_nnls(
 
     Returns:
         A normalized non-negative spectrum.
+
     """
     x, y = xy
     if x + y > 1 or y <= 0:
@@ -419,7 +422,7 @@ def _sample_grid_nnls(
     smoothness_loss_factor: float = 1.0,
     data_loss_factor: float = 2.5,
 ) -> np.ndarray:
-    """Helper to sample NNLS across the full 2D grid resolution."""
+    """Sample NNLS across the full 2D grid resolution."""
     grid_coords = np.linspace(0, 1, resolution, dtype=np.float32)
     n_bins = cmfs.shape[0]
     out = np.empty((resolution, resolution, n_bins), dtype=np.float32)
@@ -465,14 +468,14 @@ _METHOD_REGISTRY: dict[str, MethodHandler] = {}
 
 
 def register_method(name: str):
-    """
-    Register a spectral upsampling LUT generator.
+    """Register a spectral upsampling LUT generator.
 
     Args:
         name: Name used to select the method.
 
     Returns:
         A decorator that registers the generator function.
+
     """
 
     def decorator(fn: MethodHandler) -> MethodHandler:
@@ -552,8 +555,9 @@ def _evaluate_xyz_to_sd(
     method: str,
     target_shape: colour.SpectralShape = SPECTRAL_SHAPE,
 ) -> np.ndarray:
-    """
-    Evaluates colour.XYZ_to_sd across vectorized inputs (e.g., Mallett 2019)
+    """Evaluate colour.XYZ_to_sd across vectorized inputs.
+
+    This handles vectorized inputs (for example Mallett 2019)
     or element-wise loops for non-vectorized methods (Smits 1999, Otsu 2018).
     """
     target_xyz = _prepare_target_xyz(valid_xyz)
@@ -572,7 +576,9 @@ def _evaluate_xyz_to_sd(
         if spec_values.ndim == 2 and spec_values.shape[0] == len(target_xyz):
             return np.nan_to_num(spec_values, nan=0.0, posinf=0.0, neginf=0.0)
     except Exception:
-        pass  # Fall back to element-wise processing below
+        logger.debug(
+            "Vectorized spectrum evaluation failed; falling back to element-wise evaluation."
+        )
 
     # Point-by-point fallback loop for methods expecting single 1D vectors (Smits, Otsu)
     spec_list = []
@@ -595,7 +601,7 @@ def _generate_colour_sd_lut(
     cmfs: np.ndarray | colour.SpectralDistribution = None,
     method: str = "Mallett 2019",
 ) -> np.ndarray:
-    """Generates a 2D xy chromaticity to spectrum LUT using colour.XYZ_to_sd."""
+    """Generate a 2D xy chromaticity-to-spectrum LUT using colour.XYZ_to_sd."""
     # Build xy chromaticity grid (S = X + Y + Z = 1)
     x = np.linspace(0, 1, resolution, dtype=DEFAULT_DTYPE)
     y = np.linspace(0, 1, resolution, dtype=DEFAULT_DTYPE)
@@ -663,8 +669,7 @@ def get_spectrum_lut(
     resolution: int = 33,
     illuminants: tuple[str, ...] | None = None,
 ) -> np.ndarray:
-    """
-    Computes or retrieves a cached 2D spectral lookup table.
+    """Compute or retrieve a cached 2D spectral lookup table.
 
     Args:
         method: Upsampling method registered in the registry.
@@ -674,6 +679,7 @@ def get_spectrum_lut(
 
     Returns:
         np.ndarray: LUT array of shape (resolution, resolution, n_bins).
+
     """
     if method not in _METHOD_REGISTRY:
         available = list(_METHOD_REGISTRY.keys())

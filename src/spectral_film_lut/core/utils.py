@@ -1,6 +1,4 @@
-"""
-Additional utility functions.
-"""
+"""Additional utility functions."""
 
 from __future__ import annotations
 
@@ -43,8 +41,8 @@ def film_conversion(
     exp_kelvin: int | float = 6500,
     tint: float = 0.0,
     exp_comp: float = 0.0,
-    color_masking: None | float = None,
-    dye_inhibition: None | float = None,
+    color_masking: float | None = None,
+    dye_inhibition: float | None = None,
     adx_coding: bool = True,
     adx_scaling: float | int = 1.0,
     red_light: float = 0.0,
@@ -65,8 +63,7 @@ def film_conversion(
     reference_negative: FilmSpectral | None = None,
     upsampling_method: UpsampleMethod | str = "SFL upsampling",
 ) -> np.ndarray:
-    """
-    Emulates the full film pipeline including exposure, printing, and projection.
+    """Emulates the full film pipeline including exposure, printing, and projection.
 
     Args:
         upsampling_method: How to perform spectral upsampling.
@@ -117,6 +114,7 @@ def film_conversion(
     Returns:
         An image (or LUT) representing the transformed scene data after (partial) film
         emulation.
+
     """
     image = np.ascontiguousarray(image)
 
@@ -213,7 +211,7 @@ def film_conversion(
             else:
                 output_film = negative_film
 
-            image, out_gray = output_film.project(
+            image, _ = output_film.project(
                 image,
                 projector_kelvin,
                 white_clip,
@@ -250,8 +248,7 @@ def create_lut(
     filter_mode: Literal["oversampling", "shift"] | None = None,
     **kwargs,
 ) -> np.ndarray | str:
-    """
-    Create a 3D LUT using film spectral conversions.
+    """Create a 3D LUT using film spectral conversions.
 
     Args:
         negative_film: Film stock used to capture the scene.
@@ -271,6 +268,7 @@ def create_lut(
         - `oversampling`: Oversampled grid followed by a median filter.
         - `shift`: Dual-grid evaluation followed by 8-corner voxel averaging.
         - `None`: Standard N-cube evaluation.
+
     """
     start = time.time()
 
@@ -313,7 +311,7 @@ def create_lut(
 
     if not cube:
         if verbose:
-            print(f"Created LUT in {time.time() - start:.4f} seconds")
+            print(f"Created LUT in {time.time() - start:.4f} seconds")  # noqa: T201
         return table
 
     lut = colour.LUT3D(table=table, name=name)
@@ -321,7 +319,7 @@ def create_lut(
     colour.io.write_LUT(lut, path)
 
     if verbose:
-        print(f"Created {path} in {time.time() - start:.4f} seconds")
+        print(f"Created {path} in {time.time() - start:.4f} seconds")  # noqa: T201
 
     return path
 
@@ -345,6 +343,7 @@ def multi_channel_interp(
 
     Returns:
         Interpolated array with the same shape as ``x``.
+
     """
     orig_shape = x.shape
     c = orig_shape[-1]
@@ -400,6 +399,7 @@ def apply_lut_tetrahedral_int(
 
     Returns:
         Output image of shape ``(H, W, 3)``, dtype ``uint8``.
+
     """
     h, w, c = image.shape
     size = lut.shape[0]
@@ -468,8 +468,7 @@ def smooth_roll_off(
     gamma: float,
     d_min: float = 0.0,
 ):
-    """
-    Function that rolls-off smoothly towards 0.
+    """Roll off density smoothly toward zero.
 
     Args:
         x: Values that are to be mapped.
@@ -480,6 +479,7 @@ def smooth_roll_off(
 
     Returns:
         The rolled-off density values.
+
     """
     offset = np.log10(10 ** (y0 - d_min) - 1) - gamma * x0
     return np.log10(1 + 10 ** (gamma * x + offset)) + d_min
@@ -491,8 +491,7 @@ def linear_roll_off(
     y0: float | np.ndarray,
     gamma: float,
 ):
-    """
-    Function that rolls-off smoothly towards 0.
+    """Roll off values smoothly toward zero.
 
     Args:
         x: Values that are to be mapped.
@@ -502,6 +501,7 @@ def linear_roll_off(
 
     Returns:
         The linearly rolled-off values.
+
     """
     return gamma * x + (y0 - x0 * gamma)
 

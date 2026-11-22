@@ -1,4 +1,4 @@
-"""Kodak Supra Endura Paper"""
+"""Kodak Supra Endura Paper."""
 
 from spectral_film_lut.data.film_data import FilmData
 

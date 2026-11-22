@@ -1,6 +1,4 @@
-"""
-Here data and functions for handling and specifying density values is included.
-"""
+"""Here data and functions for handling and specifying density values is included."""
 
 from typing import Literal
 
@@ -314,8 +312,7 @@ APD = {
 def interpolate_status_density(
     status: list[dict[int, float]], spectral_shape=SPECTRAL_SHAPE
 ) -> np.ndarray:
-    """
-    Convert logarithmic status density values to a normalized linear density matrix.
+    """Convert logarithmic status density values to a normalized linear density matrix.
 
     Args:
         status: Status-density spectra for the film layers.
@@ -323,9 +320,10 @@ def interpolate_status_density(
 
     Returns:
         Normalized spectral density values.
+
     """
     result = []
-    for i, density in enumerate(status):
+    for _, density in enumerate(status):
         density = colour.SpectralDistribution(density).extrapolate(
             spectral_shape, extrapolator_kwargs={"method": "linear"}
         )
@@ -358,8 +356,7 @@ DENSITY_MEASURE = Literal["status_a", "status_m", "apd", "absolute", "bw"]
 
 
 def wavelength_argmax(distribution: colour.SpectralDistribution, low=None, high=None) -> int:
-    """
-    Get the wavelength of maximum value within an optional range.
+    """Get the wavelength of maximum value within an optional range.
 
     Args:
         distribution: Spectral distribution to inspect.
@@ -368,6 +365,7 @@ def wavelength_argmax(distribution: colour.SpectralDistribution, low=None, high=
 
     Returns:
         Wavelength of the maximum value.
+
     """
     range = distribution.copy()
     if low is not None and high is not None:
@@ -377,8 +375,7 @@ def wavelength_argmax(distribution: colour.SpectralDistribution, low=None, high=
 
 
 def wavelength_argmin(distribution: colour.SpectralDistribution, low=None, high=None) -> int:
-    """
-    Get the wavelength of minimum value within an optional range.
+    """Get the wavelength of minimum value within an optional range.
 
     Args:
         distribution: Spectral distribution to inspect.
@@ -387,6 +384,7 @@ def wavelength_argmin(distribution: colour.SpectralDistribution, low=None, high=
 
     Returns:
         Wavelength of the minimum value.
+
     """
     range = distribution.copy()
     if low is not None and high is not None:
@@ -396,8 +394,7 @@ def wavelength_argmin(distribution: colour.SpectralDistribution, low=None, high=
 
 
 def construct_spectral_density(ref_density: colour.SpectralDistribution, sigma=20) -> np.ndarray:
-    """
-    Split a reference density curve into separate layers using local extrema.
+    """Split a reference density curve into separate layers using local extrema.
 
     Args:
         ref_density: Combined spectral density curve.
@@ -405,6 +402,7 @@ def construct_spectral_density(ref_density: colour.SpectralDistribution, sigma=2
 
     Returns:
         Spectral density values for each separated layer.
+
     """
     red_peak = wavelength_argmax(ref_density, 600, min(750, SPECTRAL_SHAPE.end))
     green_peak = wavelength_argmax(ref_density, 500, 600)
@@ -429,11 +427,11 @@ def construct_spectral_density(ref_density: colour.SpectralDistribution, sigma=2
 
 
 def compute_printer_lights() -> tuple[np.ndarray, np.ndarray]:
-    """
-    Convert the APD printer spectrum into red, green, and blue printer lights.
+    """Convert the APD printer spectrum into red, green, and blue printer lights.
 
     Returns:
         The printer spectrum and its three-channel spectral density matrix.
+
     """
     printer_light = colour.SpectralDistribution(
         {
@@ -639,8 +637,8 @@ PRINTER_LIGHT_APD, PRINTER_LIGHTS = compute_printer_lights()
 def adx16_encode(
     apd: np.ndarray, apd_min: np.ndarray | None = None, scaling: float = 1.0
 ) -> np.ndarray:
-    """
-    Converts from absolute APD density values to ADX16 values.
+    """Convert absolute APD density values to ADX16 values.
+
     Instead of as 16 bit int, the output is encoded as a float in the range [0, 1].
 
     Args:
@@ -651,6 +649,7 @@ def adx16_encode(
 
     Returns:
         ADX-like encoded values in the [0, 1] range.
+
     """
     if apd_min is None:
         apd_min = np.zeros(3, dtype=DEFAULT_DTYPE)
@@ -664,7 +663,7 @@ def adx16_encode(
     # Perform vectorized computation
     adx = scale * (8000.0 / 65535.0) * (apd - apd_min) + (1520.0 / 65535.0)
 
-    # Round to nearest integer and clip to 0–65535 range
+    # Round to nearest integer and clip to [0, 65535] range
     adx = np.clip(adx * scaling, 0, 1)
 
     # Convert to uint16 to save space (fits ADX10 range)
@@ -674,8 +673,8 @@ def adx16_encode(
 def adx16_decode(
     adx: np.ndarray, apd_min: np.ndarray | None = None, scaling: float = 1.0
 ) -> np.ndarray:
-    """
-    Converts from ADX16 values to absolute APD density.
+    """Convert ADX16 values to absolute APD density.
+
     Instead of as 16 bit int the output is expected as a float in the range [0, 1].
 
     Args:
@@ -686,6 +685,7 @@ def adx16_decode(
 
     Returns:
         Absolute APD density values.
+
     """
     if apd_min is None:
         apd_min = np.zeros(3, dtype=DEFAULT_DTYPE)
@@ -710,8 +710,7 @@ def output_to_density(
     x0: np.ndarray | None = None,
     method: str = "lm",
 ) -> np.ndarray:
-    """
-    Numerically recover density values from a spectral output mapping.
+    """Numerically recover density values from a spectral output mapping.
 
     Args:
         y: Target output vector.
@@ -722,6 +721,7 @@ def output_to_density(
 
     Returns:
         Density values whose forward mapping approximates `y`.
+
     """
     n = a.shape[1]
     if x0 is None:

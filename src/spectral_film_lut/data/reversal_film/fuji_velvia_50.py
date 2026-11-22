@@ -1,4 +1,4 @@
-"""Fuji Velvia 50"""
+"""Fuji Velvia 50."""
 
 from spectral_film_lut.data.film_data import FilmData
 

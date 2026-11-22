@@ -55,7 +55,20 @@ version-file = "src/spectral_film_lut/_version.py"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+    "SIM",
+    "RUF",
+    "C4",
+    "T20",
+    "D",
+    "S",
+    "PT",
+]
 
 [tool.ruff.format]
 quote-style = "double"

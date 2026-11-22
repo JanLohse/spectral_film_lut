@@ -1,4 +1,4 @@
-"""Kodak Vision Premier 2393"""
+"""Kodak Vision Premier 2393."""
 
 from spectral_film_lut.data.film_data import FilmData
 

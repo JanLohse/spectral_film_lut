@@ -1,4 +1,4 @@
-"""Fuji Crystal Archive Maxima"""
+"""Fuji Crystal Archive Maxima."""
 
 from dataclasses import replace
 

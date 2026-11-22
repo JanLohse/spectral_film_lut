@@ -26,7 +26,7 @@ def build_preview_and_source_panel(window, left_layout, add_option) -> None:
         tool_tip="Select an image encoded in the target LUT color space.",
     )
 
-    colorspaces = ["CIE XYZ 1931"] + list(RGB_COLOURSPACES.data.keys())
+    colorspaces = ["CIE XYZ 1931", *list(RGB_COLOURSPACES.data.keys())]
     window.input_colorspace_selector = WideComboBox()
     window.input_colorspace_selector.addItems(colorspaces)
     add_option(

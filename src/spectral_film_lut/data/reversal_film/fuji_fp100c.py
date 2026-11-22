@@ -1,4 +1,4 @@
-"""Fuji FP-100C"""
+"""Fuji FP-100C."""
 
 from spectral_film_lut.data.film_data import FilmData
 

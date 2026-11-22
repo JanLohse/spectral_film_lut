@@ -1,6 +1,4 @@
-"""
-A helper function to load film stocks with a dynamic loading bar.
-"""
+"""A helper function to load film stocks with a dynamic loading bar."""
 
 import sys
 
@@ -12,7 +10,7 @@ from spectral_film_lut.ui.theme import THEME
 
 
 def load_filmstocks(progress_callback, gray_value=None):
-    """Processes film stock data in parallel and reports the progress to the progress bar."""
+    """Load all film stock data and report progress."""
     result = []
     total = len(FILM_STOCKS)
     for i, film_stock in enumerate(FILM_STOCKS, start=1):
@@ -33,7 +31,7 @@ def load_ui(
     gray_value: float | None = None,
     exit_immediately: bool = False,
 ):
-    """Helper function for loading UI elements in *spectral_film_lut* and *raw2film*."""
+    """Load UI elements for the application."""
     app.setStyleSheet(THEME)
 
     def update_progress(current, total, name):

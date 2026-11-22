@@ -1,4 +1,4 @@
-"""
-Here we include the data of reversal print paper intended to be used with color positive
-film.
+"""Provide reversal print paper data for color-positive film.
+
+The package contains stock profiles intended for use with color-positive film.
 """

@@ -1,4 +1,4 @@
-"""Kodak Ektachrome Radiance III Paper"""
+"""Kodak Ektachrome Radiance III Paper."""
 
 from spectral_film_lut.data.film_data import FilmData
 

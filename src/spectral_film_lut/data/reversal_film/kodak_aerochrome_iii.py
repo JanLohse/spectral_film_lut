@@ -1,4 +1,4 @@
-"""Kodak Aerochrome III Infrared Film 1443"""
+"""Kodak Aerochrome III Infrared Film 1443."""
 
 from spectral_film_lut.data.film_data import FilmData
 

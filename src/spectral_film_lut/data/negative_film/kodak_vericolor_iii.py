@@ -1,4 +1,4 @@
-"""Kodak Vericolor III"""
+"""Kodak Vericolor III."""
 
 from spectral_film_lut.data.film_data import FilmData
 

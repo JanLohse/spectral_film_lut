@@ -1,4 +1,4 @@
-"""Fuji Instax color"""
+"""Fuji Instax color."""
 
 from spectral_film_lut.data.film_data import FilmData
 

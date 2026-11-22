@@ -1,4 +1,4 @@
-"""Kodak Gold 200"""
+"""Kodak Gold 200."""
 
 from spectral_film_lut.data.film_data import FilmData
 

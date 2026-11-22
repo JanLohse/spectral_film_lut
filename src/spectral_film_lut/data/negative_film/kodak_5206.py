@@ -1,4 +1,4 @@
-"""Kodak Verita 200D 5206"""
+"""Kodak Verita 200D 5206."""
 
 from spectral_film_lut.data.film_data import FilmData
 

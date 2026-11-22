@@ -1,3 +1,1 @@
-"""
-Here we include the data of positive films.
-"""
+"""Here we include the data of positive films."""

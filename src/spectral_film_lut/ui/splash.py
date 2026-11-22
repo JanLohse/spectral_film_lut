@@ -1,11 +1,14 @@
 """The splash screen shown at boot."""
 
 import ctypes
+import logging
 import sys
 from ctypes import wintypes
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QLabel, QProgressBar, QVBoxLayout, QWidget
+
+logger = logging.getLogger(__name__)
 
 PROGRESS_BACKGROUND = "#2d2d2d"
 PROGRESS_COLOR = "#dddddd"
@@ -18,6 +21,7 @@ class SplashScreen(QWidget):
     """Application splash screen with a progress bar."""
 
     def __init__(self, name, version, total_items=100):
+        """Initialize the splash screen with application and progress labels."""
         super().__init__()
         self.setWindowTitle(f"{name} {version}")
         self.setFixedSize(400, 180)
@@ -59,6 +63,7 @@ class SplashScreen(QWidget):
         QApplication.processEvents()
 
     def update_style_sheet(self, progress, colour=None):
+        """Update the progress bar colors for the current loading stage."""
         # Style the progress bar
         if colour is not None and progress:
             progress_color = colour.convert((0.5, 0.08, progress), "Oklch", "Hexadecimal")
@@ -79,9 +84,11 @@ class SplashScreen(QWidget):
         """)
 
     def set_total_items(self, total_items):
+        """Set the number of items in the loading operation."""
         self.progress.setRange(0, total_items)
 
     def update(self, current, total, name, colour):
+        """Update the progress bar and status label."""
         self.progress.setValue(current)
         self.update_style_sheet(current / self.total_items, colour=colour)
         self.label.setText(f"Loading {name} ({current}/{total})")
@@ -103,11 +110,10 @@ def set_dark_title_bar(hwnd):
 
 
 class DarkApp(QApplication):
-    """
-    An application that ensures all windows are rendered in a dark theme on Windows.
-    """
+    """An application that ensures all windows are rendered in a dark theme on Windows."""
 
     def notify(self, receiver, event):
+        """Apply the dark title-bar setting to newly shown windows."""
         result = super().notify(receiver, event)
         if (
             event.type() == event.Type.Show
@@ -118,12 +124,12 @@ class DarkApp(QApplication):
                 hwnd = int(receiver.winId())
                 set_dark_title_bar(hwnd)
             except Exception:
-                pass
+                logger.debug("Could not apply dark title bar settings.", exc_info=True)
         return result
 
 
 def launch_splash_screen(name, version):
-    """Creates the splash screen and starts it."""
+    """Create the splash screen and start its application."""
     if sys.platform == "win32":
         app = DarkApp(sys.argv)
     else:

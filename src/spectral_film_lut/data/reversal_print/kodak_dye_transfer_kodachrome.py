@@ -1,4 +1,4 @@
-"""Kodak Dye Transfer for Kodachrome"""
+"""Kodak Dye Transfer for Kodachrome."""
 
 from spectral_film_lut.data.film_data import FilmData
 

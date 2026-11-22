@@ -1,6 +1,4 @@
-"""
-Here the theming of the UI is specified.
-"""
+"""Here the theming of the UI is specified."""
 
 import colour
 

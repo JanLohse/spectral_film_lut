@@ -1,4 +1,4 @@
-"""Fuji Eterna 500"""
+"""Fuji Eterna 500."""
 
 from spectral_film_lut.data.film_data import FilmData
 
