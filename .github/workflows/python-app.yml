@@ -32,6 +32,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
+      - name: Install Qt system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1
+
       - name: Build
         run: uv build
 
@@ -42,11 +47,6 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: uv run pytest -q
-
-      - name: Install Qt system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libegl1 libgl1
 
       - name: Smoke test (wheel)
         env:
