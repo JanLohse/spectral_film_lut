@@ -1,6 +1,4 @@
-"""
-Here file formats and encoding parameters for the grain generation are defined.
-"""
+"""Here file formats and encoding parameters for the grain generation are defined."""
 
 FILE_FORMATS = {
     # --- Apple ProRes ---

@@ -22,3 +22,10 @@ repos:
     rev: 0.11.8
     hooks:
       - id: uv-lock
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run pytest -q -m component
+        language: system
+        pass_filenames: false

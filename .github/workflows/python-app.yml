@@ -9,6 +9,37 @@ permissions:
   id-token: write
 
 jobs:
+  tests:
+    name: Pytest
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [ "3.11", "3.12", "3.13", "3.14" ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Install Qt system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1
+
+      - name: Install test dependencies
+        run: uv sync --group dev
+
+      - name: Run pytest
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run pytest -q
+
   checks:
     name: Lint and Build Tests
     runs-on: ubuntu-latest
@@ -32,24 +63,28 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
-      - name: Build
-        run: uv build
-
       - name: Install Qt system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libegl1 libgl1
 
+      - name: Build
+        run: uv build
+
       - name: Smoke test (wheel)
-        run: uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run --isolated --no-project --with dist/*.whl python -c "from spectral_film_lut.__main__ import run; run(exit_immediately=True)"
 
       - name: Smoke test (source distribution)
-        run: uv run --isolated --no-project --with dist/*.tar.gz tests/smoke_test.py
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run --isolated --no-project --with dist/*.tar.gz python -c "from spectral_film_lut.__main__ import run; run(exit_immediately=True)"
 
 
   build-docs:
     name: Build Docs
-    needs: checks
+    needs: [checks, tests]
     runs-on: ubuntu-latest
 
     steps:
@@ -99,7 +134,7 @@ jobs:
 
   create-tag:
     name: Create New Tag
-    needs: checks
+    needs: [checks, tests]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
@@ -140,7 +175,7 @@ jobs:
 
   build-artifacts:
     name: Build Artifacts
-    needs: [ checks, create-tag ]
+    needs: [checks, create-tag]
     if: |
       always() &&
       needs.checks.result == 'success' &&
