@@ -175,11 +175,10 @@ jobs:
 
   build-artifacts:
     name: Build Artifacts
-    needs: [checks, tests, create-tag]
+    needs: [checks, create-tag]
     if: |
       always() &&
       needs.checks.result == 'success' &&
-      needs.tests.result == 'success' &&
       (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ${{ matrix.os }}
 
