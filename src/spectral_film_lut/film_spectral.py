@@ -61,6 +61,7 @@ class FilmSpectral:
 
         """
         self._apd_alignment_cache = {}
+        self._dye_inhibition_cache = {}
         self._copy_film_metadata(film_data, gray_value)
         self._initialize_computable_attributes()
         self._initialize_spectral_distributions(film_data)
@@ -706,6 +707,7 @@ class FilmSpectral:
         push_pull: float = 0.0,
         dye_inhibition: float | None = None,
         color_masking: float | None = None,
+        dye_inhibition_matrix: np.ndarray | None = None,
     ) -> np.ndarray:
         """Get characteristic density curve for current film stock.
 
@@ -713,6 +715,7 @@ class FilmSpectral:
             push_pull: By how many stops to push/pull the negative to adjust contrast.
             dye_inhibition: Intensity of development inhibitor regeneration (DIR).
             color_masking: Intensity of color masking, from 0.0 (none) to 1.0 (full).
+            dye_inhibition_matrix: Optional precomputed dye-inhibition matrix.
 
         Returns:
             The density curve.
@@ -721,7 +724,11 @@ class FilmSpectral:
         sensiometric_curve = self.sensiometric_curve.copy()
 
         if self.density_measure != "bw" and color_masking:
-            color_masking_matrix = self.get_color_masking_matrix(color_masking, dye_inhibition)
+            color_masking_matrix = self.get_color_masking_matrix(
+                color_masking,
+                dye_inhibition,
+                dye_inhibition_matrix=dye_inhibition_matrix,
+            )
             color_masking_inv = np.linalg.inv(color_masking_matrix)
             sensiometric_curve[1:] = color_masking_inv @ sensiometric_curve[1:]
 
@@ -1193,34 +1200,45 @@ class FilmSpectral:
 
         log_clip(image)
 
-        if (
-            dye_inhibition is not None
-            and dye_inhibition != 0
-            and self.density_measure != "bw"
-            and self.stage == "camera"
-        ):
-            density_curve = self.get_density_curve(
-                push_pull, dye_inhibition=dye_inhibition, color_masking=color_masking
+        if dye_inhibition and self.density_measure != "bw" and self.stage == "camera":
+            image = self._apply_dye_inhibition(
+                image,
+                push_pull,
+                dye_inhibition,
+                color_masking,
             )
-            dye_inhibition_matrix = self.get_dye_inhibition_matrix(dye_inhibition)
-
-            d_init = multi_channel_interp(image, density_curve)
-            if self.film_type == "positive":
-                inh_source = np.clip(self.d_max - d_init, 0.0, None)
-            else:
-                inh_source = np.clip(d_init, 0.0, None)
-
-            image -= inh_source @ dye_inhibition_matrix.T
-
-            density_curve = self._adjust_density_curve(density_curve, dye_inhibition_matrix)
-
-            image = multi_channel_interp(image, density_curve)
         else:
             image = self.log_exposure_to_density(
                 image, push_pull, color_masking=color_masking, dye_inhibition=dye_inhibition
             )
 
         return image
+
+    def _apply_dye_inhibition(
+        self,
+        log_exposure: np.ndarray,
+        push_pull: float,
+        dye_inhibition: float,
+        color_masking: float | None,
+    ) -> np.ndarray:
+        """Apply camera dye inhibition and return the adjusted layer densities."""
+        dye_inhibition_matrix = self.get_dye_inhibition_matrix(dye_inhibition)
+        density_curve = self.get_density_curve(
+            push_pull,
+            dye_inhibition=dye_inhibition,
+            color_masking=color_masking,
+            dye_inhibition_matrix=dye_inhibition_matrix,
+        )
+
+        initial_density = multi_channel_interp(log_exposure, density_curve)
+        if self.film_type == "positive":
+            inhibition_source = np.clip(self.d_max - initial_density, 0.0, None)
+        else:
+            inhibition_source = np.clip(initial_density, 0.0, None)
+
+        adjusted_exposure = log_exposure - inhibition_source @ dye_inhibition_matrix.T
+        adjusted_curve = self._adjust_density_curve(density_curve, dye_inhibition_matrix)
+        return multi_channel_interp(adjusted_exposure, adjusted_curve)
 
     def _adjust_density_curve(
         self, density_curve: np.ndarray, dye_inhibition_matrix: np.ndarray
@@ -1332,6 +1350,8 @@ class FilmSpectral:
         base_curve = self.get_density_curve(
             push_pull=push_pull,
             color_masking=color_masking,
+            dye_inhibition=dye_inhibition,
+            dye_inhibition_matrix=inh,
         )
         adjusted_curve = self._adjust_density_curve(base_curve, inh)
         eff_gamma = self._estimate_adjusted_gamma(adjusted_curve, fallback=adx_gamma)
@@ -1349,15 +1369,21 @@ class FilmSpectral:
             The dye-inhibition matrix.
 
         """
-        if self.density_measure == "bw" or self.stage != "camera":
-            return np.eye(3, dtype=DEFAULT_DTYPE)
-        return (self._dye_inhibition_base * float(dye_inhibition)).astype(DEFAULT_DTYPE)
+        cache_key = float(dye_inhibition)
+        if cache_key not in self._dye_inhibition_cache:
+            if self.density_measure == "bw" or self.stage != "camera":
+                matrix = np.eye(3, dtype=DEFAULT_DTYPE)
+            else:
+                matrix = (self._dye_inhibition_base * cache_key).astype(DEFAULT_DTYPE)
+            self._dye_inhibition_cache[cache_key] = matrix
+        return self._dye_inhibition_cache[cache_key]
 
     def get_color_masking_matrix(
         self,
         color_masking: float | None = None,
         dye_inhibition: float | None = None,
         push_pull: float = 0.0,
+        dye_inhibition_matrix: np.ndarray | None = None,
     ) -> np.ndarray:
         """Build the matrix used to apply color masking.
 
@@ -1365,6 +1391,7 @@ class FilmSpectral:
             color_masking: Intensity of color masking, from 0.0 (none) to 1.0 (full).
             dye_inhibition: Intensity of development inhibitor regeneration (DIR).
             push_pull: Exposure adjustment in stops.
+            dye_inhibition_matrix: Optional precomputed dye-inhibition matrix.
 
         Returns:
             The color-masking matrix.
@@ -1386,7 +1413,11 @@ class FilmSpectral:
 
         # Optional subtle coupling so DIR doesn't get wiped out when color_masking is high
         if dye_inhibition is not None and dye_inhibition != 0:
-            inh = self.get_dye_inhibition_matrix(dye_inhibition)
+            inh = (
+                dye_inhibition_matrix
+                if dye_inhibition_matrix is not None
+                else self.get_dye_inhibition_matrix(dye_inhibition)
+            )
             # Keep diagonal at 1 and attenuate off-diagonal over-correction slightly
             damping = 1.0 / (1.0 + 0.5 * abs(float(dye_inhibition)))
             off_diag = (inh - np.diag(np.diag(inh))) * damping
