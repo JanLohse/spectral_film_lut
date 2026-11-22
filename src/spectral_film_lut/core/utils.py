@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import time
 from typing import TYPE_CHECKING, Literal
@@ -24,6 +25,8 @@ from spectral_film_lut.core.color_space import (
     GAMMA_KEYS,
 )
 from spectral_film_lut.core.xy_lut import UpsampleMethod
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from spectral_film_lut.film_spectral import FilmSpectral
@@ -311,7 +314,7 @@ def create_lut(
 
     if not cube:
         if verbose:
-            print(f"Created LUT in {time.time() - start:.4f} seconds")  # noqa: T201
+            logger.info("Created LUT in %.4f seconds", time.time() - start)
         return table
 
     lut = colour.LUT3D(table=table, name=name)
@@ -319,7 +322,7 @@ def create_lut(
     colour.io.write_LUT(lut, path)
 
     if verbose:
-        print(f"Created {path} in {time.time() - start:.4f} seconds")  # noqa: T201
+        logger.info("Created %s in %.4f seconds", path, time.time() - start)
 
     return path
 

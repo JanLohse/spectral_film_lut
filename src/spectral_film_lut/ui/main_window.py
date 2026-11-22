@@ -1,5 +1,6 @@
 """The main GUI implementation."""
 
+import logging
 import math
 import os
 import time
@@ -30,6 +31,8 @@ from spectral_film_lut.ui.panels import (
 from spectral_film_lut.ui.state import collect_lut_settings
 from spectral_film_lut.ui.theme import BASE_COLOR, BORDER_RADIUS
 from spectral_film_lut.ui.widgets.controls import AboutDialog, Worker
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=8)
@@ -96,6 +99,7 @@ class MainWindow(QMainWindow):
         left_layout.insertWidget(0, self.mode)
 
         self.input_colorspace_selector.currentTextChanged.connect(self.parameter_changed)
+        self.negative_selector.currentTextChanged.connect(self.parameter_changed)
         self.output_gamut.currentTextChanged.connect(self.parameter_changed)
         self.output_gamma.currentTextChanged.connect(self.parameter_changed)
         self.print_selector.currentTextChanged.connect(self.print_light_changed)
@@ -264,7 +268,7 @@ class MainWindow(QMainWindow):
 
         self.image.setPixmap(scaled_pixmap)
         if verbose:
-            print(f"applied lut in {time.time() - start:.2f} seconds")  # noqa: T201
+            logger.info("Applied LUT in %.2f seconds", time.time() - start)
 
     def save_lut(self):
         """Generate and save a LUT to a user-selected file."""

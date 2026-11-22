@@ -35,16 +35,28 @@ jobs:
       - name: Build
         run: uv build
 
+      - name: Install test dependencies
+        run: uv sync --group dev
+
+      - name: Run pytest
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run pytest -q
+
       - name: Install Qt system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libegl1 libgl1
 
       - name: Smoke test (wheel)
-        run: uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run --isolated --no-project --with dist/*.whl python -c "from spectral_film_lut.__main__ import run; run(exit_immediately=True)"
 
       - name: Smoke test (source distribution)
-        run: uv run --isolated --no-project --with dist/*.tar.gz tests/smoke_test.py
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run --isolated --no-project --with dist/*.tar.gz python -c "from spectral_film_lut.__main__ import run; run(exit_immediately=True)"
 
 
   build-docs:

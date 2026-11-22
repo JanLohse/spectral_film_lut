@@ -27,6 +27,7 @@ dev = [
     "mkdocstrings-python>=2.0.8",
     "pre-commit>=4.6.2",
     "pyinstaller>=6.22.3",
+    "pytest>=8.4.0",
     "ruff>=0.16.8",
     "zensical>=0.0.63",
 ]
@@ -66,12 +67,21 @@ select = [
     "C4",
     "T20",
     "D",
-    "S",
     "PT",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.pytest.ini_options]
+markers = [
+    "smoke: quick application startup smoke test",
+    "component: focused component-level tests",
+    "regression: visual or numerical output baselines",
+]
 
 [[tool.uv.index]]
 name = "testpypi"
